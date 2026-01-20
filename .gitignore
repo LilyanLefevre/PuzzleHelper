@@ -1,5 +1,9 @@
 *.iml
 .gradle
+/.windsurf
+/.claude
+/.idea
+/.kotlin
 /local.properties
 /.idea/caches
 /.idea/libraries
