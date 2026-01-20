@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PuzzleHelper - Directions de Design</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #45B7D1 0%, #4ECDC4 100%);
+            color: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(69, 183, 209, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .directions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .direction-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .direction-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .direction-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .direction-header h3 {
+            font-size: 1.4em;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .direction-header p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .direction-preview {
+            height: 600px;
+            position: relative;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        .phone-frame {
+            width: 320px;
+            height: 580px;
+            margin: 10px auto;
+            background: #2c3e50;
+            border-radius: 30px;
+            padding: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Direction 1: Minimaliste & Focus */
+        .direction-1 .phone-screen {
+            background: #fff;
+        }
+
+        .direction-1 .app-header {
+            background: #45B7D1;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .direction-1 .camera-area {
+            height: 200px;
+            background: #f0f8ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #45B7D1;
+            margin: 20px;
+            border-radius: 12px;
+        }
+
+        .direction-1 .camera-button {
+            background: #45B7D1;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .direction-1 .camera-button:hover {
+            background: #3a9bc4;
+        }
+
+        .direction-1 .confidence-bar {
+            margin: 20px;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .direction-1 .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF6B6B 0%, #FFA500 50%, #4ECDC4 100%);
+            width: 85%;
+            transition: width 0.5s ease;
+        }
+
+        /* Direction 2: Terre & Chaleureux */
+        .direction-2 .phone-screen {
+            background: #faf8f5;
+        }
+
+        .direction-2 .app-header {
+            background: #8B4513;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .direction-2 .camera-area {
+            height: 200px;
+            background: #f5e6d3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #8B4513;
+            margin: 20px;
+            border-radius: 12px;
+        }
+
+        .direction-2 .camera-button {
+            background: #8B4513;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .direction-2 .camera-button:hover {
+            background: #6d3410;
+        }
+
+        /* Direction 3: Moderne & Vif */
+        .direction-3 .phone-screen {
+            background: #fff;
+        }
+
+        .direction-3 .app-header {
+            background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .direction-3 .camera-area {
+            height: 200px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #FF6B6B;
+            margin: 20px;
+            border-radius: 12px;
+        }
+
+        .direction-3 .camera-button {
+            background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .direction-3 .camera-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Direction 4: Sombre & Professionnel */
+        .direction-4 .phone-screen {
+            background: #1a1a1a;
+            color: white;
+        }
+
+        .direction-4 .app-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .direction-4 .camera-area {
+            height: 200px;
+            background: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #45B7D1;
+            margin: 20px;
+            border-radius: 12px;
+        }
+
+        .direction-4 .camera-button {
+            background: #45B7D1;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .direction-4 .camera-button:hover {
+            background: #3a9bc4;
+        }
+
+        /* Direction 5: Ludique & Coloré */
+        .direction-5 .phone-screen {
+            background: #fff;
+        }
+
+        .direction-5 .app-header {
+            background: linear-gradient(135deg, #96CEB4 0%, #45B7D1 50%, #FF6B6B 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .direction-5 .camera-area {
+            height: 200px;
+            background: linear-gradient(135deg, #f0fff4 0%, #f0f8ff 50%, #fff0f0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px dashed #96CEB4;
+            margin: 20px;
+            border-radius: 12px;
+        }
+
+        .direction-5 .camera-button {
+            background: linear-gradient(135deg, #96CEB4 0%, #45B7D1 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .direction-5 .camera-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Direction 6: Élégant & Minimal */
+        .direction-6 .phone-screen {
+            background: #fafafa;
+        }
+
+        .direction-6 .app-header {
+            background: #333;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 300;
+        }
+
+        .direction-6 .camera-area {
+            height: 200px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+            margin: 20px;
+            border-radius: 8px;
+        }
+
+        .direction-6 .camera-button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .direction-6 .camera-button:hover {
+            background: #555;
+        }
+
+        .direction-features {
+            padding: 20px;
+        }
+
+        .feature-tag {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin: 2px;
+            color: #666;
+        }
+
+        .direction-1 .feature-tag {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .direction-2 .feature-tag {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .direction-3 .feature-tag {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+
+        .direction-4 .feature-tag {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .direction-5 .feature-tag {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .direction-6 .feature-tag {
+            background: #f5f5f5;
+            color: #616161;
+        }
+
+        .comparison-tools {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        .comparison-tools h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .tool-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tool-button {
+            background: #45B7D1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .tool-button:hover {
+            background: #3a9bc4;
+        }
+
+        .selection-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .selection-panel h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .selection-options {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .selection-button {
+            background: #4ECDC4;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            font-size: 1em;
+        }
+
+        .selection-button:hover {
+            background: #3db8af;
+        }
+
+        @media (max-width: 768px) {
+            .directions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .phone-frame {
+                width: 280px;
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧩 PuzzleHelper - Directions de Design</h1>
+            <p>Explorez 6 directions visuelles uniques pour votre application</p>
+        </div>
+
+        <div class="directions-grid">
+            <!-- Direction 1: Minimaliste & Focus -->
+            <div class="direction-card" onclick="selectDirection(1)">
+                <div class="direction-header">
+                    <h3>Direction 1: Minimaliste & Focus</h3>
+                    <p>Interface épurée avec focus sur l'essentiel</p>
+                </div>
+                <div class="direction-preview direction-1">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <div class="app-header">PuzzleHelper</div>
+                            <div class="camera-area">
+                                <button class="camera-button">📷 Prendre une photo</button>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill"></div>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 0.9em; color: #666;">Confiance: 85%</div>
+                                <div style="font-size: 0.8em; color: #999; margin-top: 5px;">Analyse en cours...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="direction-features">
+                    <span class="feature-tag">Material Design 3</span>
+                    <span class="feature-tag">Bleu confiance</span>
+                    <span class="feature-tag">Interface épurée</span>
+                    <span class="feature-tag">Focus performance</span>
+                </div>
+            </div>
+
+            <!-- Direction 2: Terre & Chaleureux -->
+            <div class="direction-card" onclick="selectDirection(2)">
+                <div class="direction-header">
+                    <h3>Direction 2: Terre & Chaleureux</h3>
+                    <p>Ambiance puzzle traditionnel avec tons boisés</p>
+                </div>
+                <div class="direction-preview direction-2">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <div class="app-header">PuzzleHelper</div>
+                            <div class="camera-area">
+                                <button class="camera-button">📷 Capturer</button>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 0.9em; color: #8B4513;">🧩 Analyse de pièce</div>
+                                <div style="font-size: 0.8em; color: #A0522D; margin-top: 5px;">Recherche de la position parfaite...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="direction-features">
+                    <span class="feature-tag">Tons boisés</span>
+                    <span class="feature-tag">Ambiance chaleureuse</span>
+                    <span class="feature-tag">Thème puzzle</span>
+                    <span class="feature-tag">Rassurant</span>
+                </div>
+            </div>
+
+            <!-- Direction 3: Moderne & Vif -->
+            <div class="direction-card" onclick="selectDirection(3)">
+                <div class="direction-header">
+                    <h3>Direction 3: Moderne & Vif</h3>
+                    <p>Couleurs vives et animations dynamiques</p>
+                </div>
+                <div class="direction-preview direction-3">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <div class="app-header">PuzzleHelper</div>
+                            <div class="camera-area">
+                                <button class="camera-button">📷 Scanner</button>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 0.9em; color: #FF6B6B;">✨ Moment "Aha!"</div>
+                                <div style="font-size: 0.8em; color: #4ECDC4; margin-top: 5px;">Solution trouvée!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="direction-features">
+                    <span class="feature-tag">Colors vives</span>
+                    <span class="feature-tag">Animations</span>
+                    <span class="feature-tag">Moderne</span>
+                    <span class="feature-tag">Énergique</span>
+                </div>
+            </div>
+
+            <!-- Direction 4: Sombre & Professionnel -->
+            <div class="direction-card" onclick="selectDirection(4)">
+                <div class="direction-header">
+                    <h3>Direction 4: Sombre & Professionnel</h3>
+                    <p>Mode sombre avec interface technique</p>
+                </div>
+                <div class="direction-preview direction-4">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <div class="app-header">PuzzleHelper</div>
+                            <div class="camera-area">
+                                <button class="camera-button">📷 Analyser</button>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 0.9em; color: #45B7D1;">🔍 Analyse CV</div>
+                                <div style="font-size: 0.8em; color: #ccc; margin-top: 5px;">Traitement local...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="direction-features">
+                    <span class="feature-tag">Mode sombre</span>
+                    <span class="feature-tag">Technique</span>
+                    <span class="feature-tag">Professionnel</span>
+                    <span class="feature-tag">Performance</span>
+                </div>
+            </div>
+
+            <!-- Direction 5: Ludique & Coloré -->
+            <div class="direction-card" onclick="selectDirection(5)">
+                <div class="direction-header">
+                    <h3>Direction 5: Ludique & Coloré</h3>
+                    <p>Ambiance jeu avec couleurs multicolores</p>
+                </div>
+                <div class="direction-preview direction-5">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <div class="app-header">PuzzleHelper</div>
+                            <div class="camera-area">
+                                <button class="camera-button">🎮 Jouer!</button>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 0.9em; color: #96CEB4;">🌈 Puzzle amusant</div>
+                                <div style="font-size: 0.8em; color: #FF6B6B; margin-top: 5px;">Prêt pour le défi!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="direction-features">
+                    <span class="feature-tag">Ludique</span>
+                    <span class="feature-tag">Multicolore</span>
+                    <span class="feature-tag">Gamification</span>
+                    <span class="feature-tag">Amusant</span>
+                </div>
+            </div>
+
+            <!-- Direction 6: Élégant & Minimal -->
+            <div class="direction-card" onclick="selectDirection(6)">
+                <div class="direction-header">
+                    <h3>Direction 6: Élégant & Minimal</h3>
+                    <p>Design minimaliste noir et blanc</p>
+                </div>
+                <div class="direction-preview direction-6">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <div class="app-header">PuzzleHelper</div>
+                            <div class="camera-area">
+                                <button class="camera-button">📷 Capturer</button>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 0.9em; color: #333;">Analyse</div>
+                                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">En cours...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="direction-features">
+                    <span class="feature-tag">Minimal</span>
+                    <span class="feature-tag">Élégant</span>
+                    <span class="feature-tag">Noir & blanc</span>
+                    <span class="feature-tag">Sophistiqué</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-tools">
+            <h2>🔧 Outils de Comparaison</h2>
+            <div class="tool-buttons">
+                <button class="tool-button" onclick="compareLayouts()">Comparer Layouts</button>
+                <button class="tool-button" onclick="compareColors()">Comparer Couleurs</button>
+                <button class="tool-button" onclick="compareInteractions()">Comparer Interactions</button>
+                <button class="tool-button" onclick="toggleDarkMode()">Mode Sombre</button>
+                <button class="tool-button" onclick="showAllDetails()">Voir Détails</button>
+            </div>
+        </div>
+
+        <div class="selection-panel">
+            <h2>🎯 Choisissez Votre Direction</h2>
+            <p>Cliquez sur une direction ci-dessus ou utilisez les options de sélection</p>
+            <div class="selection-options">
+                <button class="selection-button" onclick="selectDirection(1)">Direction 1</button>
+                <button class="selection-button" onclick="selectDirection(2)">Direction 2</button>
+                <button class="selection-button" onclick="selectDirection(3)">Direction 3</button>
+                <button class="selection-button" onclick="selectDirection(4)">Direction 4</button>
+                <button class="selection-button" onclick="selectDirection(5)">Direction 5</button>
+                <button class="selection-button" onclick="selectDirection(6)">Direction 6</button>
+                <button class="selection-button" onclick="combineDirections()">Combiner Éléments</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedDirection = null;
+        let isDarkMode = false;
+
+        function selectDirection(direction) {
+            selectedDirection = direction;
+            
+            // Remove previous selections
+            document.querySelectorAll('.direction-card').forEach(card => {
+                card.style.border = 'none';
+            });
+            
+            // Highlight selected
+            const cards = document.querySelectorAll('.direction-card');
+            cards[direction - 1].style.border = '3px solid #45B7D1';
+            
+            // Scroll to selection
+            cards[direction - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Show selection feedback
+            showSelectionFeedback(direction);
+        }
+
+        function showSelectionFeedback(direction) {
+            const directionNames = [
+                'Minimaliste & Focus',
+                'Terre & Chaleureux', 
+                'Moderne & Vif',
+                'Sombre & Professionnel',
+                'Ludique & Coloré',
+                'Élégant & Minimal'
+            ];
+            
+            alert(`Direction sélectionnée: ${directionNames[direction - 1]}\n\nCette direction sera utilisée comme base pour le design final de PuzzleHelper.`);
+        }
+
+        function compareLayouts() {
+            alert('📐 Comparaison des Layouts:\n\nDirection 1: Centré, minimaliste\nDirection 2: Traditionnel, équilibré\nDirection 3: Dynamique, asymétrique\nDirection 4: Technique, structuré\nDirection 5: Ludique, flexible\nDirection 6: Minimal, géométrique');
+        }
+
+        function compareColors() {
+            alert('🎨 Comparaison des Couleurs:\n\nDirection 1: Bleu confiance (#45B7D1)\nDirection 2: Bois naturel (#8B4513)\nDirection 3: Vif multicolore\nDirection 4: Sombre professionnel\nDirection 5: Arc-en-ciel ludique\nDirection 6: Noir & blanc élégant');
+        }
+
+        function compareInteractions() {
+            alert('🤝 Comparaison des Interactions:\n\nDirection 1: Tap simple, direct\nDirection 2: Gestuel, naturel\nDirection 3: Animé, dynamique\nDirection 4: Technique, précis\nDirection 5: Ludique, engageant\nDirection 6: Minimal, efficace');
+        }
+
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            if (isDarkMode) {
+                document.body.style.background = 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)';
+                document.body.style.color = '#ecf0f1';
+            } else {
+                document.body.style.background = 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)';
+                document.body.style.color = '#333';
+            }
+        }
+
+        function showAllDetails() {
+            alert('📋 Détails Complets:\n\nToutes les directions incluent:\n- Interface responsive\n- Support Material Design 3\n- Accessibilité WCAG AA\n- Performance optimisée\n- Animations fluides\n- Feedback utilisateur\n\nChoisissez selon votre préférence visuelle et émotionnelle!');
+        }
+
+        function combineDirections() {
+            alert('🔀 Combiner Éléments:\n\nVous pouvez combiner:\n- Layout de Direction 1\n- Couleurs de Direction 2\n- Animations de Direction 3\n\nNotez vos préférences pour personnaliser!\n\nExemple: "Je veux le layout minimaliste (1) avec les couleurs boisées (2) et les animations vives (3)"');
+        }
+
+        // Add hover effects
+        document.querySelectorAll('.direction-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                if (!this.style.border || this.style.border === 'none') {
+                    this.style.transform = 'translateY(0)';
+                }
+            });
+        });
+
+        // Add animation to confidence bars
+        setTimeout(() => {
+            document.querySelectorAll('.confidence-fill').forEach(bar => {
+                bar.style.width = Math.random() * 30 + 70 + '%';
+            });
+        }, 1000);
+    </script>
+</body>
+</html>
