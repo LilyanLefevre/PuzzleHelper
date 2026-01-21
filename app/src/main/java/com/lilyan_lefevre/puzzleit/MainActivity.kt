@@ -1,21 +1,39 @@
 package com.lilyan_lefevre.puzzleit
 
+import android.app.Activity
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.lilyan_lefevre.puzzleit.shared.ui.theme.PuzzleItTheme
+import android.util.Log
+import android.widget.Toast
+import org.opencv.android.OpenCVLoader
 
-class MainActivity : ComponentActivity() {
+/**
+ * Main Activity for PuzzleHelper Application
+ * Initializes OpenCV and sets up the basic application structure
+ */
+class MainActivity : Activity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+
+        // Initialize OpenCV
+        initializeOpenCV()
+    }
+
+    /**
+     * Initialize OpenCV library
+     * This must be called before using any OpenCV functions
+     */
+    private fun initializeOpenCV() {
+        if (OpenCVLoader.initLocal()) {
+            Log.i(TAG, "OpenCV loaded successfully")
+        } else {
+            Log.e(TAG, "OpenCV initialization failed!")
+            Toast.makeText(this, "OpenCV initialization failed!", Toast.LENGTH_LONG).show()
+        }
     }
 }
