@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.PuzzleIt" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.PuzzleIt" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/puzzle_primary</item>
+        <item name="colorOnPrimary">@color/puzzle_on_primary</item>
+        <item name="colorPrimaryContainer">@color/puzzle_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/puzzle_on_primary_container</item>
+        
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/puzzle_secondary</item>
+        <item name="colorOnSecondary">@color/puzzle_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/puzzle_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/puzzle_on_secondary_container</item>
+        
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/puzzle_primary</item>
+        
+        <!-- Customize your theme here. -->
+    </style>
+
 </resources>

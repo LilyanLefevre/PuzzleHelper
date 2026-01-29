@@ -1,3 +1,34 @@
 <resources>
     <string name="app_name">PuzzleIt</string>
+    
+    <!-- Project Creation Dialog -->
+    <string name="new_puzzle_project">New Puzzle Project</string>
+    <string name="puzzle_name">Puzzle name</string>
+    <string name="puzzle_name_hint">e.g., La vague</string>
+    <string name="number_of_pieces">Number of pieces</string>
+    <string name="number_of_pieces_hint">e.g., 1000</string>
+    <string name="create_project">Create Project</string>
+    <string name="cancel">Cancel</string>
+    <string name="please_enter_project_name">Please enter a project name</string>
+    <string name="please_enter_number_of_pieces">Please enter the number of pieces</string>
+    
+    <!-- Camera -->
+    <string name="camera_not_ready">Camera not ready</string>
+    <string name="photo_capture_failed">Photo capture failed: %s</string>
+    <string name="camera_permission_required">Camera Permission Required</string>
+    <string name="camera_permission_rationale">This app needs camera permission to capture puzzle box images. Please grant the permission to continue.</string>
+    <string name="camera_permission_denied">Camera permission was denied. Please enable it in settings to use this feature.</string>
+    
+    <!-- Error -->
+    <string name="error">Error</string>
+    <string name="ok">OK</string>
+    <string name="failed_to_process_image">Failed to process image: %s</string>
+    <string name="unknown_error">Unknown error</string>
+    
+    <!-- Success -->
+    <string name="capture_puzzle_photo">Capture puzzle photo</string>
+    <string name="no_puzzles_yet">No puzzles yet!\nTap + to create your first puzzle project</string>
+    <string name="add_new_puzzle_project">Add new puzzle project</string>
+    <string name="project_thumbnail">Puzzle thumbnail</string>
+    <string name="pieces_name">%d pieces</string>
 </resources>

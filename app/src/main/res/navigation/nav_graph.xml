@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    app:startDestination="@id/projectListFragment">
+
+    <fragment
+        android:id="@+id/projectListFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.project.ProjectListFragment"
+        android:label="Project List"
+        tools:layout="@layout/fragment_project_list">
+
+        <action
+            android:id="@+id/action_projectListFragment_to_projectCreationFragment"
+            app:destination="@id/projectCreationFragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/projectCreationFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.project.ProjectCreationFragment"
+        android:label="Create Project"
+        tools:layout="@layout/fragment_project_creation" />
+
+</navigation>

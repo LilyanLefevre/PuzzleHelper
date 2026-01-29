@@ -1,25 +1,26 @@
 package com.lilyan_lefevre.puzzleit
 
-import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.lilyan_lefevre.puzzleit.databinding.ActivityMainNavBinding
+import dagger.hilt.android.AndroidEntryPoint
 import org.opencv.android.OpenCVLoader
 
 /**
- * Main Activity for PuzzleHelper Application
- * Initializes OpenCV and sets up the basic application structure
+ * Main Activity with Navigation Component
  */
-class MainActivity : Activity() {
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity() {
 
-    companion object {
-        private const val TAG = "MainActivity"
-    }
+    private lateinit var binding: ActivityMainNavBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
+        binding = ActivityMainNavBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        
         // Initialize OpenCV
         initializeOpenCV()
     }
@@ -35,5 +36,9 @@ class MainActivity : Activity() {
             Log.e(TAG, "OpenCV initialization failed!")
             Toast.makeText(this, "OpenCV initialization failed!", Toast.LENGTH_LONG).show()
         }
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }
