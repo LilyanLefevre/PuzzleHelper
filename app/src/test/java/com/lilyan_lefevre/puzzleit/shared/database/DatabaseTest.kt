@@ -3,6 +3,7 @@ package com.lilyan_lefevre.puzzleit.shared.database
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -85,12 +86,13 @@ class DatabaseTest {
         // When
         projectDao.insertProject(project1)
         projectDao.insertProject(project2)
-        val allProjects = projectDao.getAllProjects()
+
+        val projects = projectDao.getAllProjects().first()
 
         // Then
-        assertEquals(2, allProjects.size) // FIXME: allProjects is a state flow...
-        assertTrue(allProjects.any { it.name == "Test Puzzle 1" })
-        assertTrue(allProjects.any { it.name == "Test Puzzle 2" })
+        assertEquals(2, projects.size)
+        assertTrue(projects.any { it.name == "Test Puzzle 1" })
+        assertTrue(projects.any { it.name == "Test Puzzle 2" })
     }
 
     @Test

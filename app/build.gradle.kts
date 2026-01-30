@@ -18,7 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.lilyan_lefevre.puzzleit.HiltTestRunner"
     }
 
     buildTypes {
@@ -94,6 +94,13 @@ dependencies {
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.androidx.runner)
+    
+    // Hilt Testing
+    testImplementation(libs.hilt.android.testing)
+    kaptTest(libs.hilt.compiler)
+    
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.hilt.android.testing)
+    kaptAndroidTest(libs.hilt.compiler)
 }
