@@ -15,6 +15,7 @@
     <!-- Camera -->
     <string name="camera_not_ready">Camera not ready</string>
     <string name="photo_capture_failed">Photo capture failed: %s</string>
+    <string name="photo_capture_failed_after_retries">Photo capture failed after multiple attempts. Please try again.</string>
     <string name="camera_permission_required">Camera Permission Required</string>
     <string name="camera_permission_rationale">This app needs camera permission to capture puzzle box images. Please grant the permission to continue.</string>
     <string name="camera_permission_denied">Camera permission was denied. Please enable it in settings to use this feature.</string>
@@ -28,6 +29,7 @@
     <!-- Success -->
     <string name="capture_puzzle_photo">Capture puzzle photo</string>
     <string name="no_puzzles_yet">No puzzles yet!\nTap + to create your first puzzle project</string>
+    <string name="project_created_successfully">Project "%s" created successfully!</string>
     <string name="add_new_puzzle_project">Add new puzzle project</string>
     <string name="project_thumbnail">Puzzle thumbnail</string>
     <string name="pieces_name">%d pieces</string>

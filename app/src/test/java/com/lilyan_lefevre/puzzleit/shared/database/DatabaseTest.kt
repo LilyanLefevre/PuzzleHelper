@@ -43,7 +43,9 @@ class DatabaseTest {
             creationDate = System.currentTimeMillis(),
             imagePath = "/path/to/image.jpg",
             thumbnailPath = "/path/to/thumb.jpg",
-            status = "active"
+            status = "active",
+            puzzleSize = 1000,
+            difficulty = "hard"
         )
 
         // When
@@ -65,7 +67,9 @@ class DatabaseTest {
             creationDate = System.currentTimeMillis(),
             imagePath = "/path/to/image1.jpg",
             thumbnailPath = "/path/to/thumb1.jpg",
-            status = "active"
+            status = "active",
+            puzzleSize = 1000,
+            difficulty = "hard"
         )
         val project2 = Project(
             id = "test-project-2",
@@ -73,7 +77,9 @@ class DatabaseTest {
             creationDate = System.currentTimeMillis(),
             imagePath = "/path/to/image2.jpg",
             thumbnailPath = "/path/to/thumb2.jpg",
-            status = "active"
+            status = "active",
+            puzzleSize = 1000,
+            difficulty = "hard"
         )
 
         // When
@@ -82,7 +88,7 @@ class DatabaseTest {
         val allProjects = projectDao.getAllProjects()
 
         // Then
-        assertEquals(2, allProjects.size)
+        assertEquals(2, allProjects.size) // FIXME: allProjects is a state flow...
         assertTrue(allProjects.any { it.name == "Test Puzzle 1" })
         assertTrue(allProjects.any { it.name == "Test Puzzle 2" })
     }
@@ -96,7 +102,9 @@ class DatabaseTest {
             creationDate = System.currentTimeMillis(),
             imagePath = "/path/to/image.jpg",
             thumbnailPath = "/path/to/thumb.jpg",
-            status = "active"
+            status = "active",
+            puzzleSize = 1000,
+            difficulty = "hard"
         )
         projectDao.insertProject(project)
 

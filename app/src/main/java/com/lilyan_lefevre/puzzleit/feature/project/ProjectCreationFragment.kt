@@ -151,6 +151,17 @@ class ProjectCreationFragment : Fragment() {
         // Show loading state
         binding.progressBar.visibility = View.VISIBLE
         
+        // Implement retry mechanism for photo capture
+        takePhotoWithRetry(retryCount = 3)
+    }
+    
+    private fun takePhotoWithRetry(retryCount: Int) {
+        if (retryCount <= 0) {
+            binding.progressBar.visibility = View.GONE
+            showErrorDialog(getString(R.string.photo_capture_failed_after_retries))
+            return
+        }
+        
         cameraManager.takePhoto(
             fragment = this,
             onPhotoCaptured = { imagePath ->
@@ -158,9 +169,16 @@ class ProjectCreationFragment : Fragment() {
                 processCapturedImage(imagePath)
             },
             onError = { error ->
-                Log.e(TAG, "Photo capture failed: $error")
-                binding.progressBar.visibility = View.GONE
-                showErrorDialog(error)
+                Log.w(TAG, "Photo capture failed, retries left: $retryCount. Error: $error")
+                if (retryCount > 1) {
+                    // Wait briefly before retry
+                    binding.root.postDelayed({
+                        takePhotoWithRetry(retryCount - 1)
+                    }, 500)
+                } else {
+                    binding.progressBar.visibility = View.GONE
+                    showErrorDialog(error)
+                }
             }
         )
     }
@@ -275,7 +293,7 @@ class ProjectCreationFragment : Fragment() {
     }
 
     private fun showSuccessAndNavigate(project: Project) {
-        Toast.makeText(requireContext(), "Project \"${project.name}\" created successfully!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), getString(R.string.project_created_successfully, project.name), Toast.LENGTH_SHORT).show()
         
         // Navigate back to project list immediately
         findNavController().navigateUp()

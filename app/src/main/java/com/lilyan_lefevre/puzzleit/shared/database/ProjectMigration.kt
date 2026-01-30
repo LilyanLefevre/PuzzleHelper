@@ -8,9 +8,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Adds puzzleSize and difficulty fields to Project table
  */
 val ProjectMigration = object : Migration(1, 2) {
-    override fun migrate(database: SupportSQLiteDatabase) {
+    override fun migrate(db: SupportSQLiteDatabase) {
         // Add new columns to projects table
-        database.execSQL("ALTER TABLE projects ADD COLUMN puzzleSize TEXT NOT NULL DEFAULT '1000 pieces'")
-        database.execSQL("ALTER TABLE projects ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'medium'")
+        db.execSQL("ALTER TABLE projects ADD COLUMN puzzleSize TEXT NOT NULL DEFAULT '1000 pieces'")
+        db.execSQL("ALTER TABLE projects ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'medium'")
     }
 }
