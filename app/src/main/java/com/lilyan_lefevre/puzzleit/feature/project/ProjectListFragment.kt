@@ -49,7 +49,13 @@ class ProjectListFragment : Fragment() {
 
     private fun setupRecyclerView() {
         projectAdapter = ProjectAdapter { project ->
-            // TODO: Navigate to project details
+            // Navigate to project details - will be implemented in story 1-4
+            // For now, show a toast with project info
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Selected: ${project.name}",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
         
         binding.recyclerViewProjects.apply {
