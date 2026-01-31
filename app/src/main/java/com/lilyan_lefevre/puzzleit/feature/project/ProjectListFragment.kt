@@ -49,13 +49,11 @@ class ProjectListFragment : Fragment() {
 
     private fun setupRecyclerView() {
         projectAdapter = ProjectAdapter { project ->
-            // Navigate to project details - will be implemented in story 1-4
-            // For now, show a toast with project info
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Selected: ${project.name}",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            // Navigate to puzzle working screen using bundle
+            val bundle = Bundle().apply {
+                putString("projectId", project.id)
+            }
+            findNavController().navigate(R.id.action_projectListFragment_to_puzzleWorkingFragment, bundle)
         }
         
         binding.recyclerViewProjects.apply {

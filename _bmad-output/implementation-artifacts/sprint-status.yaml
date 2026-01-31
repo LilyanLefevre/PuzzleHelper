@@ -45,8 +45,8 @@ development_status:
   1-1-android-project-setup-with-opencv: done
   1-2-puzzle-project-creation: done
   1-3-project-list-display: done
-  1-4-project-selection-navigation: backlog
-  1-5-project-deletion: backlog
+  1-4-project-selection-navigation: done
+  1-5-project-deletion: ready-for-dev
   1-6-automatic-piece-pre-cutting: backlog
   epic-1-retrospective: optional
 

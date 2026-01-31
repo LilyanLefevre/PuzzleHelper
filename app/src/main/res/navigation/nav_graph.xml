@@ -14,6 +14,14 @@
             android:id="@+id/action_projectListFragment_to_projectCreationFragment"
             app:destination="@id/projectCreationFragment" />
 
+        <action
+            android:id="@+id/action_projectListFragment_to_puzzleWorkingFragment"
+            app:destination="@id/puzzleWorkingFragment">
+            <argument
+                android:name="projectId"
+                app:argType="string" />
+        </action>
+
     </fragment>
 
     <fragment
@@ -21,5 +29,16 @@
         android:name="com.lilyan_lefevre.puzzleit.feature.project.ProjectCreationFragment"
         android:label="Create Project"
         tools:layout="@layout/fragment_project_creation" />
+
+    <fragment
+        android:id="@+id/puzzleWorkingFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.puzzle.PuzzleWorkingFragment"
+        android:label="Puzzle Working"
+        tools:layout="@layout/fragment_puzzle_working">
+        <argument
+            android:name="projectId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
 
 </navigation>

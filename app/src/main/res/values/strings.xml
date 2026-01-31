@@ -33,4 +33,6 @@
     <string name="add_new_puzzle_project">Add new puzzle project</string>
     <string name="project_thumbnail">Puzzle thumbnail</string>
     <string name="pieces_name">%d pieces</string>
+    <string name="puzzle_reference_image">Puzzle reference image</string>
+    <string name="capture_piece">Capture Piece</string>
 </resources>
