@@ -1,5 +1,6 @@
 package com.lilyan_lefevre.puzzleit.feature.project
 
+import com.lilyan_lefevre.puzzleit.feature.storage.ImageStorageManager
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import com.lilyan_lefevre.puzzleit.shared.database.ProjectDao
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +12,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class ProjectRepository @Inject constructor(
-    private val projectDao: ProjectDao
+    private val projectDao: ProjectDao,
+    private val imageStorageManager: ImageStorageManager
 ) {
 
     /**
@@ -52,9 +54,37 @@ class ProjectRepository @Inject constructor(
     }
 
     /**
-     * Delete a project
+     * Delete a project with associated files
+     */
+    suspend fun deleteProject(projectId: String): Result<Boolean> {
+        return try {
+            val project = projectDao.getProjectById(projectId)
+            if (project != null) {
+                // Delete associated files first
+                val filesDeleted = imageStorageManager.deleteProjectImages(
+                    project.imagePath, 
+                    project.thumbnailPath
+                )
+                
+                // Then delete database record
+                projectDao.deleteProject(project)
+                
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Project not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete a project (legacy method for backward compatibility)
      */
     suspend fun deleteProject(project: Project) {
+        // Delete associated files first
+        imageStorageManager.deleteProjectImages(project.imagePath, project.thumbnailPath)
+        // Then delete database record
         projectDao.deleteProject(project)
     }
 

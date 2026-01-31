@@ -35,4 +35,11 @@
     <string name="pieces_name">%d pieces</string>
     <string name="puzzle_reference_image">Puzzle reference image</string>
     <string name="capture_piece">Capture Piece</string>
+    
+    <!-- Project Deletion -->
+    <string name="delete_project_title">Delete Project</string>
+    <string name="delete_project_message">Are you sure you want to delete "%s"? This action cannot be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="project_deleted_successfully">Project "%s" deleted successfully!</string>
+    <string name="project_deletion_failed">Failed to delete project: %s</string>
 </resources>

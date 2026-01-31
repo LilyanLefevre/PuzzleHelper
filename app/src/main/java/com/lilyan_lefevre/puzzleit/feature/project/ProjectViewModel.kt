@@ -32,6 +32,9 @@ class ProjectViewModel @Inject constructor(
     private val _projectCreated = MutableStateFlow<Project?>(null)
     val projectCreated: StateFlow<Project?> = _projectCreated.asStateFlow()
 
+    private val _projectDeleted = MutableStateFlow<String?>(null) // Store deleted project name for feedback
+    val projectDeleted: StateFlow<String?> = _projectDeleted.asStateFlow()
+
     init {
         loadProjects()
     }
@@ -73,13 +76,41 @@ class ProjectViewModel @Inject constructor(
     }
 
     /**
-     * Delete a project
+     * Delete a project by ID with user feedback
+     */
+    fun deleteProject(projectId: String) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                
+                // Get project name for feedback before deletion
+                val project = projectRepository.getProjectById(projectId)
+                val projectName = project?.name ?: "Unknown"
+                
+                val result = projectRepository.deleteProject(projectId)
+                if (result.isSuccess) {
+                    _projectDeleted.value = projectName
+                    _errorMessage.value = null
+                } else {
+                    _errorMessage.value = "Failed to delete project: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to delete project: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Delete a project (legacy method for backward compatibility)
      */
     fun deleteProject(project: Project) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
                 projectRepository.deleteProject(project)
+                _projectDeleted.value = project.name
                 _errorMessage.value = null
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to delete project: ${e.message}"
@@ -101,6 +132,13 @@ class ProjectViewModel @Inject constructor(
      */
     fun clearProjectCreated() {
         _projectCreated.value = null
+    }
+
+    /**
+     * Clear project deleted event
+     */
+    fun clearProjectDeleted() {
+        _projectDeleted.value = null
     }
 }
 

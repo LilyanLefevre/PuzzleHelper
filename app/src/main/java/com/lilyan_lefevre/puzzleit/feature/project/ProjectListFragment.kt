@@ -11,6 +11,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectListBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
@@ -48,13 +50,18 @@ class ProjectListFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        projectAdapter = ProjectAdapter { project ->
-            // Navigate to puzzle working screen using bundle
-            val bundle = Bundle().apply {
-                putString("projectId", project.id)
+        projectAdapter = ProjectAdapter(
+            onProjectClick = { project ->
+                // Navigate to puzzle working screen using bundle
+                val bundle = Bundle().apply {
+                    putString("projectId", project.id)
+                }
+                findNavController().navigate(R.id.action_projectListFragment_to_puzzleWorkingFragment, bundle)
+            },
+            onProjectLongClick = { project ->
+                showDeleteConfirmationDialog(project)
             }
-            findNavController().navigate(R.id.action_projectListFragment_to_puzzleWorkingFragment, bundle)
-        }
+        )
         
         binding.recyclerViewProjects.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -78,8 +85,26 @@ class ProjectListFragment : Fragment() {
                 launch {
                     viewModel.errorMessage.collect { error ->
                         error?.let {
-                            // Show error
+                            // Show error message
+                            Snackbar.make(
+                                binding.root,
+                                it,
+                                Snackbar.LENGTH_LONG
+                            ).show()
                             viewModel.clearError()
+                        }
+                    }
+                }
+                launch {
+                    viewModel.projectDeleted.collect { projectName ->
+                        projectName?.let {
+                            // Show success message
+                            Snackbar.make(
+                                binding.root,
+                                getString(R.string.project_deleted_successfully, it),
+                                Snackbar.LENGTH_SHORT
+                            ).show()
+                            viewModel.clearProjectDeleted()
                         }
                     }
                 }
@@ -92,6 +117,17 @@ class ProjectListFragment : Fragment() {
             // Navigate to project creation fragment using Navigation Component
             findNavController().navigate(R.id.action_projectListFragment_to_projectCreationFragment)
         }
+    }
+
+    private fun showDeleteConfirmationDialog(project: Project) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.delete_project_title))
+            .setMessage(getString(R.string.delete_project_message, project.name))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                viewModel.deleteProject(project.id)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
     }
 
     override fun onDestroyView() {

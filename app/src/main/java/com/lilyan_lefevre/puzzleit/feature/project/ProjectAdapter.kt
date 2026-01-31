@@ -16,7 +16,8 @@ import java.util.*
  * RecyclerView adapter for displaying projects
  */
 class ProjectAdapter(
-    private val onProjectClick: (Project) -> Unit
+    private val onProjectClick: (Project) -> Unit,
+    private val onProjectLongClick: (Project) -> Unit = {}
 ) : ListAdapter<Project, ProjectAdapter.ProjectViewHolder>(ProjectDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProjectViewHolder {
@@ -52,6 +53,11 @@ class ProjectAdapter(
                 
                 root.setOnClickListener {
                     onProjectClick(project)
+                }
+                
+                root.setOnLongClickListener {
+                    onProjectLongClick(project)
+                    true // Consume the long click event
                 }
             }
         }
