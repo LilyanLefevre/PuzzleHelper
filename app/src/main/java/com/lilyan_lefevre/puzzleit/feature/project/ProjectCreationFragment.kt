@@ -1,16 +1,18 @@
 package com.lilyan_lefevre.puzzleit.feature.project
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.PointF
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.view.ViewCompat
-import androidx.core.view.updatePadding
+import androidx.exifinterface.media.ExifInterface
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -19,15 +21,13 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
-import com.lilyan_lefevre.puzzleit.feature.camera.CameraManager
-import com.lilyan_lefevre.puzzleit.feature.camera.CameraRepository
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+import org.json.JSONArray
 
 /**
- * Fragment for project creation confirmation
+ * Fragment for project creation with inline camera and form
  */
 @AndroidEntryPoint
 class ProjectCreationFragment : Fragment() {
@@ -37,11 +37,8 @@ class ProjectCreationFragment : Fragment() {
 
     private val viewModel: ProjectViewModel by viewModels()
 
-    @Inject
-    lateinit var cameraManager: CameraManager
-    
-    @Inject
-    lateinit var cameraRepository: CameraRepository
+    private var currentImagePath: String? = null
+    private var currentQuadJson: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -55,208 +52,152 @@ class ProjectCreationFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // Initialize camera manager
-        cameraManager.initialize(
-            fragment = this,
-            onPermissionDenied = { showPermissionDeniedDialog() },
-            onPermissionRationale = { showPermissionRationaleDialog() }
-        )
-        
-        // Setup edge-to-edge for fragment
-        setupEdgeToEdge()
-        
-        setupCamera()
         setupUI()
         observeViewModel()
-    }
-
-    private fun setupEdgeToEdge() {
-        // Make status bar transparent for better visual effect
-        requireActivity().window.statusBarColor = Color.TRANSPARENT
-        requireActivity().window.navigationBarColor = Color.TRANSPARENT
-
-        // Handle window insets for status bar
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-
-            // Apply padding to capture button to avoid navigation bar overlap
-            binding.captureButton.updatePadding(
-                bottom = systemBars.bottom + 32
-            )
-
-            // Consume the insets
-            androidx.core.view.WindowInsetsCompat.CONSUMED
-        }
-    }
-
-    private fun setupCamera() {
-        Log.d(TAG, "Setting up camera")
-        
-        // Check camera permissions using camera manager
-        cameraManager.checkAndRequestPermission(
-            fragment = this,
-            onPermissionRationale = { showPermissionRationaleDialog() }
-        )
-    }
-
-    private fun showPermissionRationaleDialog() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.camera_permission_required))
-            .setMessage(getString(R.string.camera_permission_rationale))
-            .setPositiveButton(getString(R.string.ok)) { _, _ ->
-                // Request permission directly - this will show the system permission dialog
-                cameraManager.requestPermission()
-            }
-            .setNegativeButton(getString(R.string.cancel)) { _, _ ->
-                // User cancelled rationale, show denied dialog
-                showPermissionDeniedDialog()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-    private fun showPermissionDeniedDialog() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.camera_permission_denied))
-            .setMessage(getString(R.string.camera_permission_denied))
-            .setPositiveButton(getString(R.string.ok)) { _, _ ->
-                // Navigate back to project list
-                findNavController().navigateUp()
-            }
-            .setCancelable(false)
-            .show()
+        listenForCameraResult()
+        listenForPuzzleBoundsResult()
     }
 
     private fun setupUI() {
-        binding.captureButton.setOnClickListener {
-            takePhoto()
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Bind camera preview when fragment is resumed and view is ready
-        binding.previewView.post {
-            // Always try to bind preview - CameraManager will handle the timing
-            cameraManager.bindPreview(this, binding.previewView)
-        }
-    }
-
-    private fun takePhoto() {
-        if (!cameraManager.isReady()) {
-            Toast.makeText(requireContext(), getString(R.string.camera_not_ready), Toast.LENGTH_SHORT).show()
-            return
+        binding.photoPlaceholder.setOnClickListener {
+            navigateToFullScreenCamera()
         }
         
-        // Show loading state
-        binding.progressBar.visibility = View.VISIBLE
-        
-        // Implement retry mechanism for photo capture
-        takePhotoWithRetry(retryCount = 3)
-    }
-    
-    private fun takePhotoWithRetry(retryCount: Int) {
-        if (retryCount <= 0) {
-            binding.progressBar.visibility = View.GONE
-            showErrorDialog(getString(R.string.photo_capture_failed_after_retries))
-            return
-        }
-        
-        cameraManager.takePhoto(
-            fragment = this,
-            onPhotoCaptured = { imagePath ->
-                binding.progressBar.visibility = View.GONE
-                processCapturedImage(imagePath)
-            },
-            onError = { error ->
-                Log.w(TAG, "Photo capture failed, retries left: $retryCount. Error: $error")
-                if (retryCount > 1) {
-                    // Wait briefly before retry
-                    binding.root.postDelayed({
-                        takePhotoWithRetry(retryCount - 1)
-                    }, 500)
-                } else {
-                    binding.progressBar.visibility = View.GONE
-                    showErrorDialog(error)
-                }
+        binding.editPhotoButton.setOnClickListener {
+            currentImagePath?.let { imagePath ->
+                navigateToPuzzleBounds(imagePath)
             }
+        }
+        
+        binding.btnCancel.setOnClickListener {
+            findNavController().navigateUp()
+        }
+        
+        binding.btnCreate.setOnClickListener {
+            createProject()
+        }
+    }
+
+    private fun navigateToFullScreenCamera() {
+        val action = ProjectCreationFragmentDirections.actionProjectCreationFragmentToFullScreenCameraFragment()
+        findNavController().navigate(action)
+    }
+
+    private fun listenForCameraResult() {
+        setFragmentResultListener("fullScreenCameraResult") { _, bundle ->
+            val imagePath = bundle.getString("imagePath")
+            if (imagePath != null) {
+                currentImagePath = imagePath
+                currentQuadJson = createDefaultQuad()
+                // Don't show photo preview yet - wait for puzzle bounds result
+            }
+        }
+    }
+
+    private fun navigateToPuzzleBounds(imagePath: String) {
+        // Navigate to PuzzleBoundsFragment for bounds selection
+        val action = ProjectCreationFragmentDirections.actionProjectCreationFragmentToPuzzleBoundsFragment(imagePath)
+        findNavController().navigate(action)
+    }
+
+    private fun createDefaultQuad(): String {
+        val defaultQuad = listOf(
+            PointF(0.2f, 0.2f),
+            PointF(0.8f, 0.2f),
+            PointF(0.8f, 0.8f),
+            PointF(0.2f, 0.8f)
         )
-    }
-
-    private fun processCapturedImage(imagePath: String?) {
-        imagePath?.let {
-            // Switch to main thread before showing dialog
-            requireActivity().runOnUiThread {
-                showMetadataDialog(imagePath)
-            }
+        val arr = JSONArray()
+        for (pt in defaultQuad) {
+            val p = JSONArray()
+            p.put(pt.x.toDouble())
+            p.put(pt.y.toDouble())
+            arr.put(p)
         }
+        return arr.toString()
     }
 
-    private fun showMetadataDialog(imagePath: String) {
-        // Stop camera preview to freeze the captured image
-        cameraManager.stopCamera()
-        
-        val dialog = ProjectMetadataDialog(
-            context = requireContext(),
-            onProjectCreated = { name, pieces ->
-                createProjectWithMetadata(imagePath, name, pieces)
-            },
-            onDismiss = {
-                // Restart camera when dialog is dismissed
-                cameraManager.checkAndRequestPermission(
-                    fragment = this,
-                    onPermissionRationale = { showPermissionRationaleDialog() }
+    private fun createProject() {
+        val name = binding.editTextName.text.toString().trim()
+        val pieces = try {
+            binding.editTextPieces.text.toString().toInt()
+        } catch (e: NumberFormatException) {
+            null
+        }
+
+        when {
+            currentImagePath == null -> {
+                Toast.makeText(requireContext(), "Please take a photo first", Toast.LENGTH_SHORT).show()
+            }
+            name.isEmpty() -> {
+                Toast.makeText(requireContext(), getString(R.string.please_enter_project_name), Toast.LENGTH_SHORT).show()
+            }
+            pieces == null -> {
+                Toast.makeText(requireContext(), getString(R.string.please_enter_number_of_pieces), Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                viewModel.createProject(
+                    imagePath = currentImagePath!!, // This is now the cropped image
+                    thumbnailPath = currentImagePath!!, // Use same cropped image for thumbnail
+                    name = name,
+                    puzzleSize = pieces,
+                    difficulty = "medium",
+                    puzzleQuad = currentQuadJson
                 )
             }
-        )
-        dialog.show()
-    }
-
-    private fun createProjectWithMetadata(imagePath: String, name: String, pieces: Int) {
-        // Show loading state
-        binding.progressBar.visibility = View.VISIBLE
-        
-        lifecycleScope.launch {
-            try {
-                // Load bitmap from file
-                val bitmap = BitmapFactory.decodeFile(imagePath)
-                bitmap?.let {
-                    // Create project with metadata
-                    val puzzleSize = pieces
-                    val difficulty = when {
-                        pieces.toInt() < 500 -> "easy"
-                        pieces.toInt() < 1500 -> "medium"
-                        else -> "hard"
-                    }
-                    
-                    // Save image with CameraRepository
-                    val result = cameraRepository.saveCapturedImage(bitmap, imagePath)
-                    
-                    result.fold(
-                        onSuccess = { storageResult ->
-                            // Create project with metadata
-                            viewModel.createProject(
-                                name = name,
-                                puzzleSize = puzzleSize,
-                                difficulty = difficulty,
-                                imagePath = storageResult.mainImagePath,
-                                thumbnailPath = storageResult.thumbnailPath
-                            )
-                        },
-                        onFailure = { error ->
-                            Log.e(TAG, "Failed to save image", error)
-                            binding.progressBar.visibility = View.GONE
-                            showErrorDialog(error.message ?: getString(R.string.unknown_error))
-                        }
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to process image", e)
-                binding.progressBar.visibility = View.GONE
-                showErrorDialog(getString(R.string.failed_to_process_image, e.message ?: ""))
-            }
         }
     }
+
+    private fun listenForPuzzleBoundsResult() {
+        setFragmentResultListener("puzzleBoundsResult") { _, bundle ->
+            val quadJson = bundle.getString("quadJson")
+            val croppedImagePath = bundle.getString("croppedImagePath")
+            
+            if (quadJson != null) {
+                currentQuadJson = quadJson
+            }
+            
+            // Use cropped image if available, otherwise use original
+            if (croppedImagePath != null) {
+                currentImagePath = croppedImagePath
+            }
+            
+            // Show the photo preview
+            showPhotoPreview()
+        }
+    }
+
+    private fun showPhotoPreview() {
+        val imagePath = currentImagePath ?: return
+        
+        // Hide placeholder, show photo preview
+        binding.photoPlaceholder.visibility = View.GONE
+        binding.photoPreview.visibility = View.VISIBLE
+        binding.editPhotoButton.visibility = View.VISIBLE
+        
+        // Load the cropped image directly with Glide (no need for manual rotation correction)
+        // The image is already cropped and corrected in PuzzleBoundsFragment
+        com.bumptech.glide.Glide.with(requireContext())
+            .load(imagePath)
+            .placeholder(android.R.drawable.ic_menu_camera)
+            .error(android.R.drawable.ic_menu_camera)
+            .fitCenter()
+            .into(binding.photoPreview)
+    }
+
+    
+
+    private fun quadToJsonString(points: List<PointF>): String {
+        val arr = JSONArray()
+        for (pt in points) {
+            val p = JSONArray()
+            p.put(pt.x.toDouble())
+            p.put(pt.y.toDouble())
+            arr.put(p)
+        }
+        return arr.toString()
+    }
+    
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -265,7 +206,6 @@ class ProjectCreationFragment : Fragment() {
                 launch {
                     viewModel.projectCreated.collect { project ->
                         project?.let {
-                            // Show success and return to list immediately
                             showSuccessAndNavigate(project)
                             viewModel.clearProjectCreated()
                         }
@@ -288,12 +228,21 @@ class ProjectCreationFragment : Fragment() {
                         }
                     }
                 }
+
+                launch {
+                    viewModel.isProcessing.collect { isProcessing ->
+                        binding.progressBar.visibility = if (isProcessing) View.VISIBLE else View.GONE
+                    }
+                }
             }
         }
     }
 
     private fun showSuccessAndNavigate(project: Project) {
         Toast.makeText(requireContext(), getString(R.string.project_created_successfully, project.name), Toast.LENGTH_SHORT).show()
+
+        currentQuadJson = null
+        currentImagePath = null
         
         // Navigate back to project list immediately
         findNavController().navigateUp()
@@ -313,15 +262,8 @@ class ProjectCreationFragment : Fragment() {
             .show()
     }
 
-    override fun onPause() {
-        super.onPause()
-        // Stop camera when fragment is paused to save resources
-        cameraManager.stopCamera()
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
-        cameraManager.cleanup()
         _binding = null
     }
 

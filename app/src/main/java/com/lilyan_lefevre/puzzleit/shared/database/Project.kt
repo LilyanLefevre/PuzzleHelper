@@ -17,5 +17,6 @@ data class Project(
     val creationDate: Long = System.currentTimeMillis(),
     val imagePath: String,
     val thumbnailPath: String,
+    val puzzleQuad: String? = null,
     val status: String = "active"
 )

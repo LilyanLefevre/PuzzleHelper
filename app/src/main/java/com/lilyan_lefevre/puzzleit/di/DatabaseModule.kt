@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.lilyan_lefevre.puzzleit.shared.database.AppDatabase
 import com.lilyan_lefevre.puzzleit.shared.database.ProjectDao
 import com.lilyan_lefevre.puzzleit.shared.database.ProjectMigration
+import com.lilyan_lefevre.puzzleit.shared.database.ProjectMigration2
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,7 +25,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "puzzle_database"
         )
-        .addMigrations(ProjectMigration)
+        .addMigrations(ProjectMigration, ProjectMigration2)
         .fallbackToDestructiveMigration()
         .build()
     }

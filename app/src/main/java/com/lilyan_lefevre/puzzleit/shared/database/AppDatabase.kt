@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [Project::class],
-    version = 2, // Increment version for new fields
+    version = 3, // Increment version for new fields
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -20,6 +20,12 @@
     <string name="camera_permission_rationale">This app needs camera permission to capture puzzle box images. Please grant the permission to continue.</string>
     <string name="camera_permission_denied">Camera permission was denied. Please enable it in settings to use this feature.</string>
     
+    <!-- Contour Detection -->
+    <string name="contour_detection_quality">Contour Detection Quality</string>
+    <string name="contour_detection_poor_quality">Contour detection quality is low (%.1f%%). The puzzle piece boundaries may not be clear. Would you like to retake the photo?</string>
+    <string name="retake_photo">Retake Photo</string>
+    <string name="continue_anyway">Continue Anyway</string>
+    
     <!-- Error -->
     <string name="error">Error</string>
     <string name="ok">OK</string>
@@ -42,4 +48,10 @@
     <string name="delete">Delete</string>
     <string name="project_deleted_successfully">Project "%s" deleted successfully!</string>
     <string name="project_deletion_failed">Failed to delete project: %s</string>
+    
+    <!-- Puzzle Bounds -->
+    <string name="puzzle_bounds_title">Select Puzzle Bounds</string>
+    
+    <!-- Photo Crop -->
+    <string name="adjust_photo_bounds">Adjust Photo Bounds</string>
 </resources>

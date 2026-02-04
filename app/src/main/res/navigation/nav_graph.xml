@@ -25,10 +25,51 @@
     </fragment>
 
     <fragment
+        android:id="@+id/fullScreenCameraFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.camera.FullScreenCameraFragment"
+        android:label="Take Photo"
+        tools:layout="@layout/fragment_full_screen_camera">
+
+        <action
+            android:id="@+id/action_fullScreenCameraFragment_to_puzzleBoundsFragment"
+            app:destination="@id/puzzleBoundsFragment">
+            <argument
+                android:name="imagePath"
+                app:argType="string" />
+        </action>
+
+    </fragment>
+
+    <fragment
         android:id="@+id/projectCreationFragment"
         android:name="com.lilyan_lefevre.puzzleit.feature.project.ProjectCreationFragment"
         android:label="Create Project"
-        tools:layout="@layout/fragment_project_creation" />
+        tools:layout="@layout/fragment_project_creation">
+
+        <action
+            android:id="@+id/action_projectCreationFragment_to_fullScreenCameraFragment"
+            app:destination="@id/fullScreenCameraFragment" />
+
+        <action
+            android:id="@+id/action_projectCreationFragment_to_puzzleBoundsFragment"
+            app:destination="@id/puzzleBoundsFragment">
+            <argument
+                android:name="imagePath"
+                app:argType="string" />
+        </action>
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/puzzleBoundsFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.project.PuzzleBoundsFragment"
+        android:label="Puzzle Bounds"
+        tools:layout="@layout/fragment_puzzle_bounds">
+        <argument
+            android:name="imagePath"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
 
     <fragment
         android:id="@+id/puzzleWorkingFragment"

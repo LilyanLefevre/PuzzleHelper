@@ -37,16 +37,26 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:id="@+id/imageViewReference"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/referenceImageContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scaleType="fitCenter"
-            android:adjustViewBounds="true"
-            android:contentDescription="@string/puzzle_reference_image"
             android:background="@color/puzzle_surface"
-            android:padding="8dp"
-            tools:src="@android:drawable/ic_menu_camera" />
+            android:padding="8dp">
+
+            <ImageView
+                android:id="@+id/imageViewReference"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/puzzle_reference_image"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:src="@android:drawable/ic_menu_camera" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </ScrollView>
 

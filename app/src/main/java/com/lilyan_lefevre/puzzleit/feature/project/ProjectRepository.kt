@@ -33,13 +33,21 @@ class ProjectRepository @Inject constructor(
     /**
      * Create a new project with automatic naming
      */
-    suspend fun createProject(imagePath: String, thumbnailPath: String, name: String, puzzleSize: Int, difficulty: String): Project {
+    suspend fun createProject(
+        imagePath: String,
+        thumbnailPath: String,
+        name: String,
+        puzzleSize: Int,
+        difficulty: String,
+        puzzleQuad: String?
+    ): Project {
         val project = Project(
             name = name,
             puzzleSize = puzzleSize,
             difficulty = difficulty,
             imagePath = imagePath,
             thumbnailPath = thumbnailPath,
+            puzzleQuad = puzzleQuad,
             status = "active"
         )
         projectDao.insertProject(project)

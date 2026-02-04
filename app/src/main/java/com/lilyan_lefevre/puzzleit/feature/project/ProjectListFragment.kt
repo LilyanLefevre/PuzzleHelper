@@ -114,7 +114,7 @@ class ProjectListFragment : Fragment() {
 
     private fun setupClickListeners() {
         binding.fabAddProject.setOnClickListener {
-            // Navigate to project creation fragment using Navigation Component
+            // Navigate to original project creation fragment using Navigation Component
             findNavController().navigate(R.id.action_projectListFragment_to_projectCreationFragment)
         }
     }

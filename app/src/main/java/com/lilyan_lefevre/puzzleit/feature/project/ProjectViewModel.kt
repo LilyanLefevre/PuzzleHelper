@@ -2,6 +2,7 @@ package com.lilyan_lefevre.puzzleit.feature.project
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lilyan_lefevre.puzzleit.BuildConfig
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,10 @@ class ProjectViewModel @Inject constructor(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
     // If this is a one-shot event you clear after handling, StateFlow is OK but
     // SharedFlow would be another option. Here we keep your clear* API.
@@ -60,11 +65,18 @@ class ProjectViewModel @Inject constructor(
     /**
      * Create a new project
      */
-    fun createProject(imagePath: String, thumbnailPath: String, name: String, puzzleSize: Int, difficulty: String) {
+    fun createProject(
+        imagePath: String,
+        thumbnailPath: String,
+        name: String,
+        puzzleSize: Int,
+        difficulty: String,
+        puzzleQuad: String?
+    ) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                val project = projectRepository.createProject(imagePath, thumbnailPath, name, puzzleSize, difficulty)
+                val project = projectRepository.createProject(imagePath, thumbnailPath, name, puzzleSize, difficulty, puzzleQuad)
                 _projectCreated.value = project
                 _errorMessage.value = null
             } catch (e: Exception) {

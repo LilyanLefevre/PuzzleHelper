@@ -48,6 +48,7 @@ development_status:
   1-4-project-selection-navigation: done
   1-5-project-deletion: review
   1-6-automatic-piece-pre-cutting: backlog
+  1-2-1-puzzle-contour-visualization-debug: review
   epic-1-retrospective: optional
 
   # Epic 2: Computer Vision Recognition Engine
