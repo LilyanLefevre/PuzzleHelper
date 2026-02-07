@@ -101,6 +101,8 @@ class QuadSelectionView @JvmOverloads constructor(
         val mapped = p.map { mapSourceNormToView(it.x, it.y) }
 
         reusedPath.apply {
+            reset()
+
             moveTo(mapped[0].x, mapped[0].y)
             lineTo(mapped[1].x, mapped[1].y)
             lineTo(mapped[2].x, mapped[2].y)

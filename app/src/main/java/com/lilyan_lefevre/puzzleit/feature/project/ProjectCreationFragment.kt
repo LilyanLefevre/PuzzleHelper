@@ -39,7 +39,8 @@ class ProjectCreationFragment : Fragment() {
 
     private val viewModel: ProjectViewModel by viewModels()
 
-    private var currentImagePath: String? = null
+    private var originalImagePath: String? = null // Store original image path
+    private var croppedImagePath: String? = null // Store cropped image path
     private var currentQuadJson: String? = null
     private var photoFile: File? = null
 
@@ -48,12 +49,18 @@ class ProjectCreationFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             photoFile?.let { file ->
-                val imagePath = file.absolutePath
-                currentImagePath = imagePath
+                originalImagePath = file.absolutePath
                 currentQuadJson = createDefaultQuad()
                 // Navigate to puzzle bounds for cropping immediately after taking the photo
-                navigateToPuzzleBounds(imagePath)
+                navigateToPuzzleBounds(originalImagePath!!)
             }
+        } else {
+            // User cancelled photo taking, clear paths and navigate back if needed
+            originalImagePath = null
+            croppedImagePath = null
+            currentQuadJson = null
+            // No specific navigation needed here, user can decide to take photo again or navigate up
+            // findNavController().navigateUp() // Optionally go back if photo is mandatory
         }
     }
 
@@ -80,7 +87,8 @@ class ProjectCreationFragment : Fragment() {
         }
         
         binding.editPhotoButton.setOnClickListener {
-            currentImagePath?.let { imagePath ->
+            // Always use the original image for re-editing bounds
+            originalImagePath?.let { imagePath ->
                 navigateToPuzzleBounds(imagePath)
             }
         }
@@ -150,12 +158,12 @@ class ProjectCreationFragment : Fragment() {
         val name = binding.editTextName.text.toString().trim()
         val pieces = try {
             binding.editTextPieces.text.toString().toInt()
-        } catch (_: NumberFormatException) {
+        } catch (e: NumberFormatException) {
             null
         }
 
         when {
-            currentImagePath == null -> {
+            originalImagePath == null -> {
                 Toast.makeText(requireContext(), "Please take a photo first", Toast.LENGTH_SHORT).show()
             }
             name.isEmpty() -> {
@@ -165,9 +173,10 @@ class ProjectCreationFragment : Fragment() {
                 Toast.makeText(requireContext(), getString(R.string.please_enter_number_of_pieces), Toast.LENGTH_SHORT).show()
             }
             else -> {
+                val finalImagePath = croppedImagePath ?: originalImagePath // Use cropped if available, else original
                 viewModel.createProject(
-                    imagePath = currentImagePath!!,
-                    thumbnailPath = currentImagePath!!,
+                    imagePath = finalImagePath!!,
+                    thumbnailPath = finalImagePath!!, // Thumbnail will also be the cropped/original image
                     name = name,
                     puzzleSize = pieces,
                     difficulty = "medium",
@@ -180,29 +189,35 @@ class ProjectCreationFragment : Fragment() {
     private fun listenForPuzzleBoundsResult() {
         setFragmentResultListener("puzzleBoundsResult") { _, bundle ->
             val quadJson = bundle.getString("quadJson")
-            val croppedImagePath = bundle.getString("croppedImagePath")
+            val croppedPath = bundle.getString("croppedImagePath")
+            val cancelled = bundle.getBoolean("cancelled", false)
             
-            if (quadJson != null) {
+            if (cancelled) {
+                // User cancelled from PuzzleBoundsFragment, clear any pending image
+                originalImagePath = null
+                croppedImagePath = null
+                currentQuadJson = null
+                // Optionally, reset UI to show photo placeholder
+                binding.photoPlaceholder.visibility = View.VISIBLE
+                binding.photoPreview.visibility = View.GONE
+                binding.editPhotoButton.visibility = View.GONE
+            } else if (quadJson != null) {
                 currentQuadJson = quadJson
+                croppedImagePath = croppedPath // Store the new cropped path
+                showPhotoPreview()
             }
-            
-            if (croppedImagePath != null) {
-                currentImagePath = croppedImagePath
-            }
-            
-            showPhotoPreview()
         }
     }
 
     private fun showPhotoPreview() {
-        val imagePath = currentImagePath ?: return
+        val imagePathToShow = croppedImagePath ?: originalImagePath ?: return
         
         binding.photoPlaceholder.visibility = View.GONE
         binding.photoPreview.visibility = View.VISIBLE
         binding.editPhotoButton.visibility = View.VISIBLE
         
         com.bumptech.glide.Glide.with(requireContext())
-            .load(imagePath)
+            .load(imagePathToShow)
             .placeholder(android.R.drawable.ic_menu_camera)
             .error(android.R.drawable.ic_menu_camera)
             .fitCenter()
@@ -251,8 +266,9 @@ class ProjectCreationFragment : Fragment() {
     private fun showSuccessAndNavigate(project: Project) {
         Toast.makeText(requireContext(), getString(R.string.project_created_successfully, project.name), Toast.LENGTH_SHORT).show()
 
+        originalImagePath = null
+        croppedImagePath = null
         currentQuadJson = null
-        currentImagePath = null
         
         findNavController().navigateUp()
     }
