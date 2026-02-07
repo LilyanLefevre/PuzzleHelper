@@ -1,7 +1,6 @@
 package com.lilyan_lefevre.puzzleit.feature.puzzle
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -9,6 +8,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -16,18 +16,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
-import com.lilyan_lefevre.puzzleit.BuildConfig
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.*
-import javax.inject.Inject
 import kotlin.math.hypot
 import kotlin.math.max
 
@@ -61,7 +57,6 @@ class PuzzleWorkingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        setupToolbar()
         observeViewModel()
         setupClickListeners()
         
@@ -69,18 +64,16 @@ class PuzzleWorkingFragment : Fragment() {
         viewModel.loadProject(projectId)
     }
 
-    private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
-            findNavController().navigateUp()
-        }
-    }
-
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.project.collect { project ->
-                        project?.let { updateUI(it) }
+                        project?.let {
+                            updateUI(it)
+                            // Update ActionBar title with project name
+                            (activity as? AppCompatActivity)?.supportActionBar?.title = it.name
+                        }
                     }
                 }
                 launch {
@@ -110,9 +103,7 @@ class PuzzleWorkingFragment : Fragment() {
 
     private fun updateUI(project: Project) {
         binding.apply {
-            // Update toolbar title with project name
-            toolbar.title = project.name
-            
+
             // Update project info
             val piecesStr = resources.getString(R.string.pieces_name, project.puzzleSize)
             textViewProjectInfo.text = "$piecesStr • Created ${formatDate(project.creationDate)}"
@@ -129,21 +120,7 @@ class PuzzleWorkingFragment : Fragment() {
                 .placeholder(android.R.drawable.ic_menu_gallery)
                 .error(android.R.drawable.ic_menu_gallery)
                 .fitCenter()
-                .into(imageViewReference)
-        }
-    }
-
-    private fun showRectifiedImage(imagePath: String, quadJson: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val rectified = withContext(Dispatchers.Default) {
-                val src = BitmapFactory.decodeFile(imagePath) ?: return@withContext null
-                val quad = parseNormalizedQuad(quadJson) ?: return@withContext null
-                rectifyBitmapFromNormalizedQuad(src, quad)
-            }
-
-            rectified?.let {
-                binding.imageViewReference.setImageBitmap(it)
-            }
+                .into(binding.photoPreview)
         }
     }
 

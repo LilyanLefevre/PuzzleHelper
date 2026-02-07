@@ -3,6 +3,7 @@
     <string name="app_name">PuzzleIt</string>
     
     <!-- Project Creation -->
+    <string name="project_creation_title">New puzzle</string>
     <string name="photo_placeholder">Photo placeholder</string>
     <string name="tap_to_take_photo">Tap to take photo</string>
     <string name="take_a_photo_of_your_puzzle_box">Take a photo of your puzzle box</string>
@@ -19,7 +20,7 @@
     <!-- Project List -->
     <string name="no_puzzles_yet">No puzzles yet!\nTap + to create your first puzzle project</string>
     <string name="pieces_name">%d pieces</string>
-    <string name="puzzles_list">My puzzles</string>
+    <string name="puzzles_list_title">My puzzles</string>
 
     <!-- Project Deletion -->
     <string name="delete_project_title">Delete Project</string>

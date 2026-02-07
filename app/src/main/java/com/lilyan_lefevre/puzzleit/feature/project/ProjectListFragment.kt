@@ -18,7 +18,6 @@ import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectListBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Fragment displaying list of all puzzle projects
