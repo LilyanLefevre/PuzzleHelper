@@ -27,7 +27,6 @@ import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.io.File

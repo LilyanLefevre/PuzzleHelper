@@ -23,6 +23,9 @@
     <color name="puzzle_on_background">#212121</color>
     <color name="puzzle_surface">#FFFFFF</color>
     <color name="puzzle_on_surface">#212121</color>
-    
-    <!-- Legacy colors for compatibility -->
+
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+
+    <color name="app_bar_icon">#FFFFFF</color>
 </resources>
