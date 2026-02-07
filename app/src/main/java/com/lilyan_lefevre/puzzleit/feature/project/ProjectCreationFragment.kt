@@ -1,16 +1,17 @@
 package com.lilyan_lefevre.puzzleit.feature.project
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
+import android.app.Activity
+import android.content.Intent
 import android.graphics.PointF
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.exifinterface.media.ExifInterface
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
@@ -25,9 +26,10 @@ import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.json.JSONArray
+import java.io.File
 
 /**
- * Fragment for project creation with inline camera and form
+ * Fragment for project creation with form and system camera integration
  */
 @AndroidEntryPoint
 class ProjectCreationFragment : Fragment() {
@@ -39,6 +41,21 @@ class ProjectCreationFragment : Fragment() {
 
     private var currentImagePath: String? = null
     private var currentQuadJson: String? = null
+    private var photoFile: File? = null
+
+    private val takePictureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            photoFile?.let { file ->
+                val imagePath = file.absolutePath
+                currentImagePath = imagePath
+                currentQuadJson = createDefaultQuad()
+                // Navigate to puzzle bounds for cropping immediately after taking the photo
+                navigateToPuzzleBounds(imagePath)
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -54,13 +71,12 @@ class ProjectCreationFragment : Fragment() {
         
         setupUI()
         observeViewModel()
-        listenForCameraResult()
         listenForPuzzleBoundsResult()
     }
 
     private fun setupUI() {
         binding.photoPlaceholder.setOnClickListener {
-            navigateToFullScreenCamera()
+            dispatchTakePictureIntent()
         }
         
         binding.editPhotoButton.setOnClickListener {
@@ -78,24 +94,37 @@ class ProjectCreationFragment : Fragment() {
         }
     }
 
-    private fun navigateToFullScreenCamera() {
-        val action = ProjectCreationFragmentDirections.actionProjectCreationFragmentToFullScreenCameraFragment()
-        findNavController().navigate(action)
-    }
-
-    private fun listenForCameraResult() {
-        setFragmentResultListener("fullScreenCameraResult") { _, bundle ->
-            val imagePath = bundle.getString("imagePath")
-            if (imagePath != null) {
-                currentImagePath = imagePath
-                currentQuadJson = createDefaultQuad()
-                // Don't show photo preview yet - wait for puzzle bounds result
+    private fun dispatchTakePictureIntent() {
+        Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+            photoFile = try {
+                createImageFile()
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error creating photo file", ex)
+                null
+            }
+            
+            photoFile?.also { file ->
+                val photoURI = FileProvider.getUriForFile(
+                    requireContext(),
+                    "${requireContext().packageName}.fileprovider",
+                    file
+                )
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                takePictureLauncher.launch(takePictureIntent)
             }
         }
     }
 
+    private fun createImageFile(): File {
+        val storageDir = requireContext().filesDir
+        return File.createTempFile(
+            "JPEG_${System.currentTimeMillis()}_",
+            ".jpg",
+            storageDir
+        )
+    }
+
     private fun navigateToPuzzleBounds(imagePath: String) {
-        // Navigate to PuzzleBoundsFragment for bounds selection
         val action = ProjectCreationFragmentDirections.actionProjectCreationFragmentToPuzzleBoundsFragment(imagePath)
         findNavController().navigate(action)
     }
@@ -137,8 +166,8 @@ class ProjectCreationFragment : Fragment() {
             }
             else -> {
                 viewModel.createProject(
-                    imagePath = currentImagePath!!, // This is now the cropped image
-                    thumbnailPath = currentImagePath!!, // Use same cropped image for thumbnail
+                    imagePath = currentImagePath!!,
+                    thumbnailPath = currentImagePath!!,
                     name = name,
                     puzzleSize = pieces,
                     difficulty = "medium",
@@ -157,12 +186,10 @@ class ProjectCreationFragment : Fragment() {
                 currentQuadJson = quadJson
             }
             
-            // Use cropped image if available, otherwise use original
             if (croppedImagePath != null) {
                 currentImagePath = croppedImagePath
             }
             
-            // Show the photo preview
             showPhotoPreview()
         }
     }
@@ -170,13 +197,10 @@ class ProjectCreationFragment : Fragment() {
     private fun showPhotoPreview() {
         val imagePath = currentImagePath ?: return
         
-        // Hide placeholder, show photo preview
         binding.photoPlaceholder.visibility = View.GONE
         binding.photoPreview.visibility = View.VISIBLE
         binding.editPhotoButton.visibility = View.VISIBLE
         
-        // Load the cropped image directly with Glide (no need for manual rotation correction)
-        // The image is already cropped and corrected in PuzzleBoundsFragment
         com.bumptech.glide.Glide.with(requireContext())
             .load(imagePath)
             .placeholder(android.R.drawable.ic_menu_camera)
@@ -184,20 +208,6 @@ class ProjectCreationFragment : Fragment() {
             .fitCenter()
             .into(binding.photoPreview)
     }
-
-    
-
-    private fun quadToJsonString(points: List<PointF>): String {
-        val arr = JSONArray()
-        for (pt in points) {
-            val p = JSONArray()
-            p.put(pt.x.toDouble())
-            p.put(pt.y.toDouble())
-            arr.put(p)
-        }
-        return arr.toString()
-    }
-    
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -244,13 +254,7 @@ class ProjectCreationFragment : Fragment() {
         currentQuadJson = null
         currentImagePath = null
         
-        // Navigate back to project list immediately
         findNavController().navigateUp()
-    }
-
-    private fun resetUI() {
-        // Reset progress bar
-        binding.progressBar.visibility = View.GONE
     }
 
     private fun showErrorDialog(error: String) {

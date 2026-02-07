@@ -3,31 +3,20 @@
     <string name="app_name">PuzzleIt</string>
     
     <!-- Project Creation Dialog -->
-    <string name="new_puzzle_project">Nouveau Puzzle</string>
     <string name="puzzle_name">Nom du puzzle</string>
-    <string name="puzzle_name_hint">ex: La vague</string>
     <string name="number_of_pieces">Nombre de pièces</string>
-    <string name="number_of_pieces_hint">ex: 1000</string>
     <string name="create_project">Créer le projet</string>
     <string name="cancel">Annuler</string>
     <string name="please_enter_project_name">Veuillez entrer un nom de projet</string>
     <string name="please_enter_number_of_pieces">Veuillez entrer le nombre de pièces</string>
     
     <!-- Camera -->
-    <string name="camera_not_ready">Caméra non prête</string>
-    <string name="photo_capture_failed">Échec de la capture photo: %s</string>
-    <string name="camera_permission_required">Permission Caméra Requise</string>
-    <string name="camera_permission_rationale">Cette application a besoin de la permission caméra pour capturer les images des boîtes de puzzle. Veuillez accorder la permission pour continuer.</string>
-    <string name="camera_permission_denied">La permission caméra a été refusée. Veuillez l\'activer dans les paramètres pour utiliser cette fonctionnalité.</string>
-    
+
     <!-- Error -->
     <string name="error">Erreur</string>
     <string name="ok">OK</string>
-    <string name="failed_to_process_image">Échec du traitement de l\'image: %s</string>
-    <string name="unknown_error">Erreur inconnue</string>
-    
+
     <!-- Success -->
-    <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
     <string name="no_puzzles_yet">Pas encore de puzzles !\nAppuyez sur + pour créer votre premier projet de puzzle</string>
     <string name="add_new_puzzle_project">Ajouter un nouveau projet de puzzle</string>
 

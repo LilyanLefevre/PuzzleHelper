@@ -28,7 +28,6 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <ScrollView
-        android:id="@+id/scrollViewReference"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:fillViewport="true"
@@ -38,7 +37,6 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/referenceImageContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/puzzle_surface"

@@ -1,4 +1,4 @@
-package com.lilyan_lefevre.puzzleit.feature.camera
+package com.lilyan_lefevre.puzzleit.shared.ui
 
 import android.content.Context
 import android.graphics.Canvas
@@ -9,10 +9,10 @@ import android.graphics.PointF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.ranges.rangeTo
 
 class QuadSelectionView @JvmOverloads constructor(
     context: Context,

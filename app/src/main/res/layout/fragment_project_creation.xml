@@ -99,7 +99,6 @@
 
     <!-- Form Section -->
     <LinearLayout
-        android:id="@+id/formSection"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -110,7 +109,6 @@
 
         <!-- Project Name -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/textInputLayoutName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
@@ -127,7 +125,6 @@
 
         <!-- Number of Pieces -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/textInputLayoutPieces"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
