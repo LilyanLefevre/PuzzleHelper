@@ -28,7 +28,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainNavBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar) { v, insets ->
+        // Apply padding to AppBarLayout instead of Toolbar to fix alignment issues
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { v, insets ->
             val topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
             v.updatePadding(top = topInset)
             insets
