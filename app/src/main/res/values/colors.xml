@@ -1,31 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material Design 3 Standard Blue Theme -->
-    
-    <!-- Primary colors - Standard Blue -->
-    <color name="puzzle_primary">#1976D2</color>
+
+    <!-- PRIMARY (playful indigo) -->
+    <color name="puzzle_primary">#6A5AE0</color>
     <color name="puzzle_on_primary">#FFFFFF</color>
-    <color name="puzzle_primary_container">#E3F2FD</color>
-    <color name="puzzle_on_primary_container">#0D47A1</color>
-    
-    <!-- Secondary colors - Standard Orange -->
-    <color name="puzzle_secondary">#FF9800</color>
-    <color name="puzzle_on_secondary">#FFFFFF</color>
-    <color name="puzzle_secondary_container">#FFF3E0</color>
-    <color name="puzzle_on_secondary_container">#E65100</color>
-    
-    <!-- Tertiary colors - Standard Green -->
 
-    <!-- Error colors -->
+    <color name="puzzle_primary_container">#E6E4FB</color>
+    <color name="puzzle_on_primary_container">#2C247A</color>
 
-    <!-- Surface colors -->
-    <color name="puzzle_background">#FAFAFA</color>
-    <color name="puzzle_on_background">#212121</color>
-    <color name="puzzle_surface">#FFFFFF</color>
-    <color name="puzzle_on_surface">#212121</color>
+    <!-- SECONDARY (puzzle yellow / amber) -->
+    <color name="puzzle_secondary">#F5B942</color>
+    <color name="puzzle_on_secondary">#3A2600</color>
 
-    <color name="black">#000000</color>
-    <color name="white">#FFFFFF</color>
+    <color name="puzzle_secondary_container">#FFF1D2</color>
+    <color name="puzzle_on_secondary_container">#5A3A00</color>
 
-    <color name="app_bar_icon">#FFFFFF</color>
+    <!-- SURFACE -->
+    <color name="puzzle_surface">#FFFDF9</color>           <!-- Warm paper -->
+    <color name="puzzle_on_surface">#2B2E3A</color>
+
+    <!-- BACKGROUND -->
+    <color name="puzzle_background">#F4F3FF</color>
+
+    <!-- FEEDBACK -->
+    <color name="puzzle_error">#D94C4C</color>
+    <color name="puzzle_on_error">#FFFFFF</color>
+
 </resources>

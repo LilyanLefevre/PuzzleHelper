@@ -211,7 +211,6 @@
     </com.google.android.material.card.MaterialCardView>
 
     <!-- Bottom Controls -->
-    <!-- Bottom Controls -->
     <LinearLayout
         android:id="@+id/bottomControls"
         android:layout_width="0dp"

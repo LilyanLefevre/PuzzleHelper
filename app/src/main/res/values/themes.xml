@@ -7,17 +7,25 @@
         <item name="colorOnPrimary">@color/puzzle_on_primary</item>
         <item name="colorPrimaryContainer">@color/puzzle_primary_container</item>
         <item name="colorOnPrimaryContainer">@color/puzzle_on_primary_container</item>
-        
+
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/puzzle_secondary</item>
         <item name="colorOnSecondary">@color/puzzle_on_secondary</item>
         <item name="colorSecondaryContainer">@color/puzzle_secondary_container</item>
         <item name="colorOnSecondaryContainer">@color/puzzle_on_secondary_container</item>
-        
+
+        <!-- Surface palette (this drives TextInputEditText text color) -->
+        <item name="colorSurface">@color/puzzle_surface</item>
+        <item name="colorOnSurface">@color/puzzle_on_surface</item>
+        <item name="colorSurfaceVariant">@color/puzzle_surface</item>
+        <item name="colorOnSurfaceVariant">@color/puzzle_on_surface</item>
+
+        <!-- Compatibility for framework text defaults -->
+        <item name="android:textColorPrimary">@color/puzzle_on_surface</item>
+        <item name="android:textColorSecondary">@color/puzzle_on_surface</item>
+
         <!-- Status bar color. -->
         <item name="android:statusBarColor">@color/puzzle_primary</item>
-        
-        <!-- Customize your theme here. -->
     </style>
 
 </resources>
