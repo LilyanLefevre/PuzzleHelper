@@ -11,11 +11,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectListBinding
-import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -57,8 +54,8 @@ class ProjectListFragment : Fragment() {
                 }
                 findNavController().navigate(R.id.action_projectListFragment_to_puzzleWorkingFragment, bundle)
             },
-            onProjectLongClick = { project ->
-                showDeleteConfirmationDialog(project)
+            onProjectLongClick = { _ ->
+                // Long click action removed as we now have a delete menu in the detail screen
             }
         )
         
@@ -85,25 +82,12 @@ class ProjectListFragment : Fragment() {
                     viewModel.errorMessage.collect { error ->
                         error?.let {
                             // Show error message
-                            Snackbar.make(
-                                binding.root,
+                            android.widget.Toast.makeText(
+                                requireContext(),
                                 it,
-                                Snackbar.LENGTH_LONG
+                                android.widget.Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearError()
-                        }
-                    }
-                }
-                launch {
-                    viewModel.projectDeleted.collect { projectName ->
-                        projectName?.let {
-                            // Show success message
-                            Snackbar.make(
-                                binding.root,
-                                getString(R.string.project_deleted_successfully, it),
-                                Snackbar.LENGTH_SHORT
-                            ).show()
-                            viewModel.clearProjectDeleted()
                         }
                     }
                 }
@@ -116,17 +100,6 @@ class ProjectListFragment : Fragment() {
             // Navigate to original project creation fragment using Navigation Component
             findNavController().navigate(R.id.action_projectListFragment_to_projectCreationFragment)
         }
-    }
-
-    private fun showDeleteConfirmationDialog(project: Project) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.delete_project_title))
-            .setMessage(getString(R.string.delete_project_message, project.name))
-            .setPositiveButton(getString(R.string.delete)) { _, _ ->
-                viewModel.deleteProject(project.id)
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
     }
 
     override fun onDestroyView() {

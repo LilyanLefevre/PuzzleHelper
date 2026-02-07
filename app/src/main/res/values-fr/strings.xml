@@ -17,12 +17,18 @@
     <string name="please_enter_number_of_pieces">Veuillez entrer le nombre de pièces</string>
     <string name="create_puzzle_title">Créer un puzzle</string>
 
+    <!-- Project Edit -->
+    <string name="edit_button">Modifier</string>
+    <string name="edit_project_title">Modification du puzzle</string>
+    <string name="save_changes">Enregistrer</string>
+
     <!-- Project List -->
     <string name="no_puzzles_yet">Pas encore de puzzles !\nAppuyez sur + pour créer votre premier projet de puzzle</string>
     <string name="pieces_name">%d pièces</string>
     <string name="puzzles_list_title">Mes puzzles</string>
 
     <!-- Project Deletion -->
+    <string name="delete_button">Supprimer</string>
     <string name="delete_project_title">Supprimer le projet</string>
     <string name="delete_project_message">Êtes-vous sûr de vouloir supprimer "%s"? Cette action est irréversible.</string>
     <string name="delete">Supprimer</string>

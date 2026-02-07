@@ -30,6 +30,12 @@
         android:label="@string/create_puzzle_title"
         tools:layout="@layout/fragment_project_creation">
 
+        <argument
+            android:name="projectId"
+            app:argType="string"
+            android:defaultValue="@null"
+            app:nullable="true" />
+
         <action
             android:id="@+id/action_projectCreationFragment_to_puzzleBoundsFragment"
             app:destination="@id/puzzleBoundsFragment">
@@ -56,10 +62,16 @@
         android:name="com.lilyan_lefevre.puzzleit.feature.puzzle.PuzzleWorkingFragment"
         android:label="puzzle_name"
         tools:layout="@layout/fragment_puzzle_working">
+
         <argument
             android:name="projectId"
             app:argType="string"
             android:defaultValue="" />
+
+        <action
+            android:id="@+id/action_puzzleWorkingFragment_to_projectCreationFragment"
+            app:destination="@id/projectCreationFragment" />
+
     </fragment>
 
 </navigation>

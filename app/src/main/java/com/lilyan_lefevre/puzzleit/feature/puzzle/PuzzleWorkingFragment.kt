@@ -1,14 +1,20 @@
 package com.lilyan_lefevre.puzzleit.feature.puzzle
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.MenuHost
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -16,11 +22,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.*
@@ -57,11 +66,60 @@ class PuzzleWorkingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        setupMenu()
         observeViewModel()
         setupClickListeners()
         
         // Load project data
         viewModel.loadProject(projectId)
+    }
+
+    private fun setupMenu() {
+        val menuHost: MenuHost = requireActivity()
+        menuHost.addMenuProvider(object : MenuProvider {
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                menuInflater.inflate(R.menu.menu_puzzle_working, menu)
+            }
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                return when (menuItem.itemId) {
+                    R.id.action_edit -> {
+                        navigateToEditProject()
+                        true
+                    }
+                    R.id.action_delete -> {
+                        showDeleteConfirmationDialog()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
+    }
+
+    private fun navigateToEditProject() {
+        // Pass projectId directly to the generated action method
+        val action = PuzzleWorkingFragmentDirections.actionPuzzleWorkingFragmentToProjectCreationFragment(projectId)
+        findNavController().navigate(action)
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        val projectName = viewModel.project.value?.name ?: "this project"
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.delete_project_title))
+            .setMessage(getString(R.string.delete_project_message, projectName))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                deleteProject()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun deleteProject() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.deleteProject()
+            // Observe deletionSuccess in observeViewModel for navigation
+        }
     }
 
     private fun observeViewModel() {
@@ -92,8 +150,13 @@ class PuzzleWorkingFragment : Fragment() {
                                 android.widget.Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearError()
-                            // Navigate back on error
-                            findNavController().navigateUp()
+                        }
+                    }
+                }
+                launch {
+                    viewModel.deletionSuccess.collect { success ->
+                        if (success) {
+                            findNavController().popBackStack(R.id.projectListFragment, false)
                         }
                     }
                 }
@@ -103,90 +166,25 @@ class PuzzleWorkingFragment : Fragment() {
 
     private fun updateUI(project: Project) {
         binding.apply {
-
             // Update project info
-            val piecesStr = resources.getString(R.string.pieces_name, project.puzzleSize)
-            textViewProjectInfo.text = "$piecesStr • Created ${formatDate(project.creationDate)}"
+            textNumberPieces.text = resources.getString(R.string.pieces_name, project.puzzleSize)
+            textViewCreationDate.text = formatDate(project.creationDate)
             
             // Load the cropped image directly (no need to rectify again)
-            val imagePathToLoad = if (project.thumbnailPath.isNullOrEmpty()) {
-                project.imagePath
-            } else {
-                project.thumbnailPath
-            }
+            val imagePathToLoad = project.thumbnailPath.ifEmpty { project.imagePath }
             
             Glide.with(requireContext())
                 .load(imagePathToLoad)
                 .placeholder(android.R.drawable.ic_menu_gallery)
                 .error(android.R.drawable.ic_menu_gallery)
                 .fitCenter()
-                .into(binding.photoPreview)
+                .into(photoPreview)
         }
-    }
-
-    private fun parseNormalizedQuad(quadJson: String): List<Pair<Float, Float>>? {
-        return try {
-            val arr = JSONArray(quadJson)
-            if (arr.length() != 4) return null
-            val pts = ArrayList<Pair<Float, Float>>(4)
-            for (i in 0 until 4) {
-                val p = arr.getJSONArray(i)
-                val x = p.getDouble(0).toFloat()
-                val y = p.getDouble(1).toFloat()
-                pts.add(Pair(x, y))
-            }
-            pts
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    private fun rectifyBitmapFromNormalizedQuad(
-        src: Bitmap,
-        quadNormClockwise: List<Pair<Float, Float>>
-    ): Bitmap {
-        val w = src.width.toFloat()
-        val h = src.height.toFloat()
-
-        val srcPts = FloatArray(8)
-        for (i in 0 until 4) {
-            srcPts[i * 2] = quadNormClockwise[i].first.coerceIn(0f, 1f) * w
-            srcPts[i * 2 + 1] = quadNormClockwise[i].second.coerceIn(0f, 1f) * h
-        }
-
-        val wTop = distance(srcPts[0], srcPts[1], srcPts[2], srcPts[3])
-        val wBottom = distance(srcPts[6], srcPts[7], srcPts[4], srcPts[5])
-        val outW = max(wTop, wBottom).toInt().coerceAtLeast(1)
-
-        val hLeft = distance(srcPts[0], srcPts[1], srcPts[6], srcPts[7])
-        val hRight = distance(srcPts[2], srcPts[3], srcPts[4], srcPts[5])
-        val outH = max(hLeft, hRight).toInt().coerceAtLeast(1)
-
-        val dstPts = floatArrayOf(
-            0f, 0f,
-            outW.toFloat(), 0f,
-            outW.toFloat(), outH.toFloat(),
-            0f, outH.toFloat()
-        )
-
-        val m = Matrix()
-        m.setPolyToPoly(srcPts, 0, dstPts, 0, 4)
-
-        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
-        val c = Canvas(out)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
-        c.drawBitmap(src, m, paint)
-        return out
-    }
-
-    private fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
-        return hypot((x2 - x1).toDouble(), (y2 - y1).toDouble()).toFloat()
     }
 
     private fun setupClickListeners() {
         binding.buttonCapturePiece.setOnClickListener {
             // TODO: Navigate to camera capture for piece analysis
-            // This will be implemented in Epic 2 stories
             android.widget.Toast.makeText(
                 requireContext(),
                 "Camera capture coming in Epic 2",
@@ -196,7 +194,7 @@ class PuzzleWorkingFragment : Fragment() {
     }
 
     private fun formatDate(timestamp: Long): String {
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val dateFormat = SimpleDateFormat("dd MMM yyyy HH:mm:ss", Locale.getDefault())
         return dateFormat.format(Date(timestamp))
     }
 

@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
@@ -19,18 +20,20 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.io.File
 
 /**
- * Fragment for project creation with form and system camera integration
+ * Fragment for project creation and edition with form and system camera integration
  */
 @AndroidEntryPoint
 class ProjectCreationFragment : Fragment() {
@@ -39,11 +42,15 @@ class ProjectCreationFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: ProjectViewModel by viewModels()
+    private val args: ProjectCreationFragmentArgs by navArgs()
 
     private var originalImagePath: String? = null // Store original image path
     private var croppedImagePath: String? = null // Store cropped image path
     private var currentQuadJson: String? = null
     private var photoFile: File? = null
+    
+    private var isEditMode = false
+    private var existingProject: Project? = null
 
     private val takePictureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -55,13 +62,6 @@ class ProjectCreationFragment : Fragment() {
                 // Navigate to puzzle bounds for cropping immediately after taking the photo
                 navigateToPuzzleBounds(originalImagePath!!)
             }
-        } else {
-            // User cancelled photo taking, clear paths and navigate back if needed
-            originalImagePath = null
-            croppedImagePath = null
-            currentQuadJson = null
-            // No specific navigation needed here, user can decide to take photo again or navigate up
-            // findNavController().navigateUp() // Optionally go back if photo is mandatory
         }
     }
 
@@ -77,13 +77,54 @@ class ProjectCreationFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        isEditMode = args.projectId != null
+        updateTitle()
+
         setupUI()
         observeViewModel()
         listenForPuzzleBoundsResult()
 
-        renderPhotoState()
+        if (isEditMode) {
+            loadExistingProject(args.projectId!!)
+        } else {
+            renderPhotoState()
+        }
     }
 
+    private fun updateTitle() {
+        val title = if (isEditMode) getString(R.string.edit_project_title) else getString(R.string.create_puzzle_title)
+        (activity as? AppCompatActivity)?.supportActionBar?.title = title
+    }
+
+    private fun loadExistingProject(projectId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.loadProjects() // Ensure projects are loaded
+                viewModel.projects.collect { projects ->
+                    val project = projects.find { it.id == projectId }
+                    project?.let { 
+                        existingProject = it
+                        populateFields(it) 
+                    }
+                }
+            }
+        }
+    }
+
+    private fun populateFields(project: Project) {
+        binding.editTextName.setText(project.name)
+        binding.editTextPieces.setText(project.puzzleSize.toString())
+        
+        // Use the original image path from the project for re-editing bounds
+        if (originalImagePath == null) {
+            originalImagePath = project.imagePath
+            croppedImagePath = project.thumbnailPath
+            currentQuadJson = project.puzzleQuad
+        }
+        
+        renderPhotoState()
+        binding.btnCreate.text = getString(R.string.save_changes)
+    }
 
     private fun setupUI() {
         binding.photoPlaceholder.setOnClickListener {
@@ -102,7 +143,7 @@ class ProjectCreationFragment : Fragment() {
         }
         
         binding.btnCreate.setOnClickListener {
-            createProject()
+            if (isEditMode) updateProject() else createProject()
         }
     }
 
@@ -143,10 +184,10 @@ class ProjectCreationFragment : Fragment() {
 
     private fun createDefaultQuad(): String {
         val defaultQuad = listOf(
-            PointF(0.2f, 0.2f),
-            PointF(0.8f, 0.2f),
-            PointF(0.8f, 0.8f),
-            PointF(0.2f, 0.8f)
+            PointF(0.1f, 0.1f),
+            PointF(0.9f, 0.1f),
+            PointF(0.9f, 0.9f),
+            PointF(0.1f, 0.9f)
         )
         val arr = JSONArray()
         for (pt in defaultQuad) {
@@ -160,33 +201,59 @@ class ProjectCreationFragment : Fragment() {
 
     private fun createProject() {
         val name = binding.editTextName.text.toString().trim()
-        val pieces = try {
+        val pieces = getPiecesCount()
+
+        if (validateInput(name, pieces)) {
+            viewModel.createProject(
+                imagePath = originalImagePath!!,
+                thumbnailPath = croppedImagePath ?: originalImagePath!!,
+                name = name,
+                puzzleSize = pieces!!,
+                difficulty = "medium",
+                puzzleQuad = currentQuadJson
+            )
+        }
+    }
+
+    private fun updateProject() {
+        val name = binding.editTextName.text.toString().trim()
+        val pieces = getPiecesCount()
+
+        if (validateInput(name, pieces) && existingProject != null) {
+            val updatedProject = existingProject!!.copy(
+                name = name,
+                puzzleSize = pieces!!,
+                imagePath = originalImagePath!!,
+                thumbnailPath = croppedImagePath ?: originalImagePath!!,
+                puzzleQuad = currentQuadJson
+            )
+            viewModel.updateProject(updatedProject)
+        }
+    }
+
+    private fun getPiecesCount(): Int? {
+        return try {
             binding.editTextPieces.text.toString().toInt()
         } catch (e: NumberFormatException) {
             null
         }
+    }
 
-        when {
+    private fun validateInput(name: String, pieces: Int?): Boolean {
+        return when {
             originalImagePath == null -> {
                 Toast.makeText(requireContext(), "Please take a photo first", Toast.LENGTH_SHORT).show()
+                false
             }
             name.isEmpty() -> {
                 Toast.makeText(requireContext(), getString(R.string.please_enter_project_name), Toast.LENGTH_SHORT).show()
+                false
             }
             pieces == null -> {
                 Toast.makeText(requireContext(), getString(R.string.please_enter_number_of_pieces), Toast.LENGTH_SHORT).show()
+                false
             }
-            else -> {
-                val finalImagePath = croppedImagePath ?: originalImagePath // Use cropped if available, else original
-                viewModel.createProject(
-                    imagePath = finalImagePath!!,
-                    thumbnailPath = finalImagePath!!, // Thumbnail will also be the cropped/original image
-                    name = name,
-                    puzzleSize = pieces,
-                    difficulty = "medium",
-                    puzzleQuad = currentQuadJson
-                )
-            }
+            else -> true
         }
     }
 
@@ -197,12 +264,12 @@ class ProjectCreationFragment : Fragment() {
             val cancelled = bundle.getBoolean("cancelled", false)
             
             if (cancelled) {
-                originalImagePath = null
-                croppedImagePath = null
-                currentQuadJson = null
-
+                if (!isEditMode) {
+                    originalImagePath = null
+                    croppedImagePath = null
+                    currentQuadJson = null
+                }
                 renderPhotoState()
-                return@setFragmentResultListener
             } else if (quadJson != null) {
                 currentQuadJson = quadJson
                 croppedImagePath = croppedPath
@@ -251,7 +318,8 @@ class ProjectCreationFragment : Fragment() {
     }
 
     private fun showSuccessAndNavigate(project: Project) {
-        Toast.makeText(requireContext(), getString(R.string.project_created_successfully, project.name), Toast.LENGTH_SHORT).show()
+        val message = if (isEditMode) "Project updated!" else getString(R.string.project_created_successfully, project.name)
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
 
         originalImagePath = null
         croppedImagePath = null
@@ -274,9 +342,6 @@ class ProjectCreationFragment : Fragment() {
         _binding = null
     }
 
-    /**
-     * Renders the header state (placeholder vs preview) based on the currently available image paths.
-     */
     private fun renderPhotoState() {
         val imagePathToShow = croppedImagePath ?: originalImagePath
         if (imagePathToShow.isNullOrBlank()) {
@@ -286,24 +351,13 @@ class ProjectCreationFragment : Fragment() {
         }
     }
 
-    /**
-     * Shows the placeholder card and ensures any previous Glide request is cleared so we don't
-     * keep stale drawables or overlay a "blank" image.
-     */
     private fun showPlaceholder() {
-        // Clear any previous image load.
         Glide.with(this).clear(binding.photoPreview)
-
         binding.photoPlaceholder.visibility = View.VISIBLE
         binding.photoPreviewCard.visibility = View.GONE
         binding.editPhotoButton.visibility = View.GONE
     }
 
-    /**
-     * Shows the preview card and loads the provided image path.
-     *
-     * @param imagePath Absolute path to the image to render in the preview.
-     */
     private fun showPhotoPreview(imagePath: String) {
         binding.photoPlaceholder.visibility = View.GONE
         binding.photoPreviewCard.visibility = View.VISIBLE
@@ -316,7 +370,6 @@ class ProjectCreationFragment : Fragment() {
             .fitCenter()
             .into(binding.photoPreview)
     }
-
 
     companion object {
         private const val TAG = "ProjectCreationFragment"

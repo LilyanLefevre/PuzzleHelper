@@ -17,12 +17,18 @@
     <string name="please_enter_number_of_pieces">Please enter the number of pieces</string>
     <string name="create_puzzle_title">Create a puzzle</string>
 
+    <!-- Project Edit -->
+    <string name="edit_button">Edit</string>
+    <string name="edit_project_title">Edit a puzzle</string>
+    <string name="save_changes">Save changes</string>
+
     <!-- Project List -->
     <string name="no_puzzles_yet">No puzzles yet!\nTap + to create your first puzzle project</string>
     <string name="pieces_name">%d pieces</string>
     <string name="puzzles_list_title">My puzzles</string>
 
     <!-- Project Deletion -->
+    <string name="delete_button">Delete</string>
     <string name="delete_project_title">Delete Project</string>
     <string name="delete_project_message">Are you sure you want to delete "%s"? This action cannot be undone.</string>
     <string name="delete">Delete</string>

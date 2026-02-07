@@ -28,6 +28,9 @@ class PuzzleWorkingViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _deletionSuccess = MutableStateFlow(false)
+    val deletionSuccess: StateFlow<Boolean> = _deletionSuccess.asStateFlow()
+
     /**
      * Load project data by ID
      */
@@ -45,6 +48,28 @@ class PuzzleWorkingViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load project: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Delete the current project
+     */
+    fun deleteProject() {
+        val currentProject = _project.value ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val result = projectRepository.deleteProject(currentProject.id)
+                if (result.isSuccess) {
+                    _deletionSuccess.value = true
+                } else {
+                    _errorMessage.value = "Failed to delete project: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to delete project: ${e.message}"
             } finally {
                 _isLoading.value = false
             }

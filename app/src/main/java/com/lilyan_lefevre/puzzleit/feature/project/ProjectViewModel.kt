@@ -2,7 +2,6 @@ package com.lilyan_lefevre.puzzleit.feature.project
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lilyan_lefevre.puzzleit.BuildConfig
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +11,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel for project operations
+ * ViewModel for project list and creation operations
  */
 @HiltViewModel
 class ProjectViewModel @Inject constructor(
@@ -28,17 +27,11 @@ class ProjectViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
-    // If this is a one-shot event you clear after handling, StateFlow is OK but
-    // SharedFlow would be another option. Here we keep your clear* API.
     private val _projectCreated = MutableStateFlow<Project?>(null)
     val projectCreated: StateFlow<Project?> = _projectCreated.asStateFlow()
-
-    private val _projectDeleted = MutableStateFlow<String?>(null) // Store deleted project name for feedback
-    val projectDeleted: StateFlow<String?> = _projectDeleted.asStateFlow()
 
     init {
         loadProjects()
@@ -88,44 +81,18 @@ class ProjectViewModel @Inject constructor(
     }
 
     /**
-     * Delete a project by ID with user feedback
+     * Update an existing project
      */
-    fun deleteProject(projectId: String) {
+    fun updateProject(project: Project) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                
-                // Get project name for feedback before deletion
-                val project = projectRepository.getProjectById(projectId)
-                val projectName = project?.name ?: "Unknown"
-                
-                val result = projectRepository.deleteProject(projectId)
-                if (result.isSuccess) {
-                    _projectDeleted.value = projectName
-                    _errorMessage.value = null
-                } else {
-                    _errorMessage.value = "Failed to delete project: ${result.exceptionOrNull()?.message}"
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to delete project: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    /**
-     * Delete a project (legacy method for backward compatibility)
-     */
-    fun deleteProject(project: Project) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                projectRepository.deleteProject(project)
-                _projectDeleted.value = project.name
+                projectRepository.updateProject(project)
+                // We reuse projectCreated flow to notify the UI of success
+                _projectCreated.value = project
                 _errorMessage.value = null
             } catch (e: Exception) {
-                _errorMessage.value = "Failed to delete project: ${e.message}"
+                _errorMessage.value = "Failed to update project: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -140,17 +107,9 @@ class ProjectViewModel @Inject constructor(
     }
 
     /**
-     * Clear project created event
+     * Clear project created/updated event
      */
     fun clearProjectCreated() {
         _projectCreated.value = null
     }
-
-    /**
-     * Clear project deleted event
-     */
-    fun clearProjectDeleted() {
-        _projectDeleted.value = null
-    }
 }
-
