@@ -3,7 +3,10 @@ package com.lilyan_lefevre.puzzleit
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import com.lilyan_lefevre.puzzleit.databinding.ActivityMainNavBinding
 import dagger.hilt.android.AndroidEntryPoint
 import org.opencv.android.OpenCVLoader
@@ -18,6 +21,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         binding = ActivityMainNavBinding.inflate(layoutInflater)
         setContentView(binding.root)
         

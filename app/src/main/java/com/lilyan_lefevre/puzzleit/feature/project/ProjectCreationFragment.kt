@@ -19,6 +19,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
@@ -75,11 +76,14 @@ class ProjectCreationFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         setupUI()
         observeViewModel()
         listenForPuzzleBoundsResult()
+
+        renderPhotoState()
     }
+
 
     private fun setupUI() {
         binding.photoPlaceholder.setOnClickListener {
@@ -193,35 +197,18 @@ class ProjectCreationFragment : Fragment() {
             val cancelled = bundle.getBoolean("cancelled", false)
             
             if (cancelled) {
-                // User cancelled from PuzzleBoundsFragment, clear any pending image
                 originalImagePath = null
                 croppedImagePath = null
                 currentQuadJson = null
-                // Optionally, reset UI to show photo placeholder
-                binding.photoPlaceholder.visibility = View.VISIBLE
-                binding.photoPreview.visibility = View.GONE
-                binding.editPhotoButton.visibility = View.GONE
+
+                renderPhotoState()
+                return@setFragmentResultListener
             } else if (quadJson != null) {
                 currentQuadJson = quadJson
-                croppedImagePath = croppedPath // Store the new cropped path
-                showPhotoPreview()
+                croppedImagePath = croppedPath
+                renderPhotoState()
             }
         }
-    }
-
-    private fun showPhotoPreview() {
-        val imagePathToShow = croppedImagePath ?: originalImagePath ?: return
-        
-        binding.photoPlaceholder.visibility = View.GONE
-        binding.photoPreview.visibility = View.VISIBLE
-        binding.editPhotoButton.visibility = View.VISIBLE
-        
-        com.bumptech.glide.Glide.with(requireContext())
-            .load(imagePathToShow)
-            .placeholder(android.R.drawable.ic_menu_camera)
-            .error(android.R.drawable.ic_menu_camera)
-            .fitCenter()
-            .into(binding.photoPreview)
     }
 
     private fun observeViewModel() {
@@ -286,6 +273,50 @@ class ProjectCreationFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+
+    /**
+     * Renders the header state (placeholder vs preview) based on the currently available image paths.
+     */
+    private fun renderPhotoState() {
+        val imagePathToShow = croppedImagePath ?: originalImagePath
+        if (imagePathToShow.isNullOrBlank()) {
+            showPlaceholder()
+        } else {
+            showPhotoPreview(imagePathToShow)
+        }
+    }
+
+    /**
+     * Shows the placeholder card and ensures any previous Glide request is cleared so we don't
+     * keep stale drawables or overlay a "blank" image.
+     */
+    private fun showPlaceholder() {
+        // Clear any previous image load.
+        Glide.with(this).clear(binding.photoPreview)
+
+        binding.photoPlaceholder.visibility = View.VISIBLE
+        binding.photoPreviewCard.visibility = View.GONE
+        binding.editPhotoButton.visibility = View.GONE
+    }
+
+    /**
+     * Shows the preview card and loads the provided image path.
+     *
+     * @param imagePath Absolute path to the image to render in the preview.
+     */
+    private fun showPhotoPreview(imagePath: String) {
+        binding.photoPlaceholder.visibility = View.GONE
+        binding.photoPreviewCard.visibility = View.VISIBLE
+        binding.editPhotoButton.visibility = View.VISIBLE
+
+        Glide.with(this)
+            .load(File(imagePath))
+            .placeholder(android.R.drawable.ic_menu_camera)
+            .error(android.R.drawable.ic_menu_camera)
+            .fitCenter()
+            .into(binding.photoPreview)
+    }
+
 
     companion object {
         private const val TAG = "ProjectCreationFragment"

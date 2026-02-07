@@ -14,10 +14,12 @@
     <string name="cancel">Annuler</string>
     <string name="please_enter_project_name">Veuillez entrer un nom de projet</string>
     <string name="please_enter_number_of_pieces">Veuillez entrer le nombre de pièces</string>
+    <string name="create_puzzle_title">Créer un puzzle</string>
 
     <!-- Project List -->
     <string name="no_puzzles_yet">Pas encore de puzzles !\nAppuyez sur + pour créer votre premier projet de puzzle</string>
     <string name="pieces_name">%d pièces</string>
+    <string name="puzzles_list">Mes puzzles</string>
 
     <!-- Project Deletion -->
     <string name="delete_project_title">Supprimer le projet</string>

@@ -14,10 +14,12 @@
     <string name="cancel">Cancel</string>
     <string name="please_enter_project_name">Please enter a project name</string>
     <string name="please_enter_number_of_pieces">Please enter the number of pieces</string>
+    <string name="create_puzzle_title">Create a puzzle</string>
 
     <!-- Project List -->
     <string name="no_puzzles_yet">No puzzles yet!\nTap + to create your first puzzle project</string>
     <string name="pieces_name">%d pieces</string>
+    <string name="puzzles_list">My puzzles</string>
 
     <!-- Project Deletion -->
     <string name="delete_project_title">Delete Project</string>

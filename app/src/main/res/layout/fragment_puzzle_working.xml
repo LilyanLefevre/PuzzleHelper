@@ -18,9 +18,8 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="80dp"
+            android:layout_height="wrap_content"
             android:background="@color/puzzle_primary"
-            android:gravity="bottom"
             app:title="PuzzleHelper"
             app:navigationIcon="@android:drawable/ic_menu_revert"
             app:titleTextColor="@color/puzzle_on_primary" />

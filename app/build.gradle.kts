@@ -49,6 +49,7 @@ android {
 }
 
 dependencies {
+    // To handle image loading
     implementation(libs.glide)
 
     // OpenCV dependency using version catalog
