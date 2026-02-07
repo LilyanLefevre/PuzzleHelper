@@ -1,25 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PuzzleIt</string>
-    
-    <!-- Project Creation Dialog -->
+
+    <!-- Project Creation -->
+    <string name="photo_placeholder">Image de remplacement</string>
+    <string name="tap_to_take_photo">Appuyer pour prendre une photo</string>
+    <string name="take_a_photo_of_your_puzzle_box">Prendre une photo de la boîte du puzzle</string>
+    <string name="edit_photo">Modifier la photo</string>
+    <string name="project_created_successfully">Projet "%s" créé !</string>
     <string name="puzzle_name">Nom du puzzle</string>
     <string name="number_of_pieces">Nombre de pièces</string>
     <string name="create_project">Créer le projet</string>
     <string name="cancel">Annuler</string>
     <string name="please_enter_project_name">Veuillez entrer un nom de projet</string>
     <string name="please_enter_number_of_pieces">Veuillez entrer le nombre de pièces</string>
-    
-    <!-- Camera -->
+
+    <!-- Project List -->
+    <string name="no_puzzles_yet">Pas encore de puzzles !\nAppuyez sur + pour créer votre premier projet de puzzle</string>
+    <string name="pieces_name">%d pièces</string>
+
+    <!-- Project Deletion -->
+    <string name="delete_project_title">Supprimer le projet</string>
+    <string name="delete_project_message">Êtes-vous sûr de vouloir supprimer "%s"? Cette action est irréversible.</string>
+    <string name="delete">Supprimer</string>
+    <string name="project_deleted_successfully">Projet "%s" supprimé !</string>
+
+    <!-- Puzzle Bounds -->
+    <string name="puzzle_bounds_title">Sélectionner les contours du puzzle</string>
+
+    <!-- Puzzle piece -->
+    <string name="capture_piece">Prendre une pièce</string>
+
+    <!-- Content description -->
+    <string name="puzzle_reference_image">Image de référence du puzzle</string>
+    <string name="project_thumbnail">Aperçu du puzzle</string>
+    <string name="add_new_puzzle_project">Ajouter un nouveau projet de puzzle</string>
+    <string name="puzzle_box_image">Image de la boîte du puzzle</string>
 
     <!-- Error -->
     <string name="error">Erreur</string>
     <string name="ok">OK</string>
-
-    <!-- Success -->
-    <string name="no_puzzles_yet">Pas encore de puzzles !\nAppuyez sur + pour créer votre premier projet de puzzle</string>
-    <string name="add_new_puzzle_project">Ajouter un nouveau projet de puzzle</string>
-
-    <string name="project_thumbnail">Aperçu du puzzle</string>
-    <string name="pieces_name">%d pièces</string>
 </resources>

@@ -44,13 +44,14 @@
                     android:layout_width="64dp"
                     android:layout_height="64dp"
                     android:src="@android:drawable/ic_menu_camera"
-                    android:tint="@color/puzzle_on_surface"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_marginBottom="16dp"
+                    android:contentDescription="@string/photo_placeholder"
+                    app:tint="@color/puzzle_on_surface"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Tap to take photo"
+                    android:text="@string/tap_to_take_photo"
                     android:textColor="@color/puzzle_on_surface"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -58,7 +59,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Take a photo of your puzzle box"
+                    android:text="@string/take_a_photo_of_your_puzzle_box"
                     android:textColor="@color/puzzle_on_surface"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
@@ -87,7 +88,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
-            android:contentDescription="Edit photo"
+            android:contentDescription="@string/edit_photo"
             android:src="@android:drawable/ic_menu_edit"
             android:visibility="gone"
             app:backgroundTint="@color/puzzle_secondary"

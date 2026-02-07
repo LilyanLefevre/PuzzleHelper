@@ -63,6 +63,8 @@ class QuadSelectionView @JvmOverloads constructor(
     private val handleRadiusPx = 22f
     private val handleHitSlopPx = 60f
 
+    private val reusedPath = Path()
+
     fun setSourceSize(width: Int, height: Int) {
         sourceWidth = width
         sourceHeight = height
@@ -98,7 +100,7 @@ class QuadSelectionView @JvmOverloads constructor(
         super.onDraw(canvas)
         val mapped = p.map { mapSourceNormToView(it.x, it.y) }
 
-        val path = Path().apply {
+        reusedPath.apply {
             moveTo(mapped[0].x, mapped[0].y)
             lineTo(mapped[1].x, mapped[1].y)
             lineTo(mapped[2].x, mapped[2].y)
@@ -106,8 +108,8 @@ class QuadSelectionView @JvmOverloads constructor(
             close()
         }
 
-        canvas.drawPath(path, fillPaint)
-        canvas.drawPath(path, strokePaint)
+        canvas.drawPath(reusedPath, fillPaint)
+        canvas.drawPath(reusedPath, strokePaint)
 
         if (editable) {
             for (pt in mapped) {

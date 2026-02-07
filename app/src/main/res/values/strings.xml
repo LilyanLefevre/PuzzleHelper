@@ -1,31 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PuzzleIt</string>
     
-    <!-- Project Creation Dialog -->
+    <!-- Project Creation -->
+    <string name="photo_placeholder">Photo placeholder</string>
+    <string name="tap_to_take_photo">Tap to take photo</string>
+    <string name="take_a_photo_of_your_puzzle_box">Take a photo of your puzzle box</string>
+    <string name="edit_photo">Edit photo</string>
+    <string name="project_created_successfully">Project "%s" created successfully!</string>
     <string name="puzzle_name">Puzzle name</string>
     <string name="number_of_pieces">Number of pieces</string>
     <string name="create_project">Create Project</string>
     <string name="cancel">Cancel</string>
     <string name="please_enter_project_name">Please enter a project name</string>
     <string name="please_enter_number_of_pieces">Please enter the number of pieces</string>
-    
-    <!-- Camera -->
 
-    <!-- Contour Detection -->
-
-    <!-- Error -->
-    <string name="error">Error</string>
-    <string name="ok">OK</string>
-
-    <!-- Success -->
+    <!-- Project List -->
     <string name="no_puzzles_yet">No puzzles yet!\nTap + to create your first puzzle project</string>
-    <string name="project_created_successfully">Project "%s" created successfully!</string>
-    <string name="add_new_puzzle_project">Add new puzzle project</string>
-    <string name="project_thumbnail">Puzzle thumbnail</string>
     <string name="pieces_name">%d pieces</string>
-    <string name="puzzle_reference_image">Puzzle reference image</string>
-    <string name="capture_piece">Capture Piece</string>
-    
+
     <!-- Project Deletion -->
     <string name="delete_project_title">Delete Project</string>
     <string name="delete_project_message">Are you sure you want to delete "%s"? This action cannot be undone.</string>
@@ -34,6 +27,17 @@
 
     <!-- Puzzle Bounds -->
     <string name="puzzle_bounds_title">Select Puzzle Bounds</string>
-    
-    <!-- Photo Crop -->
+
+    <!-- Puzzle piece -->
+    <string name="capture_piece">Capture Piece</string>
+
+    <!-- Content description -->
+    <string name="puzzle_reference_image">Puzzle reference image</string>
+    <string name="project_thumbnail">Puzzle thumbnail</string>
+    <string name="add_new_puzzle_project">Add new puzzle project</string>
+    <string name="puzzle_box_image">Puzzle box image</string>
+
+    <!-- Error -->
+    <string name="error">Error</string>
+    <string name="ok">OK</string>
 </resources>

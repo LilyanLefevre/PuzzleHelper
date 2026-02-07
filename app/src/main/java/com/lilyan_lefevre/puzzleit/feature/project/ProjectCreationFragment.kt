@@ -150,7 +150,7 @@ class ProjectCreationFragment : Fragment() {
         val name = binding.editTextName.text.toString().trim()
         val pieces = try {
             binding.editTextPieces.text.toString().toInt()
-        } catch (e: NumberFormatException) {
+        } catch (_: NumberFormatException) {
             null
         }
 
