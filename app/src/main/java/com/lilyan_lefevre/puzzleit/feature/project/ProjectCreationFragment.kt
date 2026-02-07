@@ -2,9 +2,12 @@ package com.lilyan_lefevre.puzzleit.feature.project
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.PointF
 import android.os.Bundle
 import android.provider.MediaStore
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -26,6 +29,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
+import com.lilyan_lefevre.puzzleit.shared.util.GridProcessor
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -43,8 +47,8 @@ class ProjectCreationFragment : Fragment() {
     private val viewModel: ProjectViewModel by viewModels()
     private val args: ProjectCreationFragmentArgs by navArgs()
 
-    private var originalImagePath: String? = null // Store original image path
-    private var croppedImagePath: String? = null // Store cropped image path
+    private var originalImagePath: String? = null
+    private var croppedImagePath: String? = null
     private var currentQuadJson: String? = null
     private var photoFile: File? = null
     
@@ -58,7 +62,6 @@ class ProjectCreationFragment : Fragment() {
             photoFile?.let { file ->
                 originalImagePath = file.absolutePath
                 currentQuadJson = createDefaultQuad()
-                // Navigate to puzzle bounds for cropping immediately after taking the photo
                 navigateToPuzzleBounds(originalImagePath!!)
             }
         }
@@ -98,7 +101,7 @@ class ProjectCreationFragment : Fragment() {
     private fun loadExistingProject(projectId: String) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.loadProjects() // Ensure projects are loaded
+                viewModel.loadProjects()
                 viewModel.projects.collect { projects ->
                     val project = projects.find { it.id == projectId }
                     project?.let { 
@@ -113,8 +116,9 @@ class ProjectCreationFragment : Fragment() {
     private fun populateFields(project: Project) {
         binding.editTextName.setText(project.name)
         binding.editTextPieces.setText(project.puzzleSize.toString())
+        binding.editTextRows.setText(project.gridRows.toString())
+        binding.editTextCols.setText(project.gridCols.toString())
         
-        // Use the original image path from the project for re-editing bounds
         if (originalImagePath == null) {
             originalImagePath = project.imagePath
             croppedImagePath = project.thumbnailPath
@@ -131,7 +135,6 @@ class ProjectCreationFragment : Fragment() {
         }
         
         binding.editPhotoButton.setOnClickListener {
-            // Always use the original image for re-editing bounds
             originalImagePath?.let { imagePath ->
                 navigateToPuzzleBounds(imagePath)
             }
@@ -143,6 +146,32 @@ class ProjectCreationFragment : Fragment() {
         
         binding.btnCreate.setOnClickListener {
             if (isEditMode) updateProject() else createProject()
+        }
+
+        // Auto-calculate grid when pieces count changes
+        binding.editTextPieces.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                if (s != null && s.isNotEmpty()) {
+                    autoCalculateGrid()
+                }
+            }
+        })
+    }
+
+    private fun autoCalculateGrid() {
+        val pieces = getPiecesCount() ?: return
+        val imagePath = croppedImagePath ?: originalImagePath ?: return
+        
+        // Load image dimensions
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(imagePath, options)
+        
+        if (options.outWidth > 0 && options.outHeight > 0) {
+            val gridConfig = GridProcessor.calculateBestGrid(pieces, options.outWidth, options.outHeight)
+            binding.editTextRows.setText(gridConfig.rows.toString())
+            binding.editTextCols.setText(gridConfig.cols.toString())
         }
     }
 
@@ -201,6 +230,8 @@ class ProjectCreationFragment : Fragment() {
     private fun createProject() {
         val name = binding.editTextName.text.toString().trim()
         val pieces = getPiecesCount()
+        val rows = getRowsCount() ?: 1
+        val cols = getColsCount() ?: 1
 
         if (validateInput(name, pieces)) {
             viewModel.createProject(
@@ -208,6 +239,8 @@ class ProjectCreationFragment : Fragment() {
                 thumbnailPath = croppedImagePath ?: originalImagePath!!,
                 name = name,
                 puzzleSize = pieces!!,
+                gridRows = rows,
+                gridCols = cols,
                 difficulty = "medium",
                 puzzleQuad = currentQuadJson
             )
@@ -217,11 +250,15 @@ class ProjectCreationFragment : Fragment() {
     private fun updateProject() {
         val name = binding.editTextName.text.toString().trim()
         val pieces = getPiecesCount()
+        val rows = getRowsCount() ?: 1
+        val cols = getColsCount() ?: 1
 
         if (validateInput(name, pieces) && existingProject != null) {
             val updatedProject = existingProject!!.copy(
                 name = name,
                 puzzleSize = pieces!!,
+                gridRows = rows,
+                gridCols = cols,
                 imagePath = originalImagePath!!,
                 thumbnailPath = croppedImagePath ?: originalImagePath!!,
                 puzzleQuad = currentQuadJson
@@ -233,6 +270,22 @@ class ProjectCreationFragment : Fragment() {
     private fun getPiecesCount(): Int? {
         return try {
             binding.editTextPieces.text.toString().toInt()
+        } catch (e: NumberFormatException) {
+            null
+        }
+    }
+
+    private fun getRowsCount(): Int? {
+        return try {
+            binding.editTextRows.text.toString().toInt()
+        } catch (e: NumberFormatException) {
+            null
+        }
+    }
+
+    private fun getColsCount(): Int? {
+        return try {
+            binding.editTextCols.text.toString().toInt()
         } catch (e: NumberFormatException) {
             null
         }
@@ -273,6 +326,7 @@ class ProjectCreationFragment : Fragment() {
                 currentQuadJson = quadJson
                 croppedImagePath = croppedPath
                 renderPhotoState()
+                autoCalculateGrid() // Recalculate if image changed
             }
         }
     }
@@ -280,7 +334,6 @@ class ProjectCreationFragment : Fragment() {
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-
                 launch {
                     viewModel.projectCreated.collect { project ->
                         project?.let {
@@ -295,14 +348,6 @@ class ProjectCreationFragment : Fragment() {
                         error?.let {
                             showErrorDialog(it)
                             viewModel.clearError()
-                        }
-                    }
-                }
-
-                launch {
-                    viewModel.isLoading.collect { isLoading ->
-                        if (!isLoading) {
-                            binding.progressBar.visibility = View.GONE
                         }
                     }
                 }

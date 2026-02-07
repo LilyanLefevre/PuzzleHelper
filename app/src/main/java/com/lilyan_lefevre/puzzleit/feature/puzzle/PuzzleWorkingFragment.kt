@@ -1,17 +1,12 @@
 package com.lilyan_lefevre.puzzleit.feature.puzzle
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Matrix
-import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
@@ -22,19 +17,22 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.lilyan_lefevre.puzzleit.BuildConfig
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.hypot
-import kotlin.math.max
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 
 /**
  * Fragment for working on a puzzle project
@@ -47,10 +45,11 @@ class PuzzleWorkingFragment : Fragment() {
 
     private val viewModel: PuzzleWorkingViewModel by viewModels()
     private lateinit var projectId: String
+    
+    private var currentProject: Project? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Get project ID from arguments
         projectId = arguments?.getString("projectId") ?: ""
     }
 
@@ -70,7 +69,14 @@ class PuzzleWorkingFragment : Fragment() {
         observeViewModel()
         setupClickListeners()
         
-        // Load project data
+        binding.photoPreview.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                if (_binding != null) {
+                    updateGridAlignment()
+                }
+            }
+        })
+        
         viewModel.loadProject(projectId)
     }
 
@@ -98,7 +104,6 @@ class PuzzleWorkingFragment : Fragment() {
     }
 
     private fun navigateToEditProject() {
-        // Pass projectId directly to the generated action method
         val action = PuzzleWorkingFragmentDirections.actionPuzzleWorkingFragmentToProjectCreationFragment(projectId)
         findNavController().navigate(action)
     }
@@ -118,7 +123,6 @@ class PuzzleWorkingFragment : Fragment() {
     private fun deleteProject() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.deleteProject()
-            // Observe deletionSuccess in observeViewModel for navigation
         }
     }
 
@@ -127,9 +131,9 @@ class PuzzleWorkingFragment : Fragment() {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.project.collect { project ->
+                        currentProject = project
                         project?.let {
                             updateUI(it)
-                            // Update ActionBar title with project name
                             (activity as? AppCompatActivity)?.supportActionBar?.title = it.name
                         }
                     }
@@ -143,12 +147,7 @@ class PuzzleWorkingFragment : Fragment() {
                 launch {
                     viewModel.errorMessage.collect { error ->
                         error?.let {
-                            // Show error message
-                            android.widget.Toast.makeText(
-                                requireContext(),
-                                it,
-                                android.widget.Toast.LENGTH_LONG
-                            ).show()
+                            android.widget.Toast.makeText(requireContext(), it, android.widget.Toast.LENGTH_LONG).show()
                             viewModel.clearError()
                         }
                     }
@@ -166,25 +165,72 @@ class PuzzleWorkingFragment : Fragment() {
 
     private fun updateUI(project: Project) {
         binding.apply {
-            // Update project info
             textNumberPieces.text = resources.getString(R.string.pieces_name, project.puzzleSize)
             textViewCreationDate.text = formatDate(project.creationDate)
             
-            // Load the cropped image directly (no need to rectify again)
             val imagePathToLoad = project.thumbnailPath.ifEmpty { project.imagePath }
             
-            Glide.with(requireContext())
+            val glideRequest = Glide.with(requireContext())
                 .load(imagePathToLoad)
                 .placeholder(android.R.drawable.ic_menu_gallery)
                 .error(android.R.drawable.ic_menu_gallery)
                 .fitCenter()
-                .into(photoPreview)
+
+            if (BuildConfig.DEBUG) {
+                glideRequest.listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
+                        gridOverlay.visibility = View.GONE
+                        return false 
+                    }
+
+                    override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
+                        // Use the stored grid dimensions from the project
+                        gridOverlay.setGrid(project.gridRows, project.gridCols)
+                        
+                        photoPreview.post {
+                            updateGridAlignment()
+                        }
+                        
+                        return false
+                    }
+                }).into(photoPreview)
+            } else {
+                gridOverlay.visibility = View.GONE
+                glideRequest.into(photoPreview)
+            }
         }
+    }
+
+    private fun updateGridAlignment() {
+        val drawable = binding.photoPreview.drawable ?: return
+        val project = currentProject ?: return
+        
+        if (!BuildConfig.DEBUG) return
+
+        val imageWidth = drawable.intrinsicWidth.toFloat()
+        val imageHeight = drawable.intrinsicHeight.toFloat()
+        
+        if (imageWidth <= 0 || imageHeight <= 0) return
+
+        val viewWidth = binding.photoPreview.width.toFloat()
+        val viewHeight = binding.photoPreview.height.toFloat()
+        
+        if (viewWidth <= 0 || viewHeight <= 0) return
+
+        val scale = Math.min(viewWidth / imageWidth, viewHeight / imageHeight)
+        val finalWidth = imageWidth * scale
+        val finalHeight = imageHeight * scale
+        val left = (viewWidth - finalWidth) / 2f
+        val top = (viewHeight - finalHeight) / 2f
+        
+        val actualImageRect = RectF(left, top, left + finalWidth, top + finalHeight)
+        
+        binding.gridOverlay.setTargetRect(actualImageRect)
+        binding.gridOverlay.visibility = View.VISIBLE
     }
 
     private fun setupClickListeners() {
         binding.buttonCapturePiece.setOnClickListener {
-            // TODO: Navigate to camera capture for piece analysis
             android.widget.Toast.makeText(
                 requireContext(),
                 "Camera capture coming in Epic 2",

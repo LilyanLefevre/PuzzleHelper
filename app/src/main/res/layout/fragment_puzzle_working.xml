@@ -53,6 +53,12 @@
                     android:contentDescription="@string/puzzle_reference_image"
                     tools:src="@android:drawable/ic_menu_camera" />
 
+                <com.lilyan_lefevre.puzzleit.feature.puzzle.GridOverlayView
+                    android:id="@+id/gridOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
                 <!-- Scrim for better contrast -->
                 <View
                     android:layout_width="match_parent"

@@ -63,13 +63,24 @@ class ProjectViewModel @Inject constructor(
         thumbnailPath: String,
         name: String,
         puzzleSize: Int,
+        gridRows: Int,
+        gridCols: Int,
         difficulty: String,
         puzzleQuad: String?
     ) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                val project = projectRepository.createProject(imagePath, thumbnailPath, name, puzzleSize, difficulty, puzzleQuad)
+                val project = projectRepository.createProject(
+                    imagePath, 
+                    thumbnailPath, 
+                    name, 
+                    puzzleSize, 
+                    gridRows,
+                    gridCols,
+                    difficulty, 
+                    puzzleQuad
+                )
                 _projectCreated.value = project
                 _errorMessage.value = null
             } catch (e: Exception) {

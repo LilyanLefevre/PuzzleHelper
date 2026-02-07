@@ -31,6 +31,13 @@ class ProjectRepository @Inject constructor(
     }
 
     /**
+     * Get project by ID as a flow
+     */
+    fun getProjectByIdFlow(id: String): Flow<Project?> {
+        return projectDao.getProjectByIdFlow(id)
+    }
+
+    /**
      * Create a new project with automatic naming
      */
     suspend fun createProject(
@@ -38,12 +45,16 @@ class ProjectRepository @Inject constructor(
         thumbnailPath: String,
         name: String,
         puzzleSize: Int,
+        gridRows: Int,
+        gridCols: Int,
         difficulty: String,
         puzzleQuad: String?
     ): Project {
         val project = Project(
             name = name,
             puzzleSize = puzzleSize,
+            gridRows = gridRows,
+            gridCols = gridCols,
             difficulty = difficulty,
             imagePath = imagePath,
             thumbnailPath = thumbnailPath,
@@ -69,7 +80,7 @@ class ProjectRepository @Inject constructor(
             val project = projectDao.getProjectById(projectId)
             if (project != null) {
                 // Delete associated files first
-                val filesDeleted = imageStorageManager.deleteProjectImages(
+                imageStorageManager.deleteProjectImages(
                     project.imagePath, 
                     project.thumbnailPath
                 )

@@ -24,6 +24,9 @@ interface ProjectDao {
     @Query("SELECT * FROM projects WHERE id = :id")
     suspend fun getProjectById(id: String): Project?
 
+    @Query("SELECT * FROM projects WHERE id = :id")
+    fun getProjectByIdFlow(id: String): Flow<Project?>
+
     @Query("SELECT * FROM projects WHERE status = :status ORDER BY creationDate DESC")
     fun getProjectsByStatus(status: String): Flow<List<Project>>
 

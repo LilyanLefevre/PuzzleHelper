@@ -12,7 +12,9 @@ data class Project(
     @PrimaryKey 
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val puzzleSize: Int, // e.g., "1000", "500"
+    val puzzleSize: Int, // Total pieces
+    val gridRows: Int = 1, // Number of pieces vertically
+    val gridCols: Int = 1, // Number of pieces horizontally
     val difficulty: String = "medium", // easy, medium, hard
     val creationDate: Long = System.currentTimeMillis(),
     val imagePath: String,
