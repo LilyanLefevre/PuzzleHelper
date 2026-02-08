@@ -49,4 +49,5 @@
     <!-- Error -->
     <string name="error">Erreur</string>
     <string name="ok">OK</string>
+    <string name="camera_permission_denied">Permission caméra refusée</string>
 </resources>

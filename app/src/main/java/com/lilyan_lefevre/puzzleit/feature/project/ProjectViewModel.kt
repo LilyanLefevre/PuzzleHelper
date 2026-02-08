@@ -1,13 +1,16 @@
 package com.lilyan_lefevre.puzzleit.feature.project
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lilyan_lefevre.puzzleit.feature.storage.ImageStorageManager
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -15,7 +18,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ProjectViewModel @Inject constructor(
-    private val projectRepository: ProjectRepository
+    private val projectRepository: ProjectRepository,
+    private val imageStorageManager: ImageStorageManager
 ) : ViewModel() {
 
     private val _projects = MutableStateFlow<List<Project>>(emptyList())
@@ -56,33 +60,46 @@ class ProjectViewModel @Inject constructor(
     }
 
     /**
-     * Create a new project
+     * Create a new project with organized storage and all image versions
      */
     fun createProject(
-        imagePath: String,
-        thumbnailPath: String,
+        tempImagePath: String,
         name: String,
         puzzleSize: Int,
         gridRows: Int,
         gridCols: Int,
         difficulty: String,
-        puzzleQuad: String?
+        puzzleQuad: String?,
+        originalBitmap: Bitmap,
+        warpedBitmap: Bitmap
     ) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                val project = projectRepository.createProject(
-                    imagePath, 
-                    thumbnailPath, 
-                    name, 
-                    puzzleSize, 
-                    gridRows,
-                    gridCols,
-                    difficulty, 
-                    puzzleQuad
+                val projectId = UUID.randomUUID().toString()
+                
+                // Save organized images (Redressing Original using EXIF from tempImagePath)
+                val result = imageStorageManager.saveProjectBundle(
+                    projectId, name, tempImagePath, originalBitmap, warpedBitmap
                 )
-                _projectCreated.value = project
-                _errorMessage.value = null
+                
+                if (result is ImageStorageManager.ProjectBundleResult.Success) {
+                    val project = projectRepository.createProject(
+                        id = projectId,
+                        imagePath = result.originalPath,
+                        thumbnailPath = result.thumbPath,
+                        warpedPath = result.warpedPath,
+                        name = name,
+                        puzzleSize = puzzleSize,
+                        gridRows = gridRows,
+                        gridCols = gridCols,
+                        difficulty = difficulty,
+                        puzzleQuad = puzzleQuad
+                    )
+                    _projectCreated.value = project
+                } else if (result is ImageStorageManager.ProjectBundleResult.Error) {
+                    _errorMessage.value = "Failed to save images: ${result.exception.message}"
+                }
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to create project: ${e.message}"
             } finally {
@@ -99,7 +116,6 @@ class ProjectViewModel @Inject constructor(
             try {
                 _isLoading.value = true
                 projectRepository.updateProject(project)
-                // We reuse projectCreated flow to notify the UI of success
                 _projectCreated.value = project
                 _errorMessage.value = null
             } catch (e: Exception) {

@@ -1,12 +1,20 @@
 package com.lilyan_lefevre.puzzleit.feature.puzzle
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
@@ -26,13 +34,12 @@ import com.lilyan_lefevre.puzzleit.BuildConfig
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
+import com.lilyan_lefevre.puzzleit.shared.utils.PhotoHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 
 /**
  * Fragment for working on a puzzle project
@@ -47,6 +54,21 @@ class PuzzleWorkingFragment : Fragment() {
     private lateinit var projectId: String
     
     private var currentProject: Project? = null
+    private var photoFile: File? = null
+
+    private val takePiecePictureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            photoFile?.let { file ->
+                val action = PuzzleWorkingFragmentDirections.actionPuzzleWorkingFragmentToPieceBoundsFragment(
+                    imagePath = file.absolutePath,
+                    projectId = projectId
+                )
+                findNavController().navigate(action)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -140,8 +162,10 @@ class PuzzleWorkingFragment : Fragment() {
                 }
                 launch {
                     viewModel.isLoading.collect { isLoading ->
-                        binding.progressBar.visibility = 
-                            if (isLoading) View.VISIBLE else View.GONE
+                        if (_binding != null) {
+                            binding.progressBar.visibility = 
+                                if (isLoading) View.VISIBLE else View.GONE
+                        }
                     }
                 }
                 launch {
@@ -164,11 +188,15 @@ class PuzzleWorkingFragment : Fragment() {
     }
 
     private fun updateUI(project: Project) {
+        if (_binding == null) return
+
         binding.apply {
             textNumberPieces.text = resources.getString(R.string.pieces_name, project.puzzleSize)
             textViewCreationDate.text = formatDate(project.creationDate)
             
-            val imagePathToLoad = project.thumbnailPath.ifEmpty { project.imagePath }
+            val imagePathToLoad = project.warpedPath.ifEmpty { 
+                project.thumbnailPath.ifEmpty { project.imagePath } 
+            }
             
             val glideRequest = Glide.with(requireContext())
                 .load(imagePathToLoad)
@@ -179,18 +207,21 @@ class PuzzleWorkingFragment : Fragment() {
             if (BuildConfig.DEBUG) {
                 glideRequest.listener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
-                        gridOverlay.visibility = View.GONE
+                        if (_binding != null) {
+                            gridOverlay.visibility = View.GONE
+                        }
                         return false 
                     }
 
                     override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
-                        // Use the stored grid dimensions from the project
-                        gridOverlay.setGrid(project.gridRows, project.gridCols)
-                        
-                        photoPreview.post {
-                            updateGridAlignment()
+                        if (_binding != null) {
+                            gridOverlay.setGrid(project.gridRows, project.gridCols)
+                            photoPreview.post {
+                                if (_binding != null) {
+                                    updateGridAlignment()
+                                }
+                            }
                         }
-                        
                         return false
                     }
                 }).into(photoPreview)
@@ -202,19 +233,17 @@ class PuzzleWorkingFragment : Fragment() {
     }
 
     private fun updateGridAlignment() {
+        if (_binding == null) return
+
         val drawable = binding.photoPreview.drawable ?: return
-        val project = currentProject ?: return
-        
         if (!BuildConfig.DEBUG) return
 
         val imageWidth = drawable.intrinsicWidth.toFloat()
         val imageHeight = drawable.intrinsicHeight.toFloat()
-        
         if (imageWidth <= 0 || imageHeight <= 0) return
 
         val viewWidth = binding.photoPreview.width.toFloat()
         val viewHeight = binding.photoPreview.height.toFloat()
-        
         if (viewWidth <= 0 || viewHeight <= 0) return
 
         val scale = Math.min(viewWidth / imageWidth, viewHeight / imageHeight)
@@ -224,18 +253,25 @@ class PuzzleWorkingFragment : Fragment() {
         val top = (viewHeight - finalHeight) / 2f
         
         val actualImageRect = RectF(left, top, left + finalWidth, top + finalHeight)
-        
         binding.gridOverlay.setTargetRect(actualImageRect)
         binding.gridOverlay.visibility = View.VISIBLE
     }
 
     private fun setupClickListeners() {
         binding.buttonCapturePiece.setOnClickListener {
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Camera capture coming in Epic 2",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            dispatchTakePiecePictureIntent()
+        }
+    }
+
+    private fun dispatchTakePiecePictureIntent() {
+        try {
+            photoFile = PhotoHelper.createImageFile(requireContext(), "PIECE_")
+            PhotoHelper.createCameraIntent(requireContext(), photoFile!!)?.also { intent ->
+                takePiecePictureLauncher.launch(intent)
+            }
+        } catch (ex: Exception) {
+            Log.e("PuzzleWorkingFragment", "Error starting camera", ex)
+            Toast.makeText(requireContext(), "Error starting camera", Toast.LENGTH_SHORT).show()
         }
     }
 

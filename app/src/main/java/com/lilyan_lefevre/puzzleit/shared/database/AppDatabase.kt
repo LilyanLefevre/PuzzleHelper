@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [Project::class],
-    version = 4, // Incremented for grid dimensions
+    version = 5, // Incremented for warpedPath
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

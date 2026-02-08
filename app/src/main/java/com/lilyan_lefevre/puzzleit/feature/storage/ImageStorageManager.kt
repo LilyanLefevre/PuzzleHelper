@@ -7,11 +7,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Manager for image storage operations
+ * Manager for image storage operations with organized directory structure
  */
 @Singleton
 class ImageStorageManager @Inject constructor(
@@ -19,83 +21,110 @@ class ImageStorageManager @Inject constructor(
     private val imageUtils: ImageUtils
 ) {
 
+    enum class PhotoType(val dirName: String) {
+        PUZZLE("puzzle"),
+        PIECES("pieces")
+    }
+
+    enum class PhotoSubType(val dirName: String) {
+        ORIGINAL("original"),
+        EXTRAITES("extraites")
+    }
+
+    fun getPuzzleDir(projectId: String, type: PhotoType, subType: PhotoSubType): File {
+        val puzzleDir = File(context.filesDir, "$projectId/${type.dirName}/${subType.dirName}")
+        if (!puzzleDir.exists()) {
+            puzzleDir.mkdirs()
+        }
+        return puzzleDir
+    }
+
+    private fun generateFileName(projectName: String, suffix: String): String {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val sanitizedName = projectName.replace(Regex("[^a-zA-Z0-9]"), "_")
+        return "${sanitizedName}_${suffix}_$timeStamp"
+    }
+
     /**
-     * Save captured image with proper orientation and create thumbnail
-     * For Computer Vision, we preserve maximum quality and resolution
+     * Save the complete set of puzzle box images.
+     * IMPORTANT: We physically rotate the original bitmap based on sourceImagePath EXIF
+     * before saving to ensure future re-edits don't need EXIF data.
      */
-    suspend fun saveProjectImage(bitmap: Bitmap, originalImagePath: String): ImageStorageResult {
+    suspend fun saveProjectBundle(
+        projectId: String,
+        projectName: String,
+        sourceImagePath: String,
+        originalBitmap: Bitmap,
+        warpedBitmap: Bitmap
+    ): ProjectBundleResult {
         return withContext(Dispatchers.IO) {
             try {
-                // Fix orientation based on EXIF data
-                val orientedBitmap = imageUtils.rotateBitmap(bitmap, originalImagePath)
+                val fileNameBase = generateFileName(projectName, "puzzle")
                 
-                // For CV, keep original resolution - only resize if absolutely necessary
-                val finalBitmap = imageUtils.resizeBitmap(orientedBitmap)
+                // Redress the original bitmap physically using EXIF from source
+                val orientedOriginal = imageUtils.rotateBitmap(originalBitmap, sourceImagePath)
                 
-                // Generate thumbnail (still small for UI)
-                val thumbnailBitmap = imageUtils.generateThumbnail(finalBitmap)
-                
-                // Save main image with maximum quality
-                val mainImagePath = imageUtils.saveBitmapToInternalStorage(
-                    context, 
-                    finalBitmap, 
-                    "project_${System.currentTimeMillis()}.jpg"
+                // 1. Save Oriented Original in {projectId}/puzzle/original/
+                val originalDir = getPuzzleDir(projectId, PhotoType.PUZZLE, PhotoSubType.ORIGINAL)
+                val originalPath = imageUtils.saveBitmapToInternalStorage(
+                    context, orientedOriginal, "${fileNameBase}_original.jpg", originalDir
                 )
                 
-                // Save thumbnail
-                val thumbnailPath = imageUtils.saveBitmapToInternalStorage(
-                    context, 
-                    thumbnailBitmap, 
-                    "thumbnail_${System.currentTimeMillis()}.jpg"
+                // 2. Save Warped (High Res) in {projectId}/puzzle/extraites/
+                val extractedDir = getPuzzleDir(projectId, PhotoType.PUZZLE, PhotoSubType.EXTRAITES)
+                val warpedPath = imageUtils.saveBitmapToInternalStorage(
+                    context, warpedBitmap, "${fileNameBase}_warped.jpg", extractedDir
                 )
                 
-                // Clean up bitmaps properly
-                try {
-                    if (orientedBitmap != bitmap && orientedBitmap.isRecycled.not()) {
-                        orientedBitmap.recycle()
-                    }
-                    if (finalBitmap != bitmap && finalBitmap != orientedBitmap && finalBitmap.isRecycled.not()) {
-                        finalBitmap.recycle()
-                    }
-                    if (thumbnailBitmap.isRecycled.not()) {
-                        thumbnailBitmap.recycle()
-                    }
-                } catch (e: Exception) {
-                    // Log error but don't fail the operation
-                    android.util.Log.w("ImageStorageManager", "Error recycling bitmaps: ${e.message}")
-                }
+                // 3. Save Thumbnail in {projectId}/puzzle/original/
+                val thumbBitmap = imageUtils.generateThumbnail(warpedBitmap)
+                val thumbPath = imageUtils.saveBitmapToInternalStorage(
+                    context, thumbBitmap, "${fileNameBase}_thumb.jpg", originalDir
+                )
                 
-                ImageStorageResult.Success(mainImagePath, thumbnailPath)
+                if (orientedOriginal != originalBitmap) orientedOriginal.recycle()
+                thumbBitmap.recycle()
+                
+                ProjectBundleResult.Success(originalPath, warpedPath, thumbPath)
             } catch (e: Exception) {
-                ImageStorageResult.Error(e)
+                ProjectBundleResult.Error(e)
             }
         }
     }
 
-    /**
-     * Delete project images
-     */
-    fun deleteProjectImages(imagePath: String, thumbnailPath: String): Boolean {
-        val imageDeleted = imageUtils.deleteImageFile(context, imagePath)
-        val thumbnailDeleted = imageUtils.deleteImageFile(context, thumbnailPath)
-        return imageDeleted && thumbnailDeleted
+    suspend fun saveExtractedPieceImage(
+        bitmap: Bitmap,
+        projectId: String,
+        projectName: String
+    ): String {
+        return withContext(Dispatchers.IO) {
+            val targetDir = getPuzzleDir(projectId, PhotoType.PIECES, PhotoSubType.EXTRAITES)
+            val fileName = generateFileName(projectName, "piece")
+            imageUtils.saveBitmapToInternalStorage(context, bitmap, "$fileName.png", targetDir)
+        }
     }
 
-    /**
-     * Get total storage used by project images
-     */
-    fun getProjectImageSize(imagePath: String, thumbnailPath: String): Long {
-        val imageSize = imageUtils.getFileSize(context, imagePath)
-        val thumbnailSize = imageUtils.getFileSize(context, thumbnailPath)
-        return imageSize + thumbnailSize
+    suspend fun saveOriginalPieceImage(
+        bitmap: Bitmap,
+        projectId: String,
+        projectName: String
+    ): String {
+        return withContext(Dispatchers.IO) {
+            val targetDir = getPuzzleDir(projectId, PhotoType.PIECES, PhotoSubType.ORIGINAL)
+            val fileName = generateFileName(projectName, "capture")
+            imageUtils.saveBitmapToInternalStorage(context, bitmap, "$fileName.jpg", targetDir)
+        }
     }
 
-    /**
-     * Check if image files exist
-     */
-    fun imagesExist(imagePath: String, thumbnailPath: String): Boolean {
-        val imageFile = File(imagePath)
-        val thumbnailFile = File(thumbnailPath)
-        return imageFile.exists() && thumbnailFile.exists()
+    fun deleteProjectImages(projectId: String): Boolean {
+        val projectRoot = File(context.filesDir, projectId)
+        return if (projectRoot.exists()) {
+            projectRoot.deleteRecursively()
+        } else true
+    }
+    
+    sealed class ProjectBundleResult {
+        data class Success(val originalPath: String, val warpedPath: String, val thumbPath: String) : ProjectBundleResult()
+        data class Error(val exception: Throwable) : ProjectBundleResult()
     }
 }

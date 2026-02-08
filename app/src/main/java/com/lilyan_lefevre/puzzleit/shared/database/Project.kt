@@ -13,12 +13,13 @@ data class Project(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val puzzleSize: Int, // Total pieces
-    val gridRows: Int = 1, // Number of pieces vertically
-    val gridCols: Int = 1, // Number of pieces horizontally
-    val difficulty: String = "medium", // easy, medium, hard
+    val gridRows: Int = 1,
+    val gridCols: Int = 1,
+    val difficulty: String = "medium",
     val creationDate: Long = System.currentTimeMillis(),
-    val imagePath: String,
-    val thumbnailPath: String,
+    val imagePath: String, // Original image path
+    val thumbnailPath: String, // Thumbnail image path
+    val warpedPath: String = "", // Redressed/High-res puzzle box image path
     val puzzleQuad: String? = null,
     val status: String = "active"
 )

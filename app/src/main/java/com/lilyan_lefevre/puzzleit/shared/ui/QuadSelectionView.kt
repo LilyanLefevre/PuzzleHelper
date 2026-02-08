@@ -12,13 +12,22 @@ import android.view.View
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.ranges.rangeTo
 
 class QuadSelectionView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
+
+    interface OnQuadChangedListener {
+        fun onQuadChanged(points: List<PointF>)
+    }
+
+    private var onQuadChangedListener: OnQuadChangedListener? = null
+
+    fun setOnQuadChangedListener(listener: OnQuadChangedListener?) {
+        onQuadChangedListener = listener
+    }
 
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -29,6 +38,12 @@ class QuadSelectionView @JvmOverloads constructor(
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.argb(60, 255, 0, 0)
+    }
+
+    private val contourPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.GREEN
+        strokeWidth = 4f
     }
 
     private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -47,13 +62,14 @@ class QuadSelectionView @JvmOverloads constructor(
 
     private var editable: Boolean = true
 
-    // Points in source space, normalized [0..1]
     private var p = arrayOf(
         PointF(0.1f, 0.1f),
         PointF(0.9f, 0.1f),
         PointF(0.9f, 0.9f),
         PointF(0.1f, 0.9f)
     )
+
+    private var normalizedContour: List<PointF>? = null
 
     private var activeHandle: Int? = null
     private var lastTouchX = 0f
@@ -64,6 +80,7 @@ class QuadSelectionView @JvmOverloads constructor(
     private val handleHitSlopPx = 60f
 
     private val reusedPath = Path()
+    private val contourPath = Path()
 
     fun setSourceSize(width: Int, height: Int) {
         sourceWidth = width
@@ -85,24 +102,36 @@ class QuadSelectionView @JvmOverloads constructor(
         invalidate()
     }
 
+    fun setNormalizedContour(contour: List<PointF>?) {
+        normalizedContour = contour
+        invalidate()
+    }
+
     fun getNormalizedQuad(): List<PointF> {
         return p.map { PointF(it.x, it.y) }
     }
 
-    fun setQuad(quad: List<PointF>) {
-        if (quad.size == 4) {
-            p = quad.toTypedArray()
-            invalidate()
-        }
-    }
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val mapped = p.map { mapSourceNormToView(it.x, it.y) }
+        if (sourceWidth <= 0 || sourceHeight <= 0) return
 
+        normalizedContour?.let { contour ->
+            if (contour.isNotEmpty()) {
+                contourPath.reset()
+                val first = mapSourceNormToView(contour[0].x, contour[0].y)
+                contourPath.moveTo(first.x, first.y)
+                for (i in 1 until contour.size) {
+                    val pt = mapSourceNormToView(contour[i].x, contour[i].y)
+                    contourPath.lineTo(pt.x, pt.y)
+                }
+                contourPath.close()
+                canvas.drawPath(contourPath, contourPaint)
+            }
+        }
+
+        val mapped = p.map { mapSourceNormToView(it.x, it.y) }
         reusedPath.apply {
             reset()
-
             moveTo(mapped[0].x, mapped[0].y)
             lineTo(mapped[1].x, mapped[1].y)
             lineTo(mapped[2].x, mapped[2].y)
@@ -178,6 +207,9 @@ class QuadSelectionView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (activeHandle != null || draggingWhole) {
+                    onQuadChangedListener?.onQuadChanged(getNormalizedQuad())
+                }
                 activeHandle = null
                 draggingWhole = false
                 parent?.requestDisallowInterceptTouchEvent(false)

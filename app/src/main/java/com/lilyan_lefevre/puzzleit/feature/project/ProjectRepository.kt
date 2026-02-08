@@ -38,11 +38,13 @@ class ProjectRepository @Inject constructor(
     }
 
     /**
-     * Create a new project with automatic naming
+     * Create a new project with a specific ID
      */
     suspend fun createProject(
+        id: String,
         imagePath: String,
         thumbnailPath: String,
+        warpedPath: String,
         name: String,
         puzzleSize: Int,
         gridRows: Int,
@@ -51,6 +53,7 @@ class ProjectRepository @Inject constructor(
         puzzleQuad: String?
     ): Project {
         val project = Project(
+            id = id,
             name = name,
             puzzleSize = puzzleSize,
             gridRows = gridRows,
@@ -58,6 +61,7 @@ class ProjectRepository @Inject constructor(
             difficulty = difficulty,
             imagePath = imagePath,
             thumbnailPath = thumbnailPath,
+            warpedPath = warpedPath,
             puzzleQuad = puzzleQuad,
             status = "active"
         )
@@ -79,15 +83,8 @@ class ProjectRepository @Inject constructor(
         return try {
             val project = projectDao.getProjectById(projectId)
             if (project != null) {
-                // Delete associated files first
-                imageStorageManager.deleteProjectImages(
-                    project.imagePath, 
-                    project.thumbnailPath
-                )
-                
-                // Then delete database record
+                imageStorageManager.deleteProjectImages(project.id)
                 projectDao.deleteProject(project)
-                
                 Result.success(true)
             } else {
                 Result.failure(Exception("Project not found"))
@@ -95,23 +92,6 @@ class ProjectRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    /**
-     * Delete a project (legacy method for backward compatibility)
-     */
-    suspend fun deleteProject(project: Project) {
-        // Delete associated files first
-        imageStorageManager.deleteProjectImages(project.imagePath, project.thumbnailPath)
-        // Then delete database record
-        projectDao.deleteProject(project)
-    }
-
-    /**
-     * Delete project by ID
-     */
-    suspend fun deleteProjectById(id: String) {
-        projectDao.deleteProjectById(id)
     }
 
     /**

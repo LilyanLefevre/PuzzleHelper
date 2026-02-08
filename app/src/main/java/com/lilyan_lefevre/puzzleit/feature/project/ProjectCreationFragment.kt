@@ -1,11 +1,11 @@
 package com.lilyan_lefevre.puzzleit.feature.project
 
+import android.Manifest
 import android.app.Activity
-import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.graphics.PointF
 import android.os.Bundle
-import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -15,7 +15,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
@@ -30,6 +30,7 @@ import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
 import com.lilyan_lefevre.puzzleit.shared.database.Project
 import com.lilyan_lefevre.puzzleit.shared.util.GridProcessor
+import com.lilyan_lefevre.puzzleit.shared.utils.PhotoHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -54,6 +55,16 @@ class ProjectCreationFragment : Fragment() {
     
     private var isEditMode = false
     private var existingProject: Project? = null
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            dispatchTakePictureIntent()
+        } else {
+            Toast.makeText(requireContext(), R.string.camera_permission_denied, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     private val takePictureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -121,7 +132,7 @@ class ProjectCreationFragment : Fragment() {
         
         if (originalImagePath == null) {
             originalImagePath = project.imagePath
-            croppedImagePath = project.thumbnailPath
+            croppedImagePath = project.warpedPath.ifEmpty { project.thumbnailPath }
             currentQuadJson = project.puzzleQuad
         }
         
@@ -131,7 +142,7 @@ class ProjectCreationFragment : Fragment() {
 
     private fun setupUI() {
         binding.photoPlaceholder.setOnClickListener {
-            dispatchTakePictureIntent()
+            checkCameraPermissionAndTakePhoto()
         }
         
         binding.editPhotoButton.setOnClickListener {
@@ -141,6 +152,7 @@ class ProjectCreationFragment : Fragment() {
         }
         
         binding.btnCancel.setOnClickListener {
+            cleanupTempFiles()
             findNavController().navigateUp()
         }
         
@@ -148,7 +160,6 @@ class ProjectCreationFragment : Fragment() {
             if (isEditMode) updateProject() else createProject()
         }
 
-        // Auto-calculate grid when pieces count changes
         binding.editTextPieces.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -160,11 +171,24 @@ class ProjectCreationFragment : Fragment() {
         })
     }
 
+    private fun checkCameraPermissionAndTakePhoto() {
+        when {
+            ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                dispatchTakePictureIntent()
+            }
+            else -> {
+                requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+
     private fun autoCalculateGrid() {
         val pieces = getPiecesCount() ?: return
         val imagePath = croppedImagePath ?: originalImagePath ?: return
         
-        // Load image dimensions
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(imagePath, options)
         
@@ -176,33 +200,15 @@ class ProjectCreationFragment : Fragment() {
     }
 
     private fun dispatchTakePictureIntent() {
-        Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
-            photoFile = try {
-                createImageFile()
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error creating photo file", ex)
-                null
+        try {
+            photoFile = PhotoHelper.createImageFile(requireContext())
+            PhotoHelper.createCameraIntent(requireContext(), photoFile!!)?.also { intent ->
+                takePictureLauncher.launch(intent)
             }
-            
-            photoFile?.also { file ->
-                val photoURI = FileProvider.getUriForFile(
-                    requireContext(),
-                    "${requireContext().packageName}.fileprovider",
-                    file
-                )
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
-                takePictureLauncher.launch(takePictureIntent)
-            }
+        } catch (ex: Exception) {
+            Log.e(TAG, "Error starting camera", ex)
+            Toast.makeText(requireContext(), "Error starting camera", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun createImageFile(): File {
-        val storageDir = requireContext().filesDir
-        return File.createTempFile(
-            "JPEG_${System.currentTimeMillis()}_",
-            ".jpg",
-            storageDir
-        )
     }
 
     private fun navigateToPuzzleBounds(imagePath: String) {
@@ -234,16 +240,24 @@ class ProjectCreationFragment : Fragment() {
         val cols = getColsCount() ?: 1
 
         if (validateInput(name, pieces)) {
-            viewModel.createProject(
-                imagePath = originalImagePath!!,
-                thumbnailPath = croppedImagePath ?: originalImagePath!!,
-                name = name,
-                puzzleSize = pieces!!,
-                gridRows = rows,
-                gridCols = cols,
-                difficulty = "medium",
-                puzzleQuad = currentQuadJson
-            )
+            val originalBitmap = BitmapFactory.decodeFile(originalImagePath!!)
+            val warpedBitmap = croppedImagePath?.let { BitmapFactory.decodeFile(it) } ?: originalBitmap
+            
+            if (originalBitmap != null) {
+                viewModel.createProject(
+                    tempImagePath = originalImagePath!!,
+                    name = name,
+                    puzzleSize = pieces!!,
+                    gridRows = rows,
+                    gridCols = cols,
+                    difficulty = "medium",
+                    puzzleQuad = currentQuadJson,
+                    originalBitmap = originalBitmap,
+                    warpedBitmap = warpedBitmap
+                )
+            } else {
+                Toast.makeText(requireContext(), "Failed to load captured image", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -326,7 +340,7 @@ class ProjectCreationFragment : Fragment() {
                 currentQuadJson = quadJson
                 croppedImagePath = croppedPath
                 renderPhotoState()
-                autoCalculateGrid() // Recalculate if image changed
+                autoCalculateGrid()
             }
         }
     }
@@ -365,11 +379,36 @@ class ProjectCreationFragment : Fragment() {
         val message = if (isEditMode) "Project updated!" else getString(R.string.project_created_successfully, project.name)
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
 
+        cleanupTempFiles()
+        
         originalImagePath = null
         croppedImagePath = null
         currentQuadJson = null
         
         findNavController().navigateUp()
+    }
+
+    private fun cleanupTempFiles() {
+        try {
+            originalImagePath?.let { path ->
+                val file = File(path)
+                if (file.exists() && !path.contains("/puzzles/")) {
+                    // Also check against new folder structure
+                    val isInsideProjectIdFolder = path.contains(Regex("/[a-f0-9\\-]{36}/"))
+                    if (!isInsideProjectIdFolder) file.delete()
+                }
+            }
+            croppedImagePath?.let { path ->
+                val file = File(path)
+                if (file.exists() && !path.contains("/puzzles/")) {
+                    val isInsideProjectIdFolder = path.contains(Regex("/[a-f0-9\\-]{36}/"))
+                    if (!isInsideProjectIdFolder) file.delete()
+                }
+            }
+            PhotoHelper.cleanupTempFiles(requireContext())
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cleaning up temp files", e)
+        }
     }
 
     private fun showErrorDialog(error: String) {
