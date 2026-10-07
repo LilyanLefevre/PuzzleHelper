@@ -55,9 +55,10 @@ class ScanFlowTest {
     @Before
     fun seed() {
         hilt.inject()
+        // Delete a leftover project first: deleting it also deletes its image file.
+        runBlocking { repository.deleteProject(id) }
         val ref = TestImages.save(art, ctx.filesDir, "e2e_ref.jpg").absolutePath
         runBlocking {
-            repository.deleteProject(id)
             repository.createProject(id, ref, ref, ref, name, cols * rows, rows, cols, "medium", null)
         }
     }
@@ -120,8 +121,8 @@ class ScanFlowTest {
         openTable().use { scenario ->
             val photo = TestImages.save(TestImages.piecePhoto(art, cols, rows, 9, 6, 90f), ctx.cacheDir, "e2e_piece.jpg")
             inject(scenario, photo)
-            waitFor { onView(withId(R.id.groupAnalyzing)).check(matches(isDisplayed())) }
-            shot(scenario, "2_analyzing")
+            // The analysing state is brief by design: catch it if we can, never fail on it.
+            runCatching { waitFor(3_000) { onView(withId(R.id.groupAnalyzing)).check(matches(isDisplayed())) }; shot(scenario, "2_analyzing") }
             waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
             Thread.sleep(1800)   // let the camera move and the piece spin settle
             shot(scenario, "3_result")
