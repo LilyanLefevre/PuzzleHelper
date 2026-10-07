@@ -35,6 +35,7 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`.
 
 ## Known limits / next steps
+- Segmentation needs contrast between piece and table: a grey rock piece on a beige table gives "no piece".
 - Accuracy on real piece photos is not measured yet (only synthetic fixtures). Repetitive images (sky, water) are the weak spot.
 - Leads 2-3 get a derived confidence (best confidence scaled by their own score), not an independent one.
 - The camera/PieceBounds flow from `main` (device photo app + quad crop) is still in the nav graph, unused by the scan flow.

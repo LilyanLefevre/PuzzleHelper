@@ -5,11 +5,23 @@
 Stuck on a 1000-piece sky? Photograph a loose piece and PuzzleIt shows **where it goes on the box image**,
 how to turn it, and how sure it is. Android, Kotlin, fully offline.
 
-| Puzzle table | Result | Second lead | Blurry photo |
+| My puzzles | Puzzle table | Piece found |
+|---|---|---|
+| ![](docs/screenshots/list.png) | ![](docs/screenshots/table_real.png) | ![](docs/screenshots/result_real.png) |
+
+A piece cut from the fjord photo, turned 90° and laid on a dark table: found at its exact cell, with the right
+rotation and 88 % confidence.
+
+<details>
+<summary>More states (from the instrumented tests, synthetic box art)</summary>
+
+| Synthetic table | Result | Second lead | Blurry photo |
 |---|---|---|---|
 | ![](docs/screenshots/1_table.png) | ![](docs/screenshots/3_result.png) | ![](docs/screenshots/4_second_lead.png) | ![](docs/screenshots/5_blurry.png) |
 
-*(captures from the instrumented tests, on synthetic box art)*
+</details>
+
+Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Unsplash](https://unsplash.com) (Unsplash License).
 
 ## How it works
 
