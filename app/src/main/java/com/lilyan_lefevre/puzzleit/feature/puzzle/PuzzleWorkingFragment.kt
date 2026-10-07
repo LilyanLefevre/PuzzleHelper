@@ -150,17 +150,8 @@ class PuzzleWorkingFragment : Fragment() {
         if (r.selected != 0) binding.textLead.text = getString(R.string.alt_lead, r.selected + 1)
         binding.textSpot.text = spotLabel(cand, m.precision)
 
+        showConfidence(cand.confidence)
         if (samePiece != null) { turnPiece(cand.rotationDeg); return }   // only the lead changed
-
-        // Confidence: label, count-up and bar.
-        val label = when { m.confidence >= PieceMatcher.CELL_CONF -> R.string.conf_high; m.confidence >= PieceMatcher.ZONE_CONF -> R.string.conf_medium; else -> R.string.conf_low }
-        binding.textConfLabel.text = getString(R.string.confidence_label) + " · " + getString(label)
-        binding.confBar.setProgressCompat(m.confidence, true)
-        ValueAnimator.ofInt(0, m.confidence).apply {
-            duration = 900
-            addUpdateListener { _binding?.textConfValue?.text = "${it.animatedValue} %" }
-            start()
-        }
 
         // The piece turns to the orientation it has on the box.
         binding.imagePiece.setImageBitmap(r.cutout)
@@ -184,6 +175,19 @@ class PuzzleWorkingFragment : Fragment() {
                 setOnClickListener { viewModel.select(i) }
             }
             binding.chipLeads.addView(chip)
+        }
+    }
+
+    /** Label, bar and count-up for the lead on screen (each lead has its own confidence). */
+    private fun showConfidence(value: Int) {
+        val label = when { value >= PieceMatcher.CELL_CONF -> R.string.conf_high; value >= PieceMatcher.ZONE_CONF -> R.string.conf_medium; else -> R.string.conf_low }
+        binding.textConfLabel.text = getString(R.string.confidence_label) + " · " + getString(label)
+        val from = binding.confBar.progress
+        binding.confBar.setProgressCompat(value, true)
+        ValueAnimator.ofInt(from, value).apply {
+            duration = 700
+            addUpdateListener { _binding?.textConfValue?.text = "${it.animatedValue} %" }
+            start()
         }
     }
 

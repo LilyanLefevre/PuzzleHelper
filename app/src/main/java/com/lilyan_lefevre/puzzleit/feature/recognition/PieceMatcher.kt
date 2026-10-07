@@ -88,6 +88,8 @@ data class Candidate(
     val distance: Float,
     /** Clockwise degrees to turn the piece (as photographed) so it sits like on the box. */
     val rotationDeg: Int,
+    /** 0..100, this lead's own confidence (the best lead's equals [Match.confidence]). */
+    val confidence: Int = 0,
 ) {
     val cell: Pair<Int, Int> get() = col.toInt() to row.toInt()
 }
@@ -181,7 +183,12 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
             conf >= ZONE_CONF -> Precision.ZONE
             else -> Precision.UNSURE
         }
-        return Analysis.Found(Match(grid, picks[0], picks.drop(1), conf, precision), sharp, cutout(img, mask))
+        // Runner-ups get the best lead's confidence scaled by how far above a random place they stand.
+        val leads = picks.mapIndexed { i, c ->
+            val s = ((dMed - c.distance) / dMed).coerceIn(0f, 1f)
+            c.copy(confidence = if (i == 0) conf else (conf * s / spread.coerceAtLeast(1e-3f)).roundToInt().coerceIn(0, conf))
+        }
+        return Analysis.Found(Match(grid, leads[0], leads.drop(1), conf, precision), sharp, cutout(img, mask))
     }
 
     // ---------------------------------------------------------------- internals

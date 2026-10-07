@@ -84,6 +84,8 @@ class PieceMatcherTest {
             val a = matcher.locate(photo.centerCrop(0.9f))
             val m = (a as? Analysis.Found)?.match ?: return@repeat
             val d = hypot(m.best.col - (col + .5f), m.best.row - (row + .5f))
+            assertEquals(m.confidence, m.best.confidence)
+            m.alternatives.forEach { assertTrue("lead confidence ${it.confidence} > best ${m.confidence}", it.confidence <= m.confidence) }
             if (d <= 1.01f) near++
             if (d <= 0.51f) { exact++; confOk += m.confidence } else confBad += m.confidence
             if (d <= 1.01f && m.best.rotationDeg == ((360 - deg.toInt()) % 360)) rotOk++
