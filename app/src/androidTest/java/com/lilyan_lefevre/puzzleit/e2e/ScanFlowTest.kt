@@ -109,8 +109,9 @@ class ScanFlowTest {
     @Test
     fun listShowsProjectAndTableShowsGrid() {
         openTable().use { scenario ->
-            onView(withId(R.id.textViewProjectName)).check(matches(withText(name)))
-            onView(withId(R.id.textViewProjectInfo)).check(matches(withText(containsString("20 × 15"))))
+            // The project loads asynchronously: wait for it instead of asserting on the first frame.
+            waitFor { onView(withId(R.id.textViewProjectName)).check(matches(withText(name))) }
+            waitFor { onView(withId(R.id.textViewProjectInfo)).check(matches(withText(containsString("20 × 15")))) }
             onView(withId(R.id.mapView)).check(matches(isDisplayed()))
             Thread.sleep(800); shot(scenario, "1_table")
         }
