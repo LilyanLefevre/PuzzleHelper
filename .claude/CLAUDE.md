@@ -23,6 +23,9 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - Keep matching logic out of Android classes so it stays unit-testable.
 
 ## Testing
+- **Never run `./gradlew connectedDebugAndroidTest` on a personal phone**: Gradle uninstalls the app afterwards and
+  wipes its data (projects, images). On a real phone use `installDebug installDebugAndroidTest` + `adb shell am instrument`.
+  `connectedDebugAndroidTest` is for emulators / CI only.
 - Unit (JVM, JDK 21 needed by Robolectric): `./gradlew testDebugUnitTest` (includes `PieceMatcherTest`, synthetic end-to-end).
 - Device/emulator: `./gradlew connectedDebugAndroidTest` (`PieceRecognizerDeviceTest`, `e2e/ScanFlowTest`).
   Direct run, keeps the app and screenshots: `adb shell am instrument -w com.lilyan_lefevre.puzzleit.test/com.lilyan_lefevre.puzzleit.HiltTestRunner`

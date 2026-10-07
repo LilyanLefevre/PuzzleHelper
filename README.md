@@ -30,7 +30,7 @@ lighting matter little; rotating the piece is a cyclic shift of the sectors. Cod
 
 ```bash
 ./gradlew assembleDebug testDebugUnitTest      # JDK 21
-./gradlew connectedDebugAndroidTest            # phone or emulator
+./gradlew connectedDebugAndroidTest            # emulator only: uninstalls the app (wipes its data) afterwards
 ```
 
 ## Architecture
