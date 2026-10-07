@@ -84,7 +84,7 @@ class ProjectAdapter(
         }
 
         private fun formatDate(timestamp: Long): String {
-            val dateFormat = SimpleDateFormat("EEE dd MMM yyyy HH:mm:ss", Locale.getDefault())
+            val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return dateFormat.format(Date(timestamp))
         }
         

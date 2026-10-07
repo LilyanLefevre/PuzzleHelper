@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -8,127 +7,383 @@
     android:background="@color/puzzle_background"
     tools:context=".feature.puzzle.PuzzleWorkingFragment">
 
-    <!-- Photo Preview -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/photoSection"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_percent="0.52">
+    <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleMapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/puzzle_reference_image" />
 
-        <!-- Photo Preview -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/photoPreviewCard"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_margin="2dp"
-            app:cardBackgroundColor="@color/puzzle_surface"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="6dp"
-            app:cardUseCompatPadding="true"
-            app:cardPreventCornerOverlap="false"
-            app:strokeColor="@color/puzzle_background"
-            app:strokeWidth="1dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:clipChildren="false">
-
-                <ImageView
-                    android:id="@+id/photoPreview"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:contentDescription="@string/puzzle_reference_image"
-                    tools:src="@android:drawable/ic_menu_camera" />
-
-                <com.lilyan_lefevre.puzzleit.feature.puzzle.GridOverlayView
-                    android:id="@+id/gridOverlay"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:visibility="gone" />
-
-                <!-- Scrim for better contrast -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="#12000000" />
-
-            </FrameLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
+    <!-- Floating top bar -->
     <LinearLayout
-        android:id="@+id/bottomControls"
-        android:layout_width="0dp"
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center"
-        android:background="@color/puzzle_surface"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.2"
-            android:orientation="vertical">
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/textNumberPieces"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@color/puzzle_on_surface"
-                android:textStyle="bold"
-                tools:text="Puzzle: 1000 pièces" />
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/textViewCreationDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@color/puzzle_on_surface"
-                android:textStyle="bold"
-                tools:text="@tools:sample/date/mmddyy" />
-        </LinearLayout>
+        android:padding="12dp">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonCapturePiece"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/capture_piece"
-            android:backgroundTint="@color/puzzle_secondary"
-            android:textColor="@android:color/white"
-            app:icon="@android:drawable/ic_menu_camera"
-            app:iconGravity="textStart" />
+            android:id="@+id/buttonBack"
+            style="@style/Widget.Puzzle.IconButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/back"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            app:icon="@drawable/ic_arrow_back"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp" />
 
+        <LinearLayout
+            android:id="@+id/titleCard"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_title_card"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/textViewProjectName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/puzzle_on_surface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="La vague" />
+
+            <TextView
+                android:id="@+id/textViewProjectInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/puzzle_on_surface_variant"
+                android:textSize="12sp"
+                tools:text="1000 pièces · grille 40 × 25" />
+        </LinearLayout>
     </LinearLayout>
 
-    <ProgressBar
+    <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleLoaderView
         android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- Bottom sheet: one visible state at a time -->
+    <LinearLayout
+        android:id="@+id/sheet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_sheet"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="24dp">
+
+        <View
+            android:layout_width="40dp"
+            android:layout_height="5dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/bg_grabber" />
+
+        <!-- IDLE -->
+        <LinearLayout
+            android:id="@+id/groupIdle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/scan_hint_title"
+                android:textAppearance="@style/Text.Display"
+                android:textSize="26sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/scan_hint_body"
+                android:textColor="@color/puzzle_on_surface_variant"
+                android:textSize="15sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonCapturePiece"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginTop="20dp"
+                android:text="@string/scan_piece"
+                android:textColor="@color/puzzle_on_primary"
+                android:textSize="17sp"
+                app:backgroundTint="@color/puzzle_primary"
+                app:cornerRadius="20dp"
+                app:icon="@drawable/ic_scan"
+                app:iconGravity="textStart"
+                app:iconSize="24dp"
+                app:iconTint="@color/puzzle_on_primary" />
+        </LinearLayout>
+
+        <!-- ANALYZING -->
+        <LinearLayout
+            android:id="@+id/groupAnalyzing"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingVertical="8dp"
+            android:visibility="gone">
+
+            <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleLoaderView
+                android:layout_width="64dp"
+                android:layout_height="64dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/analyzing"
+                    android:textAppearance="@style/Text.Display"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/analyzing_sub"
+                    android:textColor="@color/puzzle_on_surface_variant"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- RESULT -->
+        <LinearLayout
+            android:id="@+id/groupResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <FrameLayout
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:background="@drawable/bg_piece_disc">
+
+                    <ImageView
+                        android:id="@+id/imagePiece"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_gravity="center"
+                        android:adjustViewBounds="true"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="18dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/textLead"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/best_lead"
+                        android:textAppearance="@style/Text.Eyebrow" />
+
+                    <TextView
+                        android:id="@+id/textSpot"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textAppearance="@style/Text.Display"
+                        android:textSize="26sp"
+                        tools:text="Ligne 6 · Colonne 9" />
+
+                    <TextView
+                        android:id="@+id/textRotate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:drawablePadding="8dp"
+                        android:gravity="center_vertical"
+                        android:textColor="@color/puzzle_secondary_text"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        app:drawableStartCompat="@drawable/ic_rotate_small"
+                        tools:text="Tourne-la de 90° vers la droite" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/textConfLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/puzzle_on_surface_variant"
+                    android:textSize="14sp"
+                    tools:text="Confiance · Correspondance forte" />
+
+                <TextView
+                    android:id="@+id/textConfValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/puzzle_on_surface"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="82 %" />
+            </LinearLayout>
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/confBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:max="100"
+                app:indicatorColor="@color/puzzle_primary"
+                app:trackColor="@color/puzzle_surface_high"
+                app:trackCornerRadius="6dp"
+                app:trackThickness="8dp" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipLeads"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:selectionRequired="true"
+                    app:singleLine="true"
+                    app:singleSelection="true" />
+            </HorizontalScrollView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonNewPiece"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:text="@string/new_piece"
+                    android:textColor="@color/puzzle_on_primary"
+                    app:backgroundTint="@color/puzzle_primary"
+                    app:cornerRadius="18dp"
+                    app:icon="@drawable/ic_scan"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/puzzle_on_primary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonDismiss"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/dismiss"
+                    android:textColor="@color/puzzle_on_surface"
+                    app:backgroundTint="@color/puzzle_surface_high"
+                    app:cornerRadius="18dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ERROR (blurry / no piece) -->
+        <LinearLayout
+            android:id="@+id/groupError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/textErrorTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/Text.Display"
+                android:textColor="@color/puzzle_warning"
+                android:textSize="24sp"
+                tools:text="Photo trop floue" />
+
+            <TextView
+                android:id="@+id/textErrorBody"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/puzzle_on_surface_variant"
+                android:textSize="15sp"
+                tools:text="Reste stable…" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonRetake"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:text="@string/retake"
+                    android:textColor="@color/puzzle_on_primary"
+                    app:backgroundTint="@color/puzzle_primary"
+                    app:cornerRadius="18dp"
+                    app:icon="@drawable/ic_scan"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/puzzle_on_primary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonErrorDismiss"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/dismiss"
+                    android:textColor="@color/puzzle_on_surface"
+                    app:backgroundTint="@color/puzzle_surface_high"
+                    app:cornerRadius="18dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

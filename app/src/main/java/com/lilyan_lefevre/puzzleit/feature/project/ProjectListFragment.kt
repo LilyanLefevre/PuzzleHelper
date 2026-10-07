@@ -11,6 +11,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.transition.MaterialSharedAxis
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectListBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,6 +30,12 @@ class ProjectListFragment : Fragment() {
 
     private val viewModel: ProjectViewModel by viewModels()
     private lateinit var projectAdapter: ProjectAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        exitTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
+        reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -62,6 +71,8 @@ class ProjectListFragment : Fragment() {
         binding.recyclerViewProjects.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = projectAdapter
+            // Cards fall into place the first time the list shows.
+            scheduleLayoutAnimation()
         }
     }
 
@@ -71,7 +82,7 @@ class ProjectListFragment : Fragment() {
                 launch {
                     viewModel.projects.collect { projects ->
                         projectAdapter.submitList(projects)
-                        binding.textViewEmpty.visibility =
+                        binding.emptyState.visibility =
                             if (projects.isEmpty()) View.VISIBLE else View.GONE
                         
                         // Hide loading when data is loaded

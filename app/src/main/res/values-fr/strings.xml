@@ -49,5 +49,54 @@
     <!-- Error -->
     <string name="error">Erreur</string>
     <string name="ok">OK</string>
-    <string name="camera_permission_denied">Permission caméra refusée</string>
+    <string name="failed_to_process_image">Échec du traitement de l\'image: %s</string>
+    <string name="unknown_error">Erreur inconnue</string>
+    
+    <!-- Success -->
+    <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
+    <string name="no_puzzles_yet">Aucun puzzle pour l\'instant.\nCommence par une photo de la boîte.</string>
+    <string name="add_new_puzzle_project">Ajouter un nouveau projet de puzzle</string>
+
+    <string name="project_thumbnail">Aperçu du puzzle</string>
+    <string name="pieces_name">%d pièces</string>
+
+    <!-- Piece recognition -->
+    <string name="app_tagline">Trouve ta pièce</string>
+    <string name="my_puzzles">Mes puzzles</string>
+    <string name="scan_piece">Scanner une pièce</string>
+    <string name="scan_hint_title">Centre la pièce</string>
+    <string name="scan_hint_body">Surface unie et bien éclairée. Remplis le cadre.</string>
+    <string name="analyzing">Lecture de la pièce…</string>
+    <string name="analyzing_sub">Comparaison avec la boîte, 8 rotations</string>
+    <string name="best_lead">Meilleure piste</string>
+    <string name="spot_cell">Ligne %1$d · Colonne %2$d</string>
+    <string name="spot_zone">Zone : %s</string>
+    <string name="spot_unsure">Zone approximative : %s</string>
+    <string name="zone_tl">en haut à gauche</string>
+    <string name="zone_t">en haut</string>
+    <string name="zone_tr">en haut à droite</string>
+    <string name="zone_l">à gauche</string>
+    <string name="zone_c">au centre</string>
+    <string name="zone_r">à droite</string>
+    <string name="zone_bl">en bas à gauche</string>
+    <string name="zone_b">en bas</string>
+    <string name="zone_br">en bas à droite</string>
+    <string name="rotate_hint">Tourne-la de %d° vers la droite</string>
+    <string name="rotate_none">Déjà dans le bon sens</string>
+    <string name="confidence_label">Confiance</string>
+    <string name="conf_high">Correspondance forte</string>
+    <string name="conf_medium">Zone probable</string>
+    <string name="conf_low">Piste fragile</string>
+    <string name="alt_lead">Piste %d</string>
+    <string name="new_piece">Nouvelle pièce</string>
+    <string name="dismiss">Fermer</string>
+    <string name="blurry_title">Photo trop floue</string>
+    <string name="blurry_body">Reste stable, laisse la mise au point se faire, puis reprends.</string>
+    <string name="no_piece_title">Aucune pièce détectée</string>
+    <string name="no_piece_body">Pose-la seule sur une surface unie, dans le cadre.</string>
+    <string name="retake">Reprendre</string>
+    <string name="light">Lumière</string>
+    <string name="grid_info">%1$d pièces · grille %2$d × %3$d</string>
+    <string name="back">Retour</string>
+    <string name="rotate_hint_ccw">Tourne-la de %d° vers la gauche</string>
 </resources>
