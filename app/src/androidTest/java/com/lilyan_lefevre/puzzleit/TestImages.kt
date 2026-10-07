@@ -39,7 +39,21 @@ object TestImages {
         val m = Matrix().apply { postTranslate(-cw / 2f, -ch / 2f); postScale(zoom, zoom); postRotate(deg); postTranslate(450f, 450f) }
         val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = 235 }
         c.drawBitmap(piece, m, paint)
-        return out
+        return withGrain(out)
+    }
+
+    /** Sensor-like noise: a real photo is never perfectly smooth, and the sharpness check relies on that. */
+    private fun withGrain(b: Bitmap, seed: Long = 3): Bitmap {
+        val rnd = Random(seed)
+        val px = IntArray(b.width * b.height)
+        b.getPixels(px, 0, b.width, 0, 0, b.width, b.height)
+        for (i in px.indices) {
+            val n = rnd.nextInt(17) - 8
+            val p = px[i]
+            px[i] = Color.rgb(((p shr 16 and 255) + n).coerceIn(0, 255), ((p shr 8 and 255) + n).coerceIn(0, 255), ((p and 255) + n).coerceIn(0, 255))
+        }
+        b.setPixels(px, 0, b.width, 0, 0, b.width, b.height)
+        return b
     }
 
     fun save(b: Bitmap, dir: File, name: String): File =
