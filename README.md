@@ -34,4 +34,41 @@ lighting matter little; rotating the piece is a cyclic shift of the sectors. Cod
 ```
 
 ## Architecture
-Single activity, MVVM, Hilt, Room, CameraX, OpenCV (box processing). Details and conventions: [`.claude/CLAUDE.md`](.claude/CLAUDE.md).
+
+Single activity, MVVM, Hilt, Room, CameraX, OpenCV (box rectification). The matching algorithm is plain Kotlin,
+so it runs and is tested on the JVM.
+
+```mermaid
+flowchart TB
+  subgraph UI
+    L[ProjectListFragment] --> W[PuzzleWorkingFragment]
+    W --> C[PieceCaptureFragment]
+    C -- photo path --> W
+    W --- M[PuzzleMapView<br/>pan, zoom, spotlight]
+  end
+  W --> VM[PuzzleWorkingViewModel<br/>ScanState: Idle, Analyzing, Result, Blurry, NoPiece]
+  VM --> R[PieceRecognizer<br/>Bitmap glue]
+  R --> PM[PieceMatcher<br/>pure Kotlin]
+  VM --> Repo[ProjectRepository] --> DB[(Room)]
+```
+
+| Path | Role |
+|---|---|
+| `feature/recognition` | `PieceMatcher` (algorithm), `PieceRecognizer`, `PuzzleMapView`, `PuzzleLoaderView` |
+| `feature/puzzle` | working screen, scan state machine, piece capture |
+| `feature/project` | project list, creation, box bounds |
+| `shared` | Room database, image utils, shared views |
+
+## Tests
+
+| Suite | Where | What |
+|---|---|---|
+| `PieceMatcherTest` | JVM | synthetic box art, rotated pieces, accuracy, rotation, blur, empty table |
+| `PieceRecognizerDeviceTest` | device / emulator | real JPEG decode, timing (< 3 s per scan), failure paths |
+| `ScanFlowTest` | device / emulator | full journey: list, table, scan result, leads, blurry, no piece, viewfinder |
+
+CI runs everything on each push to `main`, including an Android 14 emulator.
+
+## Contributing
+Conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `ci:`, `chore:`), one topic per commit.
+Project notes for AI assistants live in [`.claude/CLAUDE.md`](.claude/CLAUDE.md).

@@ -32,6 +32,8 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`.
 
 ## Known limits / next steps
-- Confidence is per piece, not per lead (leads 2-3 show the same value). Real-photo accuracy not yet measured.
-- Camera/PieceBounds flow from `main` (device photo app + quad crop) is still in the nav graph, unused by the new scan flow.
-- CI: emulator job had one flaky assertion (`listShowsProjectAndTableShowsGrid` needs to wait for the project to load).
+- Accuracy on real piece photos is not measured yet (only synthetic fixtures). Repetitive images (sky, water) are the weak spot.
+- Leads 2-3 get a derived confidence (best confidence scaled by their own score), not an independent one.
+- The camera/PieceBounds flow from `main` (device photo app + quad crop) is still in the nav graph, unused by the scan flow.
+- Test fixtures must look like real photos (grain, real blur): smooth synthetic images sit at the sharpness threshold
+  (`PieceMatcher.MIN_SHARPNESS`) and make tests flip between devices.
