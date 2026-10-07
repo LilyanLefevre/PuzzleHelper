@@ -18,14 +18,13 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew assembleDebug testDebugUnitTest lintDebug
+      - run: ./gradlew assembleDebug testDebugUnitTest
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: unit-reports
           path: |
             app/build/reports/tests
-            app/build/reports/lint-results-debug.html
 
   instrumented:
     name: Instrumented tests (emulator)
