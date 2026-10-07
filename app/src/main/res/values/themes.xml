@@ -1,31 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.PuzzleIt" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary brand color. -->
+    <style name="Theme.PuzzleIt" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/puzzle_primary</item>
         <item name="colorOnPrimary">@color/puzzle_on_primary</item>
         <item name="colorPrimaryContainer">@color/puzzle_primary_container</item>
         <item name="colorOnPrimaryContainer">@color/puzzle_on_primary_container</item>
-
-        <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/puzzle_secondary</item>
         <item name="colorOnSecondary">@color/puzzle_on_secondary</item>
         <item name="colorSecondaryContainer">@color/puzzle_secondary_container</item>
         <item name="colorOnSecondaryContainer">@color/puzzle_on_secondary_container</item>
-
-        <!-- Surface palette (this drives TextInputEditText text color) -->
         <item name="colorSurface">@color/puzzle_surface</item>
         <item name="colorOnSurface">@color/puzzle_on_surface</item>
-        <item name="colorSurfaceVariant">@color/puzzle_surface</item>
-        <item name="colorOnSurfaceVariant">@color/puzzle_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/puzzle_on_surface_variant</item>
+        <item name="colorSurfaceContainer">@color/puzzle_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/puzzle_surface_high</item>
+        <item name="colorOutline">@color/puzzle_outline</item>
+        <item name="colorOutlineVariant">@color/puzzle_outline</item>
+        <item name="colorError">@color/puzzle_error</item>
+        <item name="android:colorBackground">@color/puzzle_background</item>
+        <item name="android:windowBackground">@color/puzzle_background</item>
+        <item name="android:statusBarColor">@color/puzzle_background</item>
+        <item name="android:navigationBarColor">@color/puzzle_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:fontFamily">@font/space_grotesk_family</item>
+        <item name="fontFamily">@font/space_grotesk_family</item>
+        <item name="shapeAppearanceSmallComponent">@style/Shape.Puzzle.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/Shape.Puzzle.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/Shape.Puzzle.Large</item>
+        <item name="materialButtonStyle">@style/Widget.Puzzle.Button</item>
+    </style>
 
-        <!-- Compatibility for framework text defaults -->
-        <item name="android:textColorPrimary">@color/puzzle_on_surface</item>
-        <item name="android:textColorSecondary">@color/puzzle_on_surface</item>
+    <style name="Shape.Puzzle.Small" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="Shape.Puzzle.Medium" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+    <style name="Shape.Puzzle.Large" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
 
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">@color/puzzle_primary</item>
+    <style name="Widget.Puzzle.Button" parent="Widget.Material3.Button">
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="android:minHeight">52dp</item>
+    </style>
+
+    <style name="Text.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/puzzle_on_surface</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="Text.Eyebrow" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textColor">@color/puzzle_primary</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.14</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.Puzzle.IconButton" parent="Widget.Material3.Button.IconButton.Filled.Tonal">
+        <item name="backgroundTint">@color/puzzle_scrim</item>
+        <item name="iconTint">@color/puzzle_on_surface</item>
+    </style>
+
+    <style name="Widget.Puzzle.Chip" parent="Widget.Material3.Chip.Assist">
+        <item name="chipBackgroundColor">@color/puzzle_surface_high</item>
+        <item name="chipStrokeColor">@color/puzzle_outline</item>
+        <item name="android:textColor">@color/puzzle_on_surface</item>
+    </style>
+
+    <style name="Widget.Puzzle.FilterChip" parent="Widget.Material3.Chip.Filter">
+        <item name="chipBackgroundColor">@color/chip_bg</item>
+        <item name="android:textColor">@color/chip_text</item>
+        <item name="chipStrokeColor">@color/puzzle_outline</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="chipMinHeight">40dp</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
 </resources>
