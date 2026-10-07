@@ -46,7 +46,7 @@ object TestImages {
         File(dir, name).also { f -> FileOutputStream(f).use { b.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
 
     fun blurred(b: Bitmap): Bitmap {
-        val small = Bitmap.createScaledBitmap(b, b.width / 24, b.height / 24, true)
+        val small = Bitmap.createScaledBitmap(b, b.width / 48, b.height / 48, true)
         return Bitmap.createScaledBitmap(small, b.width, b.height, true)
     }
 
