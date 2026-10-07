@@ -81,8 +81,10 @@ class PieceCaptureFragment : Fragment() {
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(requireContext())
         future.addListener({
+            // The provider can come back after the user already left this screen.
+            val b = _binding ?: return@addListener
             val provider = future.get()
-            val preview = Preview.Builder().build().also { it.setSurfaceProvider(binding.previewView.surfaceProvider) }
+            val preview = Preview.Builder().build().also { it.setSurfaceProvider(b.previewView.surfaceProvider) }
             imageCapture = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build()
             try {
                 provider.unbindAll()
