@@ -171,7 +171,6 @@ class PuzzleWorkingFragment : Fragment() {
         }
 
         // One chip per lead; tapping one moves the spotlight.
-        binding.chipLeads.setOnCheckedStateChangeListener(null)
         binding.chipLeads.removeAllViews()
         leads.forEachIndexed { i, c ->
             val chip = Chip(requireContext(), null, 0).apply {
@@ -182,12 +181,9 @@ class PuzzleWorkingFragment : Fragment() {
                 setTextColor(resources.getColorStateList(R.color.chip_text, null))
                 isCheckedIconVisible = false
                 isChecked = i == r.selected
+                setOnClickListener { viewModel.select(i) }
             }
             binding.chipLeads.addView(chip)
-        }
-        binding.chipLeads.setOnCheckedStateChangeListener { group, ids ->
-            val idx = group.indexOfChild(group.findViewById(ids.firstOrNull() ?: return@setOnCheckedStateChangeListener))
-            if (idx != (viewModel.scan.value as? ScanState.Result)?.selected) viewModel.select(idx)
         }
     }
 

@@ -216,8 +216,9 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
             val e = (0.5f - 0.5f * kotlin.math.cos(phase * 2 * Math.PI)).toFloat()
             val y = top + (bottom - top) * e
             val band = 70 * dp
+            val from = max(top, y - band)
             scanPaint.shader = LinearGradient(0f, y - band, 0f, y, 0x00D6FF45, (accent and 0x00FFFFFF) or 0x66000000, Shader.TileMode.CLAMP)
-            c.drawRect(tx, y - band, tx + b.width * s, y, scanPaint)
+            c.drawRect(tx, from, tx + b.width * s, y, scanPaint)
             stroke.strokeWidth = 2 * dp; stroke.alpha = 255; c.drawLine(tx, y, tx + b.width * s, y, stroke)
         }
     }
