@@ -187,7 +187,7 @@ class PuzzleWorkingFragment : Fragment() {
         }
         binding.chipLeads.setOnCheckedStateChangeListener { group, ids ->
             val idx = group.indexOfChild(group.findViewById(ids.firstOrNull() ?: return@setOnCheckedStateChangeListener))
-            if (idx != r.selected) viewModel.select(idx)
+            if (idx != (viewModel.scan.value as? ScanState.Result)?.selected) viewModel.select(idx)
         }
     }
 
