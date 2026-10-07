@@ -65,7 +65,10 @@ class PuzzleWorkingViewModel @Inject constructor(
             try {
                 val p = projectRepository.getProjectById(projectId)
                 if (p == null) { _errorMessage.value = "Project not found"; return@launch }
-                val prepared = recognizer.prepare(p.imagePath, p.puzzleSize)
+                // Prefer the rectified box and the grid typed at creation; old projects fall back to a computed grid.
+                val path = p.warpedPath.takeIf { it.isNotBlank() && File(it).exists() } ?: p.imagePath
+                val grid = if (p.gridRows > 1 || p.gridCols > 1) Grid(p.gridCols, p.gridRows) else null
+                val prepared = recognizer.prepare(path, p.puzzleSize, grid)
                 if (prepared == null) { _errorMessage.value = "Reference image not found"; return@launch }
                 matcher = prepared.matcher
                 _reference.value = prepared.display to prepared.matcher.grid

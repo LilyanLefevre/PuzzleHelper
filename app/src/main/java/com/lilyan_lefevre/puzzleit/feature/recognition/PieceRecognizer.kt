@@ -14,9 +14,9 @@ class PieceRecognizer @Inject constructor() {
 
     class Prepared(val display: Bitmap, val matcher: PieceMatcher)
 
-    suspend fun prepare(referencePath: String, pieces: Int): Prepared? = withContext(Dispatchers.Default) {
+    suspend fun prepare(referencePath: String, pieces: Int, grid: Grid? = null): Prepared? = withContext(Dispatchers.Default) {
         val bmp = decode(referencePath, 2400) ?: return@withContext null
-        Prepared(bmp, PieceMatcher(bmp.toRaster(), pieces))
+        Prepared(bmp, PieceMatcher(bmp.toRaster(), pieces, grid))
     }
 
     /** PRD: only the 70 % centre of the photo is analysed. */

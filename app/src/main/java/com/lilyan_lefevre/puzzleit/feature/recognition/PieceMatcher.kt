@@ -116,7 +116,7 @@ sealed interface Analysis {
  * is the piece's equivalent radius (scale-free). Rotation = cyclic shift of the sectors (8 steps of 45 deg, which
  * includes the 4 right-angle rotations). Brightness/white balance are partly cancelled by mean-centring.
  */
-class PieceMatcher(reference: Raster, pieces: Int) {
+class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
 
     val grid: Grid
     private val lab: LabImage
@@ -125,7 +125,7 @@ class PieceMatcher(reference: Raster, pieces: Int) {
     private val cands: List<Pair<Candidate, Descriptor>>
 
     init {
-        grid = Grid.forPuzzle(pieces, reference.w / reference.h.toFloat())
+        grid = gridOverride ?: Grid.forPuzzle(pieces, reference.w / reference.h.toFloat())
         // ~20 px per cell is enough for 17 colour samples; cap the total size for huge puzzles.
         val side = (grid.cols * CELL_PX).coerceAtMost(MAX_SIDE).coerceAtLeast(1)
         val ref = reference.fit(max(side, (grid.rows * CELL_PX).coerceAtMost(MAX_SIDE)))
