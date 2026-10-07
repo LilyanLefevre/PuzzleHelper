@@ -23,7 +23,8 @@
     <string name="save_changes">Enregistrer</string>
 
     <!-- Project List -->
-    <string name="no_puzzles_yet">Pas encore de puzzles !\nAppuyez sur + pour créer votre premier projet de puzzle</string>
+    <string name="no_puzzles_yet">Aucun puzzle pour l\'instant.
+Commence par une photo de la boîte.</string>
     <string name="pieces_name">%d pièces</string>
     <string name="puzzles_list_title">Mes puzzles</string>
 
@@ -49,16 +50,7 @@
     <!-- Error -->
     <string name="error">Erreur</string>
     <string name="ok">OK</string>
-    <string name="failed_to_process_image">Échec du traitement de l\'image: %s</string>
-    <string name="unknown_error">Erreur inconnue</string>
-    
-    <!-- Success -->
-    <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
-    <string name="no_puzzles_yet">Aucun puzzle pour l\'instant.\nCommence par une photo de la boîte.</string>
-    <string name="add_new_puzzle_project">Ajouter un nouveau projet de puzzle</string>
-
-    <string name="project_thumbnail">Aperçu du puzzle</string>
-    <string name="pieces_name">%d pièces</string>
+    <string name="camera_permission_denied">Permission caméra refusée</string>
 
     <!-- Piece recognition -->
     <string name="app_tagline">Trouve ta pièce</string>
@@ -99,4 +91,14 @@
     <string name="grid_info">%1$d pièces · grille %2$d × %3$d</string>
     <string name="back">Retour</string>
     <string name="rotate_hint_ccw">Tourne-la de %d° vers la gauche</string>
+    <string name="new_puzzle_project">Nouveau Puzzle</string>
+    <string name="puzzle_name_hint">ex: La vague</string>
+    <string name="number_of_pieces_hint">ex: 1000</string>
+    <string name="camera_not_ready">Caméra non prête</string>
+    <string name="photo_capture_failed">Échec de la capture photo: %s</string>
+    <string name="camera_permission_required">Permission Caméra Requise</string>
+    <string name="camera_permission_rationale">Cette application a besoin de la permission caméra pour capturer les images des boîtes de puzzle. Veuillez accorder la permission pour continuer.</string>
+    <string name="failed_to_process_image">Échec du traitement de l\'image: %s</string>
+    <string name="unknown_error">Erreur inconnue</string>
+    <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
 </resources>

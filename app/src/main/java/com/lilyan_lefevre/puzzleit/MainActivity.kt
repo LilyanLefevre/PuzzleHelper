@@ -2,6 +2,7 @@ package com.lilyan_lefevre.puzzleit
 
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -50,6 +51,12 @@ class MainActivity : AppCompatActivity() {
         // Connect the action bar with the NavController
         val appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
+
+        // List, working table and scanner draw their own headers.
+        val ownHeader = setOf(R.id.projectListFragment, R.id.puzzleWorkingFragment, R.id.pieceCaptureFragment)
+        navController.addOnDestinationChangedListener { _, dest, _ ->
+            binding.toolbar.visibility = if (dest.id in ownHeader) View.GONE else View.VISIBLE
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
