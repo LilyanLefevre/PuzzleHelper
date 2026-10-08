@@ -132,7 +132,7 @@ class ScanFlowTest {
             onView(withId(R.id.chipLeads)).check(matches(isDisplayed()))
             onView(withId(R.id.chipLeads)).check(matches(isDisplayed()))
             onView(withText(containsString(ctx.getString(R.string.alt_lead, 2)))).perform(click())
-            waitFor { onView(withId(R.id.textLead)).check(matches(withText(ctx.getString(R.string.alt_lead, 2)))) }
+            waitFor { onView(withId(R.id.textLead)).check(matches(withText(containsString(ctx.getString(R.string.alt_lead, 2))))) }
             Thread.sleep(1200); shot(scenario, "4_second_lead")
             onView(withId(R.id.buttonDismiss)).perform(click())
             waitFor { onView(withId(R.id.groupIdle)).check(matches(isDisplayed())) }

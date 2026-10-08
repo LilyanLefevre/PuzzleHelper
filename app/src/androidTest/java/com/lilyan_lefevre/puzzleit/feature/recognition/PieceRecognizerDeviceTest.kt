@@ -22,7 +22,7 @@ class PieceRecognizerDeviceTest {
     private val rows = 15
     private val art = TestImages.boxArt()
     private val ref = TestImages.save(art, dir, "ref_test.jpg")
-    private val recognizer = PieceRecognizer()
+    private val recognizer = PieceRecognizer(null)
 
     private fun prepare() = runBlocking { recognizer.prepare(ref.absolutePath, cols * rows, Grid(cols, rows)) }!!
 

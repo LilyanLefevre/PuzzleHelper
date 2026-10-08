@@ -57,7 +57,7 @@ Commence par une photo de la boîte.</string>
     <string name="my_puzzles">Mes puzzles</string>
     <string name="scan_piece">Scanner une pièce</string>
     <string name="scan_hint_title">Centre la pièce</string>
-    <string name="scan_hint_body">Surface unie et bien éclairée. Remplis le cadre.</string>
+    <string name="scan_hint_body">Seule, sur une surface unie qui contraste. Garde de la table autour.</string>
     <string name="analyzing">Lecture de la pièce…</string>
     <string name="analyzing_sub">Comparaison avec la boîte, 8 rotations</string>
     <string name="best_lead">Meilleure piste</string>
@@ -101,4 +101,6 @@ Commence par une photo de la boîte.</string>
     <string name="failed_to_process_image">Échec du traitement de l\'image: %s</string>
     <string name="unknown_error">Erreur inconnue</string>
     <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
+    <string name="piece_corner">Coin</string>
+    <string name="piece_edge">Bord</string>
 </resources>

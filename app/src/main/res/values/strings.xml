@@ -57,7 +57,7 @@ Start from a photo of the box.</string>
     <string name="my_puzzles">My puzzles</string>
     <string name="scan_piece">Scan a piece</string>
     <string name="scan_hint_title">Center the piece</string>
-    <string name="scan_hint_body">Plain, well-lit surface. Fill the frame.</string>
+    <string name="scan_hint_body">Alone, on a plain surface that contrasts with it. Keep some table around it.</string>
     <string name="analyzing">Reading the piece…</string>
     <string name="analyzing_sub">Comparing it with the box, 8 rotations</string>
     <string name="best_lead">Best lead</string>
@@ -108,4 +108,6 @@ Start from a photo of the box.</string>
     <string name="capture_puzzle_photo">Capture puzzle photo</string>
     <string name="project_deletion_failed">Failed to delete project: %s</string>
     <string name="adjust_photo_bounds">Adjust Photo Bounds</string>
+    <string name="piece_corner">Corner</string>
+    <string name="piece_edge">Edge</string>
 </resources>

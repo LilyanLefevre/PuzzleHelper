@@ -1,7 +1,9 @@
 package com.lilyan_lefevre.puzzleit.feature.recognition
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -10,7 +12,7 @@ import javax.inject.Singleton
 
 /** Android glue: files/bitmaps <-> [Raster]. The algorithm itself lives in [PieceMatcher]. */
 @Singleton
-class PieceRecognizer @Inject constructor() {
+class PieceRecognizer @Inject constructor(@ApplicationContext private val context: Context?) {
 
     class Prepared(val display: Bitmap, val matcher: PieceMatcher)
 
@@ -19,10 +21,40 @@ class PieceRecognizer @Inject constructor() {
         Prepared(bmp, PieceMatcher(bmp.toRaster(), pieces, grid))
     }
 
-    /** PRD: only the 70 % centre of the photo is analysed. */
+    /**
+     * Only the square under the viewfinder frame is analysed (half the photo's short side): what the user sees,
+     * with a ring of table around the piece for the background estimate.
+     */
     suspend fun locate(matcher: PieceMatcher, photoPath: String): Analysis = withContext(Dispatchers.Default) {
-        val bmp = decode(photoPath, 1000) ?: return@withContext Analysis.NoPiece
-        matcher.locate(bmp.toRaster().centerCrop(0.7f))
+        val bmp = decode(photoPath, 1600) ?: return@withContext Analysis.NoPiece
+        val a = matcher.locate(bmp.toRaster().centerSquare(CROP))
+        archive(photoPath, a)
+        a
+    }
+
+    /**
+     * Keeps the last captures with their verdict on the device (never sent anywhere) so real-world failures can be
+     * replayed: adb pull /sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/captures
+     */
+    private fun archive(photoPath: String, a: Analysis) {
+        val dir = context?.getExternalFilesDir("captures") ?: return
+        runCatching {
+            val stamp = System.currentTimeMillis()
+            File(photoPath).copyTo(File(dir, "$stamp.jpg"), overwrite = true)
+            val verdict = when (a) {
+                is Analysis.Found -> "found col=${a.match.best.col} row=${a.match.best.row} rot=${a.match.best.rotationDeg} " +
+                    "conf=${a.match.confidence} kind=${a.match.kind} sharp=${a.sharpness}"
+                is Analysis.Blurry -> "blurry sharp=${a.sharpness}"
+                Analysis.NoPiece -> "no-piece"
+            }
+            File(dir, "$stamp.txt").writeText(verdict + "\n")
+            dir.listFiles()?.sortedByDescending { it.name }?.drop(2 * KEEP)?.forEach { it.delete() }
+        }
+    }
+
+    companion object {
+        const val CROP = 0.5f
+        private const val KEEP = 30
     }
 
     private fun decode(path: String, maxSide: Int): Bitmap? {

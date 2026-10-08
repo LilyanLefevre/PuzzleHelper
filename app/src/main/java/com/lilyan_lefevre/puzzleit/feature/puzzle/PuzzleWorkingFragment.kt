@@ -27,6 +27,7 @@ import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
 import com.lilyan_lefevre.puzzleit.feature.recognition.Grid
+import com.lilyan_lefevre.puzzleit.feature.recognition.PieceKind
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceMatcher
 import com.lilyan_lefevre.puzzleit.feature.recognition.Precision
 import dagger.hilt.android.AndroidEntryPoint
@@ -148,6 +149,11 @@ class PuzzleWorkingFragment : Fragment() {
         binding.mapView.showMatch(cand, m.precision, leads.filter { it !== cand })
         binding.textLead.setText(if (r.selected == 0) R.string.best_lead else R.string.alt_lead)
         if (r.selected != 0) binding.textLead.text = getString(R.string.alt_lead, r.selected + 1)
+        when (m.kind) {
+            PieceKind.CORNER -> binding.textLead.append(" · " + getString(R.string.piece_corner))
+            PieceKind.EDGE -> binding.textLead.append(" · " + getString(R.string.piece_edge))
+            else -> Unit
+        }
         binding.textSpot.text = spotLabel(cand, m.precision)
 
         showConfidence(cand.confidence)
