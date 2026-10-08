@@ -21,6 +21,5 @@
     <color name="puzzle_secondary_text">#B4A9FF</color>
     <color name="puzzle_error">#FF6B7A</color>
     <color name="puzzle_warning">#FFB84D</color>
-    <color name="puzzle_on_background">#EEF1F6</color>
     <color name="puzzle_scrim">#B3000000</color>
 </resources>

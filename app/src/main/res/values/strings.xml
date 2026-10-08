@@ -3,7 +3,6 @@
     <string name="app_name">PuzzleIt</string>
     
     <!-- Project Creation -->
-    <string name="project_creation_title">New puzzle</string>
     <string name="photo_placeholder">Photo placeholder</string>
     <string name="tap_to_take_photo">Tap to take photo</string>
     <string name="take_a_photo_of_your_puzzle_box">Take a photo of your puzzle box</string>
@@ -18,7 +17,6 @@
     <string name="create_puzzle_title">Create a puzzle</string>
 
     <!-- Project Edit -->
-    <string name="edit_button">Edit</string>
     <string name="edit_project_title">Edit a puzzle</string>
     <string name="save_changes">Save changes</string>
 
@@ -28,18 +26,10 @@ Start from a photo of the box.</string>
     <string name="pieces_name">%d pieces</string>
     <string name="puzzles_list_title">My puzzles</string>
 
-    <!-- Project Deletion -->
-    <string name="delete_button">Delete</string>
-    <string name="delete_project_title">Delete Project</string>
-    <string name="delete_project_message">Are you sure you want to delete "%s"? This action cannot be undone.</string>
-    <string name="delete">Delete</string>
-    <string name="project_deleted_successfully">Project "%s" deleted successfully!</string>
 
     <!-- Puzzle Bounds -->
     <string name="puzzle_bounds_title">Select Puzzle Bounds</string>
 
-    <!-- Puzzle piece -->
-    <string name="capture_piece">Capture Piece</string>
 
     <!-- Content description -->
     <string name="puzzle_reference_image">Puzzle reference image</string>
@@ -81,22 +71,6 @@ Start from a photo of the box.</string>
     <string name="back">Back</string>
     <string name="rotate_hint_ccw">Turn it %d° counter-clockwise</string>
     <string name="new_puzzle_project">New Puzzle Project</string>
-    <string name="puzzle_name_hint">e.g., La vague</string>
-    <string name="number_of_pieces_hint">e.g., 1000</string>
-    <string name="camera_not_ready">Camera not ready</string>
-    <string name="photo_capture_failed">Photo capture failed: %s</string>
-    <string name="photo_capture_failed_after_retries">Photo capture failed after multiple attempts. Please try again.</string>
-    <string name="camera_permission_required">Camera Permission Required</string>
-    <string name="camera_permission_rationale">This app needs camera permission to capture puzzle box images. Please grant the permission to continue.</string>
-    <string name="contour_detection_quality">Contour Detection Quality</string>
-    <string name="contour_detection_poor_quality">Contour detection quality is low (%.1f%%). The puzzle piece boundaries may not be clear. Would you like to retake the photo?</string>
-    <string name="retake_photo">Retake Photo</string>
-    <string name="continue_anyway">Continue Anyway</string>
-    <string name="failed_to_process_image">Failed to process image: %s</string>
-    <string name="unknown_error">Unknown error</string>
-    <string name="capture_puzzle_photo">Capture puzzle photo</string>
-    <string name="project_deletion_failed">Failed to delete project: %s</string>
-    <string name="adjust_photo_bounds">Adjust Photo Bounds</string>
     <string name="piece_corner">Corner</string>
     <string name="piece_edge">Edge</string>
     <string name="your_piece">Your piece</string>

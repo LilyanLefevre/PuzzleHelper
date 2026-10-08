@@ -71,17 +71,6 @@
         <action
             android:id="@+id/action_puzzleWorkingFragment_to_pieceCaptureFragment"
             app:destination="@id/pieceCaptureFragment" />
-
-        <action
-            android:id="@+id/action_puzzleWorkingFragment_to_projectCreationFragment"
-            app:destination="@id/projectCreationFragment" />
-
-        <action
-            android:id="@+id/action_puzzleWorkingFragment_to_pieceBoundsFragment"
-            app:destination="@id/pieceBoundsFragment">
-            <argument android:name="imagePath" app:argType="string" />
-            <argument android:name="projectId" app:argType="string" />
-        </action>
     </fragment>
 
     <fragment
@@ -89,14 +78,5 @@
         android:name="com.lilyan_lefevre.puzzleit.feature.puzzle.PieceCaptureFragment"
         android:label="Piece Capture"
         tools:layout="@layout/fragment_piece_capture" />
-
-    <fragment
-        android:id="@+id/pieceBoundsFragment"
-        android:name="com.lilyan_lefevre.puzzleit.feature.puzzle.piece.PieceBoundsFragment"
-        android:label="Détourage de la pièce"
-        tools:layout="@layout/fragment_piece_bounds">
-        <argument android:name="imagePath" app:argType="string" />
-        <argument android:name="projectId" app:argType="string" />
-    </fragment>
 
 </navigation>

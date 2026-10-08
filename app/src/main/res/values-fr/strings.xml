@@ -3,7 +3,6 @@
     <string name="app_name">PuzzleIt</string>
 
     <!-- Project Creation -->
-    <string name="project_creation_title">Nouveau puzzle</string>
     <string name="photo_placeholder">Image de remplacement</string>
     <string name="tap_to_take_photo">Appuyer pour prendre une photo</string>
     <string name="take_a_photo_of_your_puzzle_box">Prendre une photo de la boîte du puzzle</string>
@@ -18,7 +17,6 @@
     <string name="create_puzzle_title">Créer un puzzle</string>
 
     <!-- Project Edit -->
-    <string name="edit_button">Modifier</string>
     <string name="edit_project_title">Modification du puzzle</string>
     <string name="save_changes">Enregistrer</string>
 
@@ -28,18 +26,10 @@ Commence par une photo de la boîte.</string>
     <string name="pieces_name">%d pièces</string>
     <string name="puzzles_list_title">Mes puzzles</string>
 
-    <!-- Project Deletion -->
-    <string name="delete_button">Supprimer</string>
-    <string name="delete_project_title">Supprimer le projet</string>
-    <string name="delete_project_message">Êtes-vous sûr de vouloir supprimer "%s"? Cette action est irréversible.</string>
-    <string name="delete">Supprimer</string>
-    <string name="project_deleted_successfully">Projet "%s" supprimé !</string>
 
     <!-- Puzzle Bounds -->
     <string name="puzzle_bounds_title">Sélectionner les contours du puzzle</string>
 
-    <!-- Puzzle piece -->
-    <string name="capture_piece">Prendre une pièce</string>
 
     <!-- Content description -->
     <string name="puzzle_reference_image">Image de référence du puzzle</string>
@@ -81,15 +71,6 @@ Commence par une photo de la boîte.</string>
     <string name="back">Retour</string>
     <string name="rotate_hint_ccw">Tourne-la de %d° vers la gauche</string>
     <string name="new_puzzle_project">Nouveau Puzzle</string>
-    <string name="puzzle_name_hint">ex: La vague</string>
-    <string name="number_of_pieces_hint">ex: 1000</string>
-    <string name="camera_not_ready">Caméra non prête</string>
-    <string name="photo_capture_failed">Échec de la capture photo: %s</string>
-    <string name="camera_permission_required">Permission Caméra Requise</string>
-    <string name="camera_permission_rationale">Cette application a besoin de la permission caméra pour capturer les images des boîtes de puzzle. Veuillez accorder la permission pour continuer.</string>
-    <string name="failed_to_process_image">Échec du traitement de l\'image: %s</string>
-    <string name="unknown_error">Erreur inconnue</string>
-    <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
     <string name="piece_corner">Coin</string>
     <string name="piece_edge">Bord</string>
     <string name="your_piece">Ta pièce</string>
