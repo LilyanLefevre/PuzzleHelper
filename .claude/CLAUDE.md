@@ -42,8 +42,12 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`.
 
 ## Real-photo benchmarks (opt-in, not in CI)
-- `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py`: Puzzle-Map "120_avengers", 484 real photos with
-  row/col/quarter-turn/sides. Current: 65 % top-1 with flat sides, 89 % in the 4 leads. Measure every matcher change.
+- `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py`: Puzzle-Map, 7 puzzles, 643 real hand-held photos with
+  row/col/quarter-turn/sides (one folder per puzzle). Current: 56 % exact cell with flat sides, 90 % in the 4 leads.
+- `ImageBankBenchmarkTest` + `tools/dataset/prepare_image_bank.py`: 24 real images (paintings, Unsplash photos) as
+  500-piece puzzles, pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table colour);
+  full pipeline. Current: 64 % exact overall, 75 % textured, 51 % flat-heavy. Draws are seeded by the file name.
+- Run both before and after any matcher change and quote the numbers in the commit.
 - `RealPhotoReplayTest`: phone captures (`adb pull .../files/captures`), box from
   `adb exec-out run-as com.lilyan_lefevre.puzzleit cat files/<project>/puzzle/extraites/*_warped.jpg`, BMP via sips.
 

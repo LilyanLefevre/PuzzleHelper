@@ -92,7 +92,8 @@ flowchart TB
 | Suite | Where | What |
 |---|---|---|
 | `PieceMatcherTest` | JVM | synthetic box art, rotated pieces, accuracy, rotation, blur, empty table |
-| `DatasetReplayTest` | JVM, opt-in | 484 real photos from the public Puzzle-Map dataset: 65 % top-1, 89 % in the 4 leads |
+| `DatasetReplayTest` | JVM, opt-in | 643 real photos, 7 puzzles of the public Puzzle-Map dataset: 56 % exact cell, 90 % in the 4 leads |
+| `ImageBankBenchmarkTest` | JVM, opt-in | 24 real images (paintings, photos) as 500-piece puzzles, 576 simulated piece photos: 75 % exact on textured images, 51 % on sky/sea-heavy ones |
 | `RealPhotoReplayTest` | JVM, opt-in | replays captures pulled from a phone, writes the masks |
 | `PieceRecognizerDeviceTest` | device / emulator | real JPEG decode, timing (< 3 s per scan), failure paths |
 | `ScanFlowTest` | device / emulator | full journey: list, table, scan result, leads, blurry, no piece, viewfinder |

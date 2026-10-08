@@ -37,7 +37,7 @@ Les pièces y sont **tenues à la main** devant un décor encombré : ce jeu ne 
 `DatasetReplayTest` utilise le cadre annoté (rétréci de 16 % pour ne garder que le corps) comme masque, et mesure la
 **comparaison de couleurs** et l'apport des **contraintes de forme** (types de côtés annotés).
 
-Reconstruire le banc (macOS) :
+Reconstruire le banc (macOS ; un dossier par puzzle) :
 
 ```bash
 python3 tools/dataset/prepare_puzzle_map.py /tmp/puzzle-map
@@ -60,6 +60,53 @@ La dernière ligne coûte 1 point ici mais rend la réponse indépendante d'un �
 
 Lecture : avec la forme, **2 fois sur 3 la meilleure piste est la bonne**, et **9 fois sur 10 la bonne est dans les
 4 pistes proposées**. On est encore sous l'objectif de 70 % pour la meilleure piste seule.
+
+### Tous les puzzles annotés du jeu
+
+Le script prépare désormais les 7 puzzles dont les photos portent une position (un dossier par puzzle). Ici la rotation
+est comptée sur **toutes** les photos, pas seulement celles bien placées ; « exacte » = la bonne case.
+
+| Puzzle | Photos | Hasard | Case exacte, couleur seule | Case exacte, + forme | Dans les 4 pistes | Rotation |
+|---|---|---|---|---|---|---|
+| 120_avengers (12 × 10) | 484 | 0,8 % | 44 % | **57 %** | 88 % | 68 % |
+| 100_dc (10 × 10) | 13 | 1 % | 7 % | 30 % | 53 % | 38 % |
+| 5 × 6_patos (2 × 3) | 146 | 17 % | 21-52 % | **43-75 %** | 100 % | 43-75 % |
+| **Total** | **643** | | 42 % | **56 %** | **90 %** | 64 % |
+
+La rotation est le point faible sur ces photos tenues à la main : à creuser.
+
+## Banque d'images : 24 vraies images, 576 pièces
+
+Un seul puzzle réel ne dit pas comment l'algorithme se comporte sur d'autres contenus. `ImageBankBenchmarkTest`
+prend **24 vraies images** (8 peintures du domaine public, 16 photos sous licence Unsplash), en fait des puzzles de
+500 pièces, et « photographie » 24 pièces par image (les 4 coins, 6 bords, 14 intérieures) avec des conditions
+tirées au hasard : angle quelconque, lumière latérale d'intensité et de direction variables, balance des blancs,
+exposition, table (bois clair, bois foncé, blanc, gris, feutre vert). **Toute la chaîne** tourne : isolement sur la
+table, lecture de la forme, couleur.
+
+Chaque image reçoit un indice d'**aplat** : la part de cases presque unies (ciel, mer, fonds), le cas difficile attendu.
+
+| Type d'image | Pièces | Pièce trouvée | Case exacte | Dans les 4 pistes | Rotation | Forme lue |
+|---|---|---|---|---|---|---|
+| Texturée (< 15 % d'aplats) | 240 | 100 % | **75 %** | 85 % | 86 % | 97 % |
+| Mixte (15-40 %) | 144 | 98 % | 63 % | 76 % | 77 % | 94 % |
+| Beaucoup d'aplats (> 40 %) | 192 | 98 % | **51 %** | 68 % | 74 % | 95 % |
+| **Total** | **576** | 99 % | **64 %** | 77 % | 80 % | 96 % |
+
+Ce qui ressort :
+- l'objectif de 70 % est **atteint sur les images texturées** (peintures, scènes chargées) ;
+- la **couleur seule ne suffit pas sur les aplats** : ciel et mer tombent à ~50 %. Prochaine piste : la texture
+  (gradients orientés) et la position relative (une pièce de ciel est en haut) ;
+- la **forme est fiable** (96 %) et l'isolement sur table aussi (99 %), y compris sur bois foncé ou feutre vert.
+
+Reconstruire et lancer (macOS) :
+
+```bash
+python3 tools/dataset/prepare_image_bank.py /tmp/image-bank
+PUZZLE_IMAGES_DIR=/tmp/image-bank ./gradlew testDebugUnitTest --tests '*ImageBankBenchmarkTest' -i
+```
+
+Les tirages sont déterministes (graine = nom de l'image) : les chiffres sont reproductibles d'un poste à l'autre.
 
 ## Photos réelles : captures de l'app
 
