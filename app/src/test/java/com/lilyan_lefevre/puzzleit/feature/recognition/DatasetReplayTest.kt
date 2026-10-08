@@ -7,8 +7,9 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
- * Replays a public dataset of real piece photos with known positions (Puzzle-Map, "120_avengers", CC-BY-4.0).
- * Skipped unless PUZZLE_DATASET_DIR holds box.bmp, grid.txt ("cols rows") and pieces.tsv:
+ * Replays the public Puzzle-Map dataset: real photos of pieces with known positions (CC-BY-4.0).
+ * Skipped unless PUZZLE_DATASET_DIR holds one folder per puzzle (built by tools/dataset/prepare_puzzle_map.py), each with
+ * box.bmp, grid.txt ("cols rows") and pieces.tsv:
  *   file  col  row  angle  tilt  x0 y0 x1 y1  top right bottom left      (col/row 0-based, angle = CCW quarter turns
  *   of the piece in the photo, bbox inside the crop, sides SMOOTH|OUTER|INNER as seen in the photo)
  * Pieces are hand-held in front of cluttered scenes, so the mask is the body inside the annotated box: this measures
@@ -16,17 +17,17 @@ import kotlin.math.hypot
  */
 class DatasetReplayTest {
 
-    private class Score { var n = 0; var near = 0; var exact = 0; var top4 = 0; var rot = 0
-        override fun toString() = "near=$near/$n (${100 * near / n.coerceAtLeast(1)}%) exact=$exact top4=$top4 rotationOkAmongNear=$rot/$near" }
+    private class Score(val cells: Int) {
+        var n = 0; var exact = 0; var near = 0; var top4 = 0; var rot = 0
+        fun add(o: Score) { n += o.n; exact += o.exact; near += o.near; top4 += o.top4; rot += o.rot }
+        private fun pct(x: Int) = "${100 * x / n.coerceAtLeast(1)}%".padStart(4)
+        override fun toString() = "exact ${pct(exact)}  ±1 ${pct(near)}  top4 ${pct(top4)}  rotation ${pct(rot)}"
+    }
 
-    @Test
-    fun replay() {
-        val dir = System.getenv("PUZZLE_DATASET_DIR")?.let(::File)
-        assumeTrue("PUZZLE_DATASET_DIR not set", dir != null && dir.isDirectory)
-        val (cols, rows) = File(dir!!, "grid.txt").readText().trim().split(Regex("\\s+")).map { it.toInt() }
+    private fun replay(dir: File): Pair<Score, Score> {
+        val (cols, rows) = File(dir, "grid.txt").readText().trim().split(Regex("\\s+")).map { it.toInt() }
         val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows))
-        val colourOnly = Score(); val withSides = Score()
-        val t0 = System.nanoTime()
+        val colourOnly = Score(cols * rows); val withSides = Score(cols * rows)
         for (line in File(dir, "pieces.tsv").readLines().filter { it.isNotBlank() }) {
             val p = line.split('\t')
             val img = Bmp.load(File(dir, p[0]))
@@ -42,18 +43,29 @@ class DatasetReplayTest {
             for ((score, shape) in listOf(colourOnly to null, withSides to Shape(0f, sides))) {
                 val m = matcher.rank(lab, mask, shape) ?: continue
                 score.n++
-                fun ok(c: Candidate) = abs(c.col - (col + .5f)) <= 1.01f && abs(c.row - (row + .5f)) <= 1.01f
-                if (ok(m.best)) {
-                    score.near++
-                    val d = abs(((m.best.rotationDeg - want) % 360 + 540) % 360 - 180)
-                    if (d <= 20) score.rot++
-                }
+                fun near(c: Candidate) = abs(c.col - (col + .5f)) <= 1.01f && abs(c.row - (row + .5f)) <= 1.01f
                 if (hypot(m.best.col - (col + .5f), m.best.row - (row + .5f)) <= 0.51f) score.exact++
-                if ((listOf(m.best) + m.alternatives).any(::ok)) score.top4++
+                if (near(m.best)) score.near++
+                if ((listOf(m.best) + m.alternatives).any(::near)) score.top4++
+                if (abs(((m.best.rotationDeg - want) % 360 + 540) % 360 - 180) <= 20) score.rot++
             }
         }
-        println("DATASET colour only : $colourOnly")
-        println("DATASET + flat sides: $withSides")
-        println("DATASET ${(System.nanoTime() - t0) / 1_000_000} ms")
+        return colourOnly to withSides
+    }
+
+    @Test
+    fun replay() {
+        val root = System.getenv("PUZZLE_DATASET_DIR")?.let(::File)
+        assumeTrue("PUZZLE_DATASET_DIR not set", root != null && root.isDirectory)
+        val dirs = listOf(root!!).filter { File(it, "pieces.tsv").exists() } +
+            root.listFiles()!!.filter { File(it, "pieces.tsv").exists() }.sortedBy { it.name }
+        val all = Score(0) to Score(0)
+        println("DATASET puzzle            photos cells  chance | colour only                                | + flat sides")
+        for (d in dirs) {
+            val (a, b) = replay(d)
+            all.first.add(a); all.second.add(b)
+            println("DATASET ${d.name.padEnd(17)} ${a.n.toString().padStart(6)} ${a.cells.toString().padStart(5)} ${"%5.1f%%".format(100f / a.cells)} | $a | $b")
+        }
+        println("DATASET ${"ALL".padEnd(17)} ${all.first.n.toString().padStart(6)}               | ${all.first} | ${all.second}")
     }
 }
