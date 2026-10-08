@@ -235,6 +235,15 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         return Analysis.Found(Match(grid, leads[0], leads.drop(1), conf, precision, shape.kind), sharp, cutout(img, mask))
     }
 
+    /** What the matcher sees, step by step: for the real-photo replay harness and debugging. */
+    internal class Inspection(val image: Raster, val mask: BooleanArray?, val shape: Shape?, val sharpness: Float)
+
+    internal fun inspect(photo: Raster): Inspection {
+        val img = photo.fit(PHOTO_SIDE)
+        val mask = segment(LabImage.from(img))
+        return Inspection(img, mask, mask?.let { shape(it, img.w, img.h) }, sharpness(img))
+    }
+
     // ---------------------------------------------------------------- internals
 
     private class Descriptor(val v: FloatArray, val ok: BooleanArray, val mean: FloatArray) // v: CELLS x 3, mean-centred
@@ -302,27 +311,34 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         val w = img.w; val h = img.h
         val b = max(2, (min(w, h) * 0.05f).toInt())
         fun onBorder(x: Int, y: Int) = x < b || y < b || x >= w - b || y >= h - b
-        val bg = FloatArray(3)
+        // Table colour as a distribution: robust centre (median) and spread (MAD) per Lab channel.
+        // A quilted or textured table varies a lot in lightness but little in hue, so a dark blue piece on a dark
+        // grey table is still far from it once each channel is scaled by its own spread.
+        val med = FloatArray(3); val spread = FloatArray(3)
         for (c in 0..2) {
             val vs = ArrayList<Float>()
             for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) vs += img.lab[(y * w + x) * 3 + c]
-            vs.sort(); bg[c] = vs[vs.size / 2]
+            vs.sort(); med[c] = vs[vs.size / 2]
+            val dev = vs.map { abs(it - med[c]) }.sorted()
+            spread[c] = max(if (c == 0) 3f else 1.5f, 1.4826f * dev[dev.size / 2])
         }
-        val dist = FloatArray(w * h) { i ->
-            val dl = img.lab[i * 3] - bg[0]; val da = img.lab[i * 3 + 1] - bg[1]; val db = img.lab[i * 3 + 2] - bg[2]
-            sqrt(dl * dl * 0.5f + da * da + db * db)
+        val z = FloatArray(w * h) { i ->
+            var acc = 0f
+            for (c in 0..2) { val d = (img.lab[i * 3 + c] - med[c]) / spread[c]; acc += d * d }
+            sqrt(acc)
         }
-        val bd = ArrayList<Float>()
-        for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) bd += dist[y * w + x]
-        bd.sort()
-        val noise = bd[(bd.size * 0.9f).toInt()]
-        val thr = max(max(8f, noise * 1.2f), otsu(dist))
-        var fg = BooleanArray(w * h) { dist[it] > thr }
-        fg = dilate(erode(fg, w, h), w, h)
+        val bz = ArrayList<Float>()
+        for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) bz += z[y * w + x]
+        bz.sort()
+        // Anything clearly outside what the table border shows.
+        val thr = max(Z_MIN, bz[(bz.size * 0.99f).toInt()] * 1.1f)
+        var fg = BooleanArray(w * h) { z[it] > thr }
+        fg = dilate(erode(fg, w, h), w, h)                                   // opening: speckles out
+        repeat(2) { fg = dilate(fg, w, h) }; repeat(2) { fg = erode(fg, w, h) }   // closing: glue the parts
         fg = blobAtCentre(fg, w, h) ?: return null
         fg = fillHoles(fg, w, h)
         val area = fg.count { it }
-        return if (area < w * h * 0.02f || area > w * h * 0.85f) null else fg
+        return if (area < w * h * 0.01f || area > w * h * 0.85f) null else fg
     }
 
     private fun otsu(v: FloatArray): Float {
@@ -475,9 +491,10 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         private const val RADIUS = 0.92f
         private const val CELL_PX = 20
         private const val MAX_SIDE = 1600
-        private const val PHOTO_SIDE = 300
+        private const val PHOTO_SIDE = 420
         private const val MIN_CELLS = 8f
         const val MIN_SHARPNESS = 12f
+        private const val Z_MIN = 4f
         const val CELL_CONF = 55
         const val ZONE_CONF = 30
 
