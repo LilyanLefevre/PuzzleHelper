@@ -75,4 +75,17 @@ Commence par une photo de la boîte.</string>
     <string name="piece_edge">Bord</string>
     <string name="your_piece">Ta pièce</string>
     <string name="on_the_box">Sur la boîte</string>
+    <string name="please_take_photo">Prends d\'abord la boîte en photo</string>
+    <string name="photo_load_failed">Impossible de charger la photo</string>
+    <string name="project_updated">Puzzle mis à jour</string>
+    <string name="camera_error">Impossible d\'ouvrir l\'appareil photo</string>
+    <string name="edit_button">Modifier</string>
+    <string name="delete_button">Supprimer</string>
+    <string name="delete_project_title">Supprimer le puzzle</string>
+    <string name="delete_project_message">Supprimer « %s » ? Cette action est irréversible.</string>
+    <string name="delete">Supprimer</string>
+    <string name="project_deleted_successfully">Puzzle « %s » supprimé</string>
+    <string name="project_deletion_failed">Impossible de supprimer le puzzle</string>
+    <string name="project_not_found">Puzzle introuvable</string>
+    <string name="reference_missing">L\'image de la boîte de ce puzzle est introuvable</string>
 </resources>

@@ -75,4 +75,17 @@ Start from a photo of the box.</string>
     <string name="piece_edge">Edge</string>
     <string name="your_piece">Your piece</string>
     <string name="on_the_box">On the box</string>
+    <string name="please_take_photo">Take a photo of the box first</string>
+    <string name="photo_load_failed">Could not load the photo</string>
+    <string name="project_updated">Puzzle updated</string>
+    <string name="camera_error">Could not open the camera</string>
+    <string name="edit_button">Edit</string>
+    <string name="delete_button">Delete</string>
+    <string name="delete_project_title">Delete puzzle</string>
+    <string name="delete_project_message">Delete "%s"? This cannot be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="project_deleted_successfully">Puzzle "%s" deleted</string>
+    <string name="project_deletion_failed">Could not delete the puzzle</string>
+    <string name="project_not_found">Puzzle not found</string>
+    <string name="reference_missing">The box image of this puzzle is missing</string>
 </resources>

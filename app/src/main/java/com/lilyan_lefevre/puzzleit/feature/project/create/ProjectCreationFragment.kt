@@ -3,11 +3,7 @@ package com.lilyan_lefevre.puzzleit.feature.project.create
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
-import android.graphics.PointF
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
@@ -29,432 +26,149 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.core.image.PhotoHelper
 import com.lilyan_lefevre.puzzleit.databinding.FragmentProjectCreationBinding
-import com.lilyan_lefevre.puzzleit.feature.project.ProjectViewModel
-import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import dagger.hilt.android.AndroidEntryPoint
-import org.json.JSONArray
 import java.io.File
 import kotlinx.coroutines.launch
 
-/**
- * Fragment for project creation and edition with form and system camera integration
- */
+/** Create or edit a project: box photo (system camera), framing, name, piece count and grid. */
 @AndroidEntryPoint
 class ProjectCreationFragment : Fragment() {
 
     private var _binding: FragmentProjectCreationBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: ProjectViewModel by viewModels()
+    private val viewModel: ProjectCreationViewModel by viewModels()
     private val args: ProjectCreationFragmentArgs by navArgs()
 
-    private var originalImagePath: String? = null
-    private var croppedImagePath: String? = null
-    private var currentQuadJson: String? = null
-    private var photoFile: File? = null
-    
-    private var isEditMode = false
-    private var existingProject: Project? = null
+    /** File the system camera writes into; only meaningful while the camera app is open. */
+    private var pendingPhoto: File? = null
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            dispatchTakePictureIntent()
-        } else {
-            Toast.makeText(requireContext(), R.string.camera_permission_denied, Toast.LENGTH_SHORT).show()
-        }
+    private val requestPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) takePhoto() else Toast.makeText(requireContext(), R.string.camera_permission_denied, Toast.LENGTH_SHORT).show()
     }
 
-    private val takePictureLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
+    private val takePicture = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val file = pendingPhoto ?: return@registerForActivityResult
         if (result.resultCode == Activity.RESULT_OK) {
-            photoFile?.let { file ->
-                originalImagePath = file.absolutePath
-                currentQuadJson = createDefaultQuad()
-                navigateToPuzzleBounds(originalImagePath!!)
-            }
+            viewModel.onPhotoTaken(file.absolutePath)
+            openBounds(file.absolutePath)
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentProjectCreationBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        args.projectId?.let(viewModel::loadForEdit)
 
-        isEditMode = args.projectId != null
-        updateTitle()
-
-        setupUI()
-        observeViewModel()
-        listenForPuzzleBoundsResult()
-
-        if (isEditMode) {
-            loadExistingProject(args.projectId!!)
-        } else {
-            renderPhotoState()
-        }
-    }
-
-    private fun updateTitle() {
-        val title = if (isEditMode) getString(R.string.edit_project_title) else getString(R.string.create_puzzle_title)
-        (activity as? AppCompatActivity)?.supportActionBar?.title = title
-    }
-
-    private fun loadExistingProject(projectId: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.loadProjects()
-                viewModel.projects.collect { projects ->
-                    val project = projects.find { it.id == projectId }
-                    project?.let { 
-                        existingProject = it
-                        populateFields(it) 
-                    }
-                }
-            }
-        }
-    }
-
-    private fun populateFields(project: Project) {
-        binding.editTextName.setText(project.name)
-        binding.editTextPieces.setText(project.puzzleSize.toString())
-        binding.editTextRows.setText(project.gridRows.toString())
-        binding.editTextCols.setText(project.gridCols.toString())
-        
-        if (originalImagePath == null) {
-            originalImagePath = project.imagePath
-            croppedImagePath = project.warpedPath.ifEmpty { project.thumbnailPath }
-            currentQuadJson = project.puzzleQuad
-        }
-        
-        renderPhotoState()
-        binding.btnCreate.text = getString(R.string.save_changes)
-    }
-
-    private fun setupUI() {
-        binding.photoPlaceholder.setOnClickListener {
-            checkCameraPermissionAndTakePhoto()
-        }
-        
-        binding.editPhotoButton.setOnClickListener {
-            originalImagePath?.let { imagePath ->
-                navigateToPuzzleBounds(imagePath)
-            }
-        }
-        
-        binding.btnCancel.setOnClickListener {
-            cleanupTempFiles()
-            findNavController().navigateUp()
-        }
-        
+        binding.photoPlaceholder.setOnClickListener { checkPermissionAndTakePhoto() }
+        binding.editPhotoButton.setOnClickListener { viewModel.draft.value.originalPath?.let(::openBounds) }
+        binding.btnCancel.setOnClickListener { viewModel.discardDraft(); findNavController().navigateUp() }
         binding.btnCreate.setOnClickListener {
-            if (isEditMode) updateProject() else createProject()
+            viewModel.save(binding.editTextName.text.toString(), number(binding.editTextPieces), number(binding.editTextRows), number(binding.editTextCols))
         }
+        binding.editTextPieces.doAfterTextChanged { suggestGrid() }
 
-        binding.editTextPieces.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                if (s != null && s.isNotEmpty()) {
-                    autoCalculateGrid()
-                }
-            }
-        })
-    }
-
-    private fun checkCameraPermissionAndTakePhoto() {
-        when {
-            ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                dispatchTakePictureIntent()
-            }
-            else -> {
-                requestPermissionLauncher.launch(Manifest.permission.CAMERA)
-            }
+        setFragmentResultListener(PuzzleBoundsFragment.RESULT_KEY) { _, b ->
+            val quad = b.getString(PuzzleBoundsFragment.QUAD_JSON) ?: return@setFragmentResultListener
+            val path = b.getString(PuzzleBoundsFragment.RECTIFIED_PATH) ?: return@setFragmentResultListener
+            viewModel.onBoundsConfirmed(quad, path)
+            suggestGrid()
         }
+        observe()
     }
 
-    private fun autoCalculateGrid() {
-        val pieces = getPiecesCount() ?: return
-        val imagePath = croppedImagePath ?: originalImagePath ?: return
-        
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(imagePath, options)
-        
-        if (options.outWidth > 0 && options.outHeight > 0) {
-            val gridConfig = GridProcessor.calculateBestGrid(pieces, options.outWidth, options.outHeight)
-            binding.editTextRows.setText(gridConfig.rows.toString())
-            binding.editTextCols.setText(gridConfig.cols.toString())
-        }
-    }
-
-    private fun dispatchTakePictureIntent() {
-        try {
-            photoFile = PhotoHelper.createImageFile(requireContext())
-            PhotoHelper.createCameraIntent(requireContext(), photoFile!!)?.also { intent ->
-                takePictureLauncher.launch(intent)
-            }
-        } catch (ex: Exception) {
-            Log.e(TAG, "Error starting camera", ex)
-            Toast.makeText(requireContext(), "Error starting camera", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun navigateToPuzzleBounds(imagePath: String) {
-        val action = ProjectCreationFragmentDirections.actionProjectCreationFragmentToPuzzleBoundsFragment(imagePath)
-        findNavController().navigate(action)
-    }
-
-    private fun createDefaultQuad(): String {
-        val defaultQuad = listOf(
-            PointF(0.1f, 0.1f),
-            PointF(0.9f, 0.1f),
-            PointF(0.9f, 0.9f),
-            PointF(0.1f, 0.9f)
-        )
-        val arr = JSONArray()
-        for (pt in defaultQuad) {
-            val p = JSONArray()
-            p.put(pt.x.toDouble())
-            p.put(pt.y.toDouble())
-            arr.put(p)
-        }
-        return arr.toString()
-    }
-
-    private fun createProject() {
-        val name = binding.editTextName.text.toString().trim()
-        val pieces = getPiecesCount()
-        val rows = getRowsCount() ?: 1
-        val cols = getColsCount() ?: 1
-
-        if (validateInput(name, pieces)) {
-            val originalBitmap = BitmapFactory.decodeFile(originalImagePath!!)
-            val warpedBitmap = croppedImagePath?.let { BitmapFactory.decodeFile(it) } ?: originalBitmap
-            
-            if (originalBitmap != null) {
-                viewModel.createProject(
-                    tempImagePath = originalImagePath!!,
-                    name = name,
-                    puzzleSize = pieces!!,
-                    gridRows = rows,
-                    gridCols = cols,
-                    difficulty = "medium",
-                    puzzleQuad = currentQuadJson,
-                    originalBitmap = originalBitmap,
-                    warpedBitmap = warpedBitmap
-                )
-            } else {
-                Toast.makeText(requireContext(), "Failed to load captured image", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun updateProject() {
-        val name = binding.editTextName.text.toString().trim()
-        val pieces = getPiecesCount()
-        val rows = getRowsCount() ?: 1
-        val cols = getColsCount() ?: 1
-
-        if (validateInput(name, pieces) && existingProject != null) {
-            val updatedProject = existingProject!!.copy(
-                name = name,
-                puzzleSize = pieces!!,
-                gridRows = rows,
-                gridCols = cols,
-                imagePath = originalImagePath!!,
-                thumbnailPath = croppedImagePath ?: originalImagePath!!,
-                puzzleQuad = currentQuadJson
-            )
-            viewModel.updateProject(updatedProject)
-        }
-    }
-
-    private fun getPiecesCount(): Int? {
-        return try {
-            binding.editTextPieces.text.toString().toInt()
-        } catch (e: NumberFormatException) {
-            null
-        }
-    }
-
-    private fun getRowsCount(): Int? {
-        return try {
-            binding.editTextRows.text.toString().toInt()
-        } catch (e: NumberFormatException) {
-            null
-        }
-    }
-
-    private fun getColsCount(): Int? {
-        return try {
-            binding.editTextCols.text.toString().toInt()
-        } catch (e: NumberFormatException) {
-            null
-        }
-    }
-
-    private fun validateInput(name: String, pieces: Int?): Boolean {
-        return when {
-            originalImagePath == null -> {
-                Toast.makeText(requireContext(), "Please take a photo first", Toast.LENGTH_SHORT).show()
-                false
-            }
-            name.isEmpty() -> {
-                Toast.makeText(requireContext(), getString(R.string.please_enter_project_name), Toast.LENGTH_SHORT).show()
-                false
-            }
-            pieces == null -> {
-                Toast.makeText(requireContext(), getString(R.string.please_enter_number_of_pieces), Toast.LENGTH_SHORT).show()
-                false
-            }
-            else -> true
-        }
-    }
-
-    private fun listenForPuzzleBoundsResult() {
-        setFragmentResultListener("puzzleBoundsResult") { _, bundle ->
-            val quadJson = bundle.getString("quadJson")
-            val croppedPath = bundle.getString("croppedImagePath")
-            val cancelled = bundle.getBoolean("cancelled", false)
-            
-            if (cancelled) {
-                if (!isEditMode) {
-                    originalImagePath = null
-                    croppedImagePath = null
-                    currentQuadJson = null
-                }
-                renderPhotoState()
-            } else if (quadJson != null) {
-                currentQuadJson = quadJson
-                croppedImagePath = croppedPath
-                renderPhotoState()
-                autoCalculateGrid()
-            }
-        }
-    }
-
-    private fun observeViewModel() {
+    private fun observe() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.draft.collect { renderPhoto(it.preview) } }
                 launch {
-                    viewModel.projectCreated.collect { project ->
-                        project?.let {
-                            showSuccessAndNavigate(project)
-                            viewModel.clearProjectCreated()
+                    viewModel.existing.collect { p ->
+                        (activity as? AppCompatActivity)?.supportActionBar?.setTitle(viewModel.titleRes())
+                        p ?: return@collect
+                        if (binding.editTextName.text.isNullOrEmpty()) {
+                            binding.editTextName.setText(p.name)
+                            binding.editTextPieces.setText(p.puzzleSize.toString())
+                            binding.editTextRows.setText(p.gridRows.toString())
+                            binding.editTextCols.setText(p.gridCols.toString())
                         }
+                        binding.btnCreate.setText(R.string.save_changes)
                     }
                 }
-
+                launch { viewModel.isProcessing.collect { binding.progressBar.visibility = if (it) View.VISIBLE else View.GONE } }
                 launch {
-                    viewModel.errorMessage.collect { error ->
-                        error?.let {
-                            showErrorDialog(it)
-                            viewModel.clearError()
+                    viewModel.error.collect { e ->
+                        e ?: return@collect
+                        when (e) {
+                            is Int -> Toast.makeText(requireContext(), e, Toast.LENGTH_SHORT).show()
+                            else -> MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.error).setMessage(e.toString())
+                                .setPositiveButton(R.string.ok, null).show()
                         }
+                        viewModel.errorShown()
                     }
                 }
-
                 launch {
-                    viewModel.isProcessing.collect { isProcessing ->
-                        binding.progressBar.visibility = if (isProcessing) View.VISIBLE else View.GONE
+                    viewModel.saved.collect { s ->
+                        s ?: return@collect
+                        val msg = when (s) {
+                            is ProjectCreationViewModel.Saved.Created -> getString(R.string.project_created_successfully, s.project.name)
+                            ProjectCreationViewModel.Saved.Updated -> getString(R.string.project_updated)
+                        }
+                        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+                        viewModel.savedHandled()
+                        findNavController().navigateUp()
                     }
                 }
             }
         }
     }
 
-    private fun showSuccessAndNavigate(project: Project) {
-        val message = if (isEditMode) "Project updated!" else getString(R.string.project_created_successfully, project.name)
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-
-        cleanupTempFiles()
-        
-        originalImagePath = null
-        croppedImagePath = null
-        currentQuadJson = null
-        
-        findNavController().navigateUp()
+    private fun suggestGrid() {
+        val pieces = number(binding.editTextPieces) ?: return
+        viewModel.suggestGrid(pieces)?.let {
+            binding.editTextRows.setText(it.rows.toString())
+            binding.editTextCols.setText(it.cols.toString())
+        }
     }
 
-    private fun cleanupTempFiles() {
+    private fun checkPermissionAndTakePhoto() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) takePhoto()
+        else requestPermission.launch(Manifest.permission.CAMERA)
+    }
+
+    private fun takePhoto() {
         try {
-            originalImagePath?.let { path ->
-                val file = File(path)
-                if (file.exists() && !path.contains("/puzzles/")) {
-                    // Also check against new folder structure
-                    val isInsideProjectIdFolder = path.contains(Regex("/[a-f0-9\\-]{36}/"))
-                    if (!isInsideProjectIdFolder) file.delete()
-                }
-            }
-            croppedImagePath?.let { path ->
-                val file = File(path)
-                if (file.exists() && !path.contains("/puzzles/")) {
-                    val isInsideProjectIdFolder = path.contains(Regex("/[a-f0-9\\-]{36}/"))
-                    if (!isInsideProjectIdFolder) file.delete()
-                }
-            }
-            PhotoHelper.cleanupTempFiles(requireContext())
+            val file = PhotoHelper.createImageFile(requireContext()).also { pendingPhoto = it }
+            PhotoHelper.createCameraIntent(requireContext(), file)?.let(takePicture::launch)
         } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up temp files", e)
+            Log.e(TAG, "Error starting camera", e)
+            Toast.makeText(requireContext(), R.string.camera_error, Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun showErrorDialog(error: String) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.error))
-            .setMessage(error)
-            .setPositiveButton(getString(R.string.ok), null)
-            .setCancelable(false)
-            .show()
+    private fun openBounds(imagePath: String) {
+        findNavController().navigate(ProjectCreationFragmentDirections.actionProjectCreationFragmentToPuzzleBoundsFragment(imagePath))
     }
+
+    private fun renderPhoto(path: String?) {
+        val has = !path.isNullOrBlank()
+        binding.photoPlaceholder.visibility = if (has) View.GONE else View.VISIBLE
+        binding.photoPreviewCard.visibility = if (has) View.VISIBLE else View.GONE
+        binding.editPhotoButton.visibility = if (has) View.VISIBLE else View.GONE
+        if (has) Glide.with(this).load(File(path!!)).placeholder(android.R.drawable.ic_menu_camera)
+            .error(android.R.drawable.ic_menu_camera).fitCenter().into(binding.photoPreview)
+        else Glide.with(this).clear(binding.photoPreview)
+    }
+
+    private fun number(field: android.widget.EditText): Int? = field.text.toString().toIntOrNull()
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 
-    private fun renderPhotoState() {
-        val imagePathToShow = croppedImagePath ?: originalImagePath
-        if (imagePathToShow.isNullOrBlank()) {
-            showPlaceholder()
-        } else {
-            showPhotoPreview(imagePathToShow)
-        }
-    }
-
-    private fun showPlaceholder() {
-        Glide.with(this).clear(binding.photoPreview)
-        binding.photoPlaceholder.visibility = View.VISIBLE
-        binding.photoPreviewCard.visibility = View.GONE
-        binding.editPhotoButton.visibility = View.GONE
-    }
-
-    private fun showPhotoPreview(imagePath: String) {
-        binding.photoPlaceholder.visibility = View.GONE
-        binding.photoPreviewCard.visibility = View.VISIBLE
-        binding.editPhotoButton.visibility = View.VISIBLE
-
-        Glide.with(this)
-            .load(File(imagePath))
-            .placeholder(android.R.drawable.ic_menu_camera)
-            .error(android.R.drawable.ic_menu_camera)
-            .fitCenter()
-            .into(binding.photoPreview)
-    }
-
-    companion object {
-        private const val TAG = "ProjectCreationFragment"
-    }
+    private companion object { const val TAG = "ProjectCreation" }
 }
