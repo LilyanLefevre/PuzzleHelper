@@ -27,6 +27,38 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 - Docs: `documentation/` (French, numbered pages: the science 01-06, validation 07, AI experiment 08) and
   `documentation/screenshots` (README images). No other docs folder.
 
+## Code conventions (follow the existing patterns)
+- **Placement**: a new screen = `feature/<feature>/<screen>/` with its Fragment + `@HiltViewModel` ViewModel. Shared by
+  several features -> `core/<topic>`. Pure algorithms stay free of Android types so they run on the JVM.
+- **ViewModel state**: `private val _x = MutableStateFlow(...)` + `val x: StateFlow<...> = _x.asStateFlow()`. Screens with
+  several states use a sealed interface (see `ScanState`). One-shot events are nullable StateFlows the fragment clears
+  after handling (`errorShown()`, `savedHandled()`). Live data from Room: `repository.flow().stateIn(viewModelScope, ...)`.
+- **Errors**: string resource ids (`@StringRes Int`), never hard-coded text; every string exists in `values` and
+  `values-fr`.
+- **Fragments**: ViewBinding with `_binding` nulled in `onDestroyView`; collect in
+  `viewLifecycleOwner.lifecycleScope.launch { repeatOnLifecycle(STARTED) { launch { ... } } }`; navigation with nav
+  graph actions; transitions `MaterialSharedAxis` X between screens, Y for the camera.
+- **Threading**: IO / image work in injected `@Singleton` classes with `withContext(Dispatchers.IO|Default)`; Bitmaps
+  are decoded with a size cap (`inSampleSize`).
+- **Custom views**: draw everything in `onDraw` (no child views), one infinite `ValueAnimator` clock started/stopped in
+  attach/detach, colours from `R.color`.
+- **Comments**: KDoc one-liner on each class saying what it is for; inline comments only for the non-obvious *why*.
+  Imports sorted, no unused ones, no wildcard imports of project packages.
+- **UI design**: dark "puzzle night" theme only. Use the tokens, not raw values: colours `puzzle_*` (`background`,
+  `surface`, `surface_high`, `outline`, `primary` = citron accent, `secondary` = violet, `warning`, `error`),
+  font `@font/space_grotesk_family`, text styles `Text.Display` (titles) / `Text.Eyebrow` (small caps labels), widgets
+  `Widget.Puzzle.Button`, `Widget.Puzzle.IconButton` (48dp round buttons on the map), `Widget.Puzzle.Chip`,
+  shapes `Shape.Puzzle.Small/Medium/Large` (12/20/28dp). Bottom sheet = `bg_sheet`, rounded 32dp top corners.
+  Animate state changes (`TransitionManager`, `animate()`), keep motion short (300-900 ms).
+- **Tests**: JVM tests for algorithm logic (one runnable check per non-trivial piece of logic), Espresso e2e tests for
+  user journeys with `waitFor { ... }` polling instead of sleeps for async states; e2e tests seed their own data.
+
+## Working with the owner
+- Answer in French, concisely; say plainly what failed or was not verified, and own mistakes.
+- Show UI changes with screenshots taken on the phone (PixelCopy shots from the e2e tests) sent with SendUserFile.
+- Ask before decisions that are theirs (merging over their work, deleting their data, adding heavy dependencies or
+  AI models to the app); otherwise act and report.
+
 ## Working rules (learned the hard way)
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`, `chore:`), one topic per commit, push to
   `main` only once built + tested; then check CI with `gh run watch`. Quote benchmark numbers in matcher commits.
