@@ -103,7 +103,11 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   pillow, numpy), `C:\dev\data` (benchmark data + dumps, sent with `tar -cf - ... | ssh pc "tar -xf - -C C:/dev/data"`).
 - Run: `ssh pc 'cd /d C:\dev && venv-puzzle\Scripts\python <script> ...'`. Python on the Mac is a python.org build
   without certificates: download with `curl`, not `urllib`.
-- Not set up yet: Android SDK / emulator on the PC (the owner wants instrumented tests to run there).
+- Emulator: Android SDK in `%LOCALAPPDATA%\Android\Sdk`, AVD `puzzle34` (API 34 google_apis x86_64, WHPX). Start it
+  with `ssh pc 'powershell -ExecutionPolicy Bypass -File C:\dev\PuzzleHelper\tools\pc\start_emulator.ps1'` (launched
+  through WMI: OpenSSH kills its children on logout; session 0 has no GPU, hence swiftshader), then
+  `ssh pc 'C:\dev\PuzzleHelper\tools\pc\instrumented.cmd'` (pulls `main`, runs `connectedDebugAndroidTest`).
+  Error dialogs must stay hidden: a first-boot system ANR stole the window focus and failed 7 tests.
 
 ## Known limits / next steps
 - First-lead accuracy below target on sky/sea-heavy images and on real hand-held photos; the right cell is in the
