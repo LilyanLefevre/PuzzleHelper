@@ -7,7 +7,7 @@ how to turn it, and how sure it is. Android, Kotlin, fully offline.
 
 | My puzzles | Puzzle table | Piece found |
 |---|---|---|
-| ![](docs/screenshots/list.png) | ![](docs/screenshots/table_real.png) | ![](docs/screenshots/result_real.png) |
+| ![](documentation/screenshots/list.png) | ![](documentation/screenshots/table_real.png) | ![](documentation/screenshots/result_real.png) |
 
 A piece cut from the fjord photo, turned 90° and laid on a dark table: found at its exact cell, with the right
 rotation and 88 % confidence.
@@ -17,7 +17,7 @@ rotation and 88 % confidence.
 
 | Synthetic table | Result | Second lead | Blurry photo |
 |---|---|---|---|
-| ![](docs/screenshots/1_table.png) | ![](docs/screenshots/3_result.png) | ![](docs/screenshots/4_second_lead.png) | ![](docs/screenshots/5_blurry.png) |
+| ![](documentation/screenshots/1_table.png) | ![](documentation/screenshots/3_result.png) | ![](documentation/screenshots/4_second_lead.png) | ![](documentation/screenshots/5_blurry.png) |
 
 </details>
 
