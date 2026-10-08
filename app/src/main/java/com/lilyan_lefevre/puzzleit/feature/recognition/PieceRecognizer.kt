@@ -33,7 +33,7 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
     }
 
     /**
-     * Keeps the last captures with their verdict on the device (never sent anywhere) so real-world failures can be
+     * Keeps the last 200 captures with their verdict on the device (never sent anywhere) so real-world failures can be
      * replayed: adb pull /sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/captures
      */
     private fun archive(photoPath: String, a: Analysis) {
@@ -54,7 +54,7 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
 
     companion object {
         const val CROP = 0.5f
-        private const val KEEP = 30
+        private const val KEEP = 200
     }
 
     private fun decode(path: String, maxSide: Int): Bitmap? {

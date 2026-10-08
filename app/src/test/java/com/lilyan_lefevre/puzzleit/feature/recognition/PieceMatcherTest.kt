@@ -63,7 +63,7 @@ class PieceMatcherTest {
      * Photo of the piece of cell (col,row), turned clockwise by [deg], at [zoom]x, on a wooden-ish table with
      * a light gradient and grain - roughly what a phone sees.
      */
-    private fun piecePhoto(ref: Raster, grid: Grid, col: Int, row: Int, deg: Double, zoom: Float, seed: Long): Raster {
+    private fun piecePhoto(ref: Raster, grid: Grid, col: Int, row: Int, deg: Double, zoom: Float, seed: Long, light: Float = 0f): Raster {
         val rnd = Random(seed); val size = 380; val th = deg * PI / 180
         val cw = ref.w / grid.cols.toFloat(); val ch = ref.h / grid.rows.toFloat()
         val cx = (col + .5f) * cw; val cy = (row + .5f) * ch
@@ -79,7 +79,9 @@ class PieceMatcherTest {
             }
             val sx = (cx + dx).toInt().coerceIn(0, ref.w - 1); val sy = (cy + dy).toInt().coerceIn(0, ref.h - 1)
             val p = ref.px[sy * ref.w + sx]
-            px[v * size + u] = rgb((p shr 16 and 255) * 0.9f + n, (p shr 8 and 255) * 0.92f + n, (p and 255) * 0.88f + n)
+            // Side light in the photo frame: brighter towards the right of the picture, whatever the piece's orientation.
+            val l = 1f + light * (u / size.toFloat() - 0.5f)
+            px[v * size + u] = rgb((p shr 16 and 255) * 0.9f * l + n, (p shr 8 and 255) * 0.92f * l + n, (p and 255) * 0.88f * l + n)
         }
         return grain(blur(Raster(size, size, px)), seed)
     }
@@ -130,6 +132,36 @@ class PieceMatcherTest {
         assertTrue("near $near/$n", near >= n * 0.7)
         assertTrue("rotation $rotOk/$near", rotOk >= near * 0.8)
         assertTrue("outline read as interior $interior/$n", interior >= n * 0.8)
+    }
+
+    /**
+     * The user's report: same edge piece, same lighting, flat side to the right then to the left of the photo.
+     * The answer must not depend on how the piece was laid down.
+     */
+    @Test
+    fun answerDoesNotDependOnHowThePieceIsLaidUnderSideLight() {
+        val ref = boxArt(17)
+        val matcher = PieceMatcher(ref, pieces); val g = matcher.grid
+        val rnd = Random(9)
+        var same = 0; var right = 0; val n = 12
+        repeat(n) { t ->
+            val (col, row) = when (t % 4) {
+                0 -> 2 + rnd.nextInt(g.cols - 4) to 0
+                1 -> g.cols - 1 to 2 + rnd.nextInt(g.rows - 4)
+                2 -> 2 + rnd.nextInt(g.cols - 4) to g.rows - 1
+                else -> 1 + rnd.nextInt(g.cols - 2) to 1 + rnd.nextInt(g.rows - 2)
+            }
+            val base = rnd.nextInt(360).toDouble()
+            val a = (matcher.locate(piecePhoto(ref, g, col, row, base, 6f, 300L + t, light = 0.6f)) as Analysis.Found).match.best
+            val b = (matcher.locate(piecePhoto(ref, g, col, row, base + 180, 6f, 400L + t, light = 0.6f)) as Analysis.Found).match.best
+            // Two answers each within one cell of the truth can be two cells apart: that is still the same place.
+            if (hypot(a.col - b.col, a.row - b.row) <= 2.01f) same++
+            if (hypot(a.col - (col + .5f), a.row - (row + .5f)) <= 1.01f) right++
+            if (hypot(b.col - (col + .5f), b.row - (row + .5f)) <= 1.01f) right++
+        }
+        println("SIDELIGHT: n=$n sameAnswer=$same correct=$right/${2 * n}")
+        assertTrue("same answer both ways $same/$n", same >= n - 1)
+        assertTrue("correct $right/${2 * n}", right >= 2 * n * 0.75)
     }
 
     @Test
