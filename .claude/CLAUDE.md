@@ -1,13 +1,15 @@
 # PuzzleHelper (PuzzleIt)
 
-Android app (Kotlin, XML + Material 3, Hilt, Room, CameraX). 100 % offline.
-Photograph a loose puzzle piece -> the app tells where it goes on the box image.
+Android app (Kotlin, XML + Material 3, Hilt, Room, CameraX, OpenCV for box framing). 100 % offline.
+Photograph a loose puzzle piece -> the app shows where it goes on the box image and how to turn it.
+The owner speaks French: talk to them in French; code, comments and commit messages in English.
 
-## Product (from the former BMAD PRD, condensed)
-- MVP: scan box -> virtual pre-cut grid -> piece photo (centre 70 %) -> position suggestion, 4+ rotations tested.
-- Confidence-adaptive answer: exact cell / 3x3 zone / rough area. Autonomy first: it is a hint, not a solver.
-- Targets: >70 % correct suggestions, < 3 s per recognition, app < 50 MB, no network.
-- Out of scope for now: completed-zone detection, history/export, community features, AI models.
+## Product
+- Scan box -> rectified image + grid (rows x cols typed or computed) -> piece photo -> up to 4 leads, each a
+  piece-sized square on the map, with rotation and confidence. The sheet shows the piece (turned) next to the box at
+  the selected lead so the user can check. A hint, not a solver.
+- Targets: > 70 % correct first lead, < 3 s per scan on the phone, app < 50 MB, no network.
+- Edit / delete a puzzle: round buttons in the puzzle table's top bar (covered by e2e tests - keep them reachable).
 
 ## Code map (`app/src/main/java/com/lilyan_lefevre/puzzleit`) - package by feature, MVVM
 - `core/database` (Room, migrations in one file, Hilt module), `core/image` (shared image helpers), `core/ui` (reusable
@@ -15,47 +17,68 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - `feature/project/` `data/` (Project, ProjectDao, ProjectRepository, ImageStorageManager), `list/` (fragment, adapter,
   ProjectListViewModel), `create/` (ProjectCreation + PuzzleBounds fragments and ViewModels, BoxImageProcessor, GridProcessor).
 - `feature/puzzle/` the table: PuzzleWorkingFragment + ViewModel (`ScanState`, follows the project live, edit/delete),
-  PuzzleMapView (leads = piece-sized squares, tappable); `capture/` PieceCaptureFragment + ScanFrameView.
+  PuzzleMapView (leads = piece-sized squares, tappable, clipped to the visible map); `capture/` PieceCaptureFragment + ScanFrameView.
 - `feature/recognition/` `PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut, segmentation
-  (Mahalanobis to the table), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints), 5x5 Lab grid
-  descriptor (mean, lightness ramp and contrast removed), confidence. `PieceRecognizer` = Bitmap glue, crops the square
-  under the viewfinder, archives the last 200 captures + verdicts in `files/captures` (adb pull) for real-world debugging.
+  (Mahalanobis to the table colour), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints, 4 rotations),
+  5x5 Lab grid descriptor (mean, lightness ramp and contrast removed), confidence. `PieceRecognizer` = Bitmap glue,
+  crops the square under the viewfinder, archives the last 200 captures + verdicts in `files/captures`.
 - Fragments only render state, handle system intents and navigate; IO, image work and validation live in ViewModels
   or injected classes.
-- The science is explained in `documentation/` (French); README screenshots live in `documentation/screenshots`.
+- Docs: `documentation/` (French, numbered pages: the science 01-06, validation 07, AI experiment 08) and
+  `documentation/screenshots` (README images). No other docs folder.
 
-## Conventions
-- Conventional commits (`feat:`, `fix:`, `test:`, `ci:`, `chore:`), one topic per commit, push when tested.
-- Dark-only theme ("puzzle night"); colours in `values/colors.xml`, strings in `values` and `values-fr`.
-- Keep matching logic out of Android classes so it stays unit-testable.
+## Working rules (learned the hard way)
+- Conventional commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`, `chore:`), one topic per commit, push to
+  `main` only once built + tested; then check CI with `gh run watch`. Quote benchmark numbers in matcher commits.
+- Measure before and after every matcher change on BOTH benchmarks below; keep a change only if it holds on both.
+  Document results (including rejected tries) in `documentation/07-validation.md`.
+- Trace a real failure on real data before "fixing": pull the phone captures and replay them (`RealPhotoReplayTest`).
+- When merging someone else's work, check no feature became unreachable (it happened with edit/delete).
+- Dark-only theme ("puzzle night"); colours in `values/colors.xml`, strings in both `values` and `values-fr`.
+- Delete dead code instead of parking it (`.bak` files are not allowed); history keeps it.
 
 ## Testing
-- **Never run `./gradlew connectedDebugAndroidTest` on a personal phone**: Gradle uninstalls the app afterwards and
-  wipes its data (projects, images). On a real phone use `installDebug installDebugAndroidTest` + `adb shell am instrument`.
+- Unit (JVM, JDK 21 needed by Robolectric): `./gradlew testDebugUnitTest` (includes `PieceMatcherTest`).
+- **Never run `./gradlew connectedDebugAndroidTest` on the owner's phone**: Gradle uninstalls the app afterwards and
+  wipes its data (it already deleted their puzzles once). On a real phone: `./gradlew installDebug installDebugAndroidTest`
+  then `adb shell am instrument -w com.lilyan_lefevre.puzzleit.test/com.lilyan_lefevre.puzzleit.HiltTestRunner`.
   `connectedDebugAndroidTest` is for emulators / CI only.
-- Unit (JVM, JDK 21 needed by Robolectric): `./gradlew testDebugUnitTest` (includes `PieceMatcherTest`, synthetic end-to-end).
-- Device/emulator: `./gradlew connectedDebugAndroidTest` (`PieceRecognizerDeviceTest`, `e2e/ScanFlowTest`).
-  Direct run, keeps the app and screenshots: `adb shell am instrument -w com.lilyan_lefevre.puzzleit.test/com.lilyan_lefevre.puzzleit.HiltTestRunner`
-  then `adb pull /sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
-- Phone tips: turn animations off, `adb shell cmd notification set_dnd on`, `svc power stayon true`; wireless adb drops often.
-- Do not use `UiAutomation.takeScreenshot` in Espresso tests (steals window focus); use PixelCopy.
-- Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`.
+- 13 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
+  viewfinder, edit, delete). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
+- Phone tips: animations off, `adb shell cmd notification set_dnd on`, `adb shell svc power stayon true`; wireless adb
+  drops often (`adb devices` before running). Never use `UiAutomation.takeScreenshot` in Espresso (steals focus).
+- Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`. Demo puzzles `demo-*` on the phone
+  are for README screenshots.
+- Test fixtures must look like real photos (grain, slight blur): smooth images sit at `PieceMatcher.MIN_SHARPNESS`
+  and flip between devices.
+- CI (`.github/workflows/ci.yml`): build + unit tests, then the instrumented suite on an Android 14 emulator.
 
-## Real-photo benchmarks (opt-in, not in CI)
-- `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py`: Puzzle-Map, 7 puzzles, 643 real hand-held photos with
-  row/col/quarter-turn/sides (one folder per puzzle). Current: 56 % exact cell with flat sides, 90 % in the 4 leads.
-- `ImageBankBenchmarkTest` + `tools/dataset/prepare_image_bank.py`: 24 real images (paintings, Unsplash photos) as
-  500-piece puzzles, pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table colour);
-  full pipeline. Current: 64 % exact overall, 75 % textured, 51 % flat-heavy. Draws are seeded by the file name.
-- Run both before and after any matcher change and quote the numbers in the commit.
-- `RealPhotoReplayTest`: phone captures (`adb pull .../files/captures`), box from
-  `adb exec-out run-as com.lilyan_lefevre.puzzleit cat files/<project>/puzzle/extraites/*_warped.jpg`, BMP via sips.
+## Benchmarks (opt-in JVM tests, not in CI; data rebuilt by scripts, macOS `sips`)
+- `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py <dir>` -> `PUZZLE_DATASET_DIR`: Puzzle-Map (CC-BY-4.0),
+  7 puzzles, 643 real hand-held photos with row/col/quarter-turn/sides. Current: 56 % exact cell, 90 % in the 4 leads,
+  rotation 64 %.
+- `ImageBankBenchmarkTest` + `tools/dataset/prepare_image_bank.py <dir>` -> `PUZZLE_IMAGES_DIR`: 24 real images as
+  500-piece puzzles, 576 pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table).
+  Full pipeline. Current: 64 % exact (75 % textured, 63 % mixed, 51 % sky/sea-heavy), outline 96 %, found 99 %.
+- `RealPhotoReplayTest` -> `PUZZLE_REAL_DIR`: phone captures (`adb pull .../files/captures`) + box
+  (`adb exec-out run-as com.lilyan_lefevre.puzzleit cat files/<project>/puzzle/extraites/*_warped.jpg`), BMP via sips.
+- `PUZZLE_DUMP_DIR` makes the first two export each piece + the top-30 leads (`LeadDump`) for off-device experiments.
+
+## Remote PC (heavy work: AI, long benchmarks)
+- `ssh pc` (key auth, alias in `~/.ssh/config`): Windows 11, Ryzen 5 7600X, 32 GB, **AMD Radeon RX 6800** -> PyTorch via
+  **DirectML** (`torch-directml`), not CUDA/ROCm. Default remote shell is `cmd.exe`.
+- `C:\dev\PuzzleHelper` (git clone of the public repo), `C:\dev\venv-puzzle` (Python 3.12: torch-directml, torchvision,
+  pillow, numpy), `C:\dev\data` (benchmark data + dumps, sent with `tar -cf - ... | ssh pc "tar -xf - -C C:/dev/data"`).
+- Run: `ssh pc 'cd /d C:\dev && venv-puzzle\Scripts\python <script> ...'`. Python on the Mac is a python.org build
+  without certificates: download with `curl`, not `urllib`.
+- Not set up yet: Android SDK / emulator on the PC (the owner wants instrumented tests to run there).
 
 ## Known limits / next steps
-- Segmentation needs contrast between piece and table: a grey rock piece on a beige table gives "no piece".
-- Accuracy on real piece photos is not measured yet (only synthetic fixtures); pull `files/captures` to build a real set. Repetitive images (sky, water) are the weak spot.
-- The project folder lives in iCloud Documents: macOS sometimes creates `* 2.*` duplicates in `app/build`, which
-  breaks resource parsing. Fix: `find app/build -name "* 2*" -prune -exec rm -rf {} +`.
-- Leads 2-3 get a derived confidence (best confidence scaled by their own score), not an independent one.
-- Test fixtures must look like real photos (grain, real blur): smooth synthetic images sit at the sharpness threshold
-  (`PieceMatcher.MIN_SHARPNESS`) and make tests flip between devices.
+- First-lead accuracy below target on sky/sea-heavy images and on real hand-held photos; the right cell is in the
+  top-30 leads 97 % of the time, so a better re-ranker has room. Pretrained networks did not help enough
+  (`documentation/08-ia.md`); next: train a small contrastive model on synthetic pairs from `PiecePhotos`.
+- Rotation is the weak point on Puzzle-Map (64 %).
+- Segmentation needs contrast between piece and table.
+- The project lives in iCloud Documents: iCloud creates `* 2.*` duplicates in `app/build` and Gradle fails in
+  `parseDebugLocalResources`. Fix: `rm -rf app/build`. Moving the project out of iCloud would fix it for good.
+- Leads 2-4 get a derived confidence (best confidence scaled by their own score).
