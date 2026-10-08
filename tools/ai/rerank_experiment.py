@@ -34,6 +34,9 @@ def model(name):
         m = torchvision.models.resnet50(weights="DEFAULT"); m.fc = torch.nn.Identity()
     elif name == "dinov2_s":
         m = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14", verbose=False)
+    elif name.endswith(".pt"):                     # re-ranker trained by train_reranker.py
+        from train_reranker import encoder
+        m = encoder(); m.load_state_dict(torch.load(name, map_location="cpu"))
     else:
         raise ValueError(name)
     m.eval()
@@ -50,10 +53,10 @@ def tensor(img, size=224):
 
 
 @torch.no_grad()
-def embed(m, dev, imgs, bs=64):
+def embed(m, dev, imgs, bs=64, size=224):
     out = []
     for i in range(0, len(imgs), bs):
-        x = torch.stack([tensor(im) for im in imgs[i:i + bs]]).to(dev)
+        x = torch.stack([tensor(im, size) for im in imgs[i:i + bs]]).to(dev)
         f = m(x).float().cpu()
         out.append(torch.nn.functional.normalize(f, dim=1))
     return torch.cat(out) if out else torch.empty(0)
@@ -120,7 +123,7 @@ def evaluate(rows, sims, lams):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dump"); ap.add_argument("--remap", action="append", default=[])
-    ap.add_argument("--models", default="mobilenet_v3,resnet50,dinov2_s")
+    ap.add_argument("--models", default="mobilenet_v3,resnet50,dinov2_s", help="names, or .pt files from train_reranker.py")
     a = ap.parse_args()
     remap = [tuple(x.split("=", 1)) for x in a.remap]
     rows = load(a.dump, remap)
@@ -130,6 +133,7 @@ def main():
     for name in a.models.split(","):
         t0 = time.time()
         m, dev = model(name)
+        size = 96 if name.endswith(".pt") else 224
         sims = []
         for r in rows:
             if r["box"] not in boxes:
@@ -138,8 +142,8 @@ def main():
             piece = Image.open(r["piece"]).convert("RGB")
             masked = r["suite"] == "bank"
             rots = sorted({int(l[2]) for l in r["leads"]})
-            pe = dict(zip(rots, embed(m, dev, [body(piece, rot, masked) for rot in rots])))
-            be = embed(m, dev, [patch(box, r["cols"], r["rows"], l[0], l[1]) for l in r["leads"]])
+            pe = dict(zip(rots, embed(m, dev, [body(piece, rot, masked) for rot in rots], size=size)))
+            be = embed(m, dev, [patch(box, r["cols"], r["rows"], l[0], l[1]) for l in r["leads"]], size=size)
             sims.append([float(pe[int(l[2])] @ be[i]) for i, l in enumerate(r["leads"])])
         res = evaluate(rows, sims, lams)
         print(f"\n== {name}  ({time.time() - t0:.0f} s)")
