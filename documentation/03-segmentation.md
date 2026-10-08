@@ -13,49 +13,49 @@ Ce carré correspond à ce que l'utilisateur voit autour du cadre de visée, ave
 > (sa main, d'autres pièces). Et la consigne « remplis le cadre » poussait à coller la pièce aux bords, là où
 > l'algorithme lit la couleur de la table. La consigne est maintenant « garde de la table autour ».
 
-L'image est ensuite réduite à 300 px de côté maximum.
+L'image est ensuite réduite à 420 px de côté : une pièce qui occupe un tiers du cadre garde ~100 px de large, assez
+pour lire ses côtés.
 
 ## 2. Netteté
 
 Variance du **laplacien** de la luminance : une image nette a beaucoup de transitions brusques, une image floue
 presque aucune. En dessous de `MIN_SHARPNESS = 12`, l'app demande de reprendre la photo.
 
-## 3. Couleur de la table
+## 3. La table comme une distribution
 
-On prend une **bande de 5 %** sur le pourtour de l'image : c'est la table. Sa couleur de référence est la
-**médiane** de ces pixels en Lab (robuste à une autre pièce ou une ombre qui dépasserait).
+On prend une **bande de 5 %** sur le pourtour de l'image : c'est la table. Pour chaque canal Lab on mesure son
+**centre** (médiane) et sa **dispersion** (écart absolu médian × 1,4826, plancher 3 pour L et 1,5 pour a et b).
 
-Pour chaque pixel, on calcule sa distance à cette couleur :
+L'écart d'un pixel à la table est une distance de **Mahalanobis** (diagonale) : chaque canal est divisé par sa propre
+dispersion.
 
 ```
-d = √( 0,5·ΔL² + Δa² + Δb² )
+z = √( Σ ((canal − médiane) / dispersion)² )
 ```
 
-La luminance L compte moitié moins que la teinte : une ombre ou un dégradé de lumière change surtout L.
+Un plaid matelassé ou une table en bois varient beaucoup en **clarté** (ombres, veinage) mais très peu en **teinte**.
+Une zone bleu foncé de la pièce, aussi sombre que le plaid, en reste donc très loin une fois chaque canal mis à
+l'échelle.
 
-## 4. Seuil : Otsu + plancher de bruit
+## 4. Seuil
 
-```mermaid
-flowchart LR
-    D[Distances à la table] --> O[Seuil d'Otsu<br/>sépare 2 populations]
-    D --> NZ[Bruit de la table<br/>90e centile sur le bord × 1,2]
-    O --> T[seuil = max des deux, ≥ 8]
-    NZ --> T
-```
+Un pixel est « pièce » si `z` dépasse à la fois **4** et **1,1 × le 99e centile** des `z` mesurés sur la bande de table.
 
-- **Otsu** choisit automatiquement le seuil qui sépare le mieux deux populations (table / pièce) dans l'histogramme
-  des distances. Il s'adapte au contraste réel de chaque photo, au lieu d'un seuil fixe.
-- Le **plancher de bruit** empêche Otsu de couper au milieu du grain d'une table texturée quand la pièce est petite.
+> Erreur corrigée (photos réelles, pièce jaune et bleu foncé sur un plaid gris foncé) : la version précédente
+> utilisait une distance de couleur unique et un seuil d'**Otsu**. Otsu sépare deux populations ; il a séparé le plaid
+> de la partie **jaune** et laissé tomber le **bleu foncé** de la pièce. Un tenon disparaissait du masque, la forme
+> lue devenait incohérente (deux côtés plats opposés), et la réponse dépendait du sens de la photo.
 
 ## 5. Nettoyage du masque
 
-1. **Ouverture** (érosion puis dilatation 3×3) : supprime les grains isolés et les ponts fins (une ombre, une fibre
-   du bois).
-2. **Composante sous le centre** : parmi les taches, on garde celle qui contient le centre de l'image (là où
+1. **Ouverture** (érosion puis dilatation 3×3) : supprime les grains isolés.
+2. **Fermeture** (2 dilatations puis 2 érosions) : recolle les morceaux d'une pièce séparés par une zone plus proche
+   de la table.
+3. **Composante sous le centre** : parmi les taches, on garde celle qui contient le centre de l'image (là où
    l'utilisateur a mis la pièce), sinon la plus grande.
-3. **Remplissage des trous** : les zones de la pièce qui ressemblent à la table (un ciel beige sur une table beige)
+4. **Remplissage des trous** : les zones de la pièce qui ressemblent à la table (un ciel beige sur une table beige)
    sont réintégrées si elles sont entourées par la pièce.
-4. Garde-fous : la pièce doit couvrir entre 2 % et 85 % de l'image, sinon « aucune pièce détectée ».
+5. Garde-fous : la pièce doit couvrir entre 1 % et 85 % de l'image, sinon « aucune pièce détectée ».
 
 ## Limite connue
 

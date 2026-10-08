@@ -15,15 +15,34 @@
 
 Grille 21 × 14 (300 pièces), une analyse ≈ 0,3 s sur la JVM :
 
+
 | Cas | Résultat |
 |---|---|
-| 40 pièces intérieures, un tiers à angle quelconque | **35/40** à une case près (87 %), rotation juste **35/35**, forme lue « intérieur » 40/40 |
+| 40 pièces intérieures, un tiers à angle quelconque | **33/40** à une case près (82 %), rotation juste **33/33**, forme lue « intérieur » 39/40 |
+| 12 pièces photographiées dans un sens puis retournées, lumière latérale | **24/24** correctes, même réponse dans les deux sens 12/12 |
 | 4 coins (0°, 90°, 200°, 315°) | **4/4** dans le bon coin, avec la bonne rotation |
 | 12 bords, angles quelconques | **12/12** lus comme bords, **12/12** sur la bordure, **12/12** à une case près avec la bonne rotation |
 | photo très floue | « photo trop floue » |
 | table vide | « aucune pièce détectée » |
 
 Objectif du produit : > 70 % de suggestions correctes, < 3 s.
+
+## Photos réelles
+
+`RealPhotoReplayTest` rejoue des captures réelles récupérées sur le téléphone (archive `files/captures`), avec l'image
+de la boîte et la grille du projet. Il est ignoré si `PUZZLE_REAL_DIR` n'est pas défini, et écrit pour chaque photo une
+image du masque obtenu.
+
+Premier cas réel (Klimt, *La Dame à l'éventail*, 27 × 37) : une pièce de bord jaune et bleu foncé, photographiée deux
+fois sur un plaid gris foncé (côté plat en haut, puis à droite).
+
+| Version | Masque | Forme lue | Réponse |
+|---|---|---|---|
+| distance unique + Otsu | tenon bleu manquant | incohérente (2 plats opposés) | dépend du sens de la photo |
+| Mahalanobis + fermeture | pièce entière (photo 2), presque entière (photo 1) | **bord**, correcte sur les 2 photos | **bordure gauche** dans les 2 sens |
+
+La position le long du bord et la confiance restent faibles : il faut un jeu de photos réelles **annotées** pour
+régler la comparaison des couleurs.
 
 ## Sur appareil
 
