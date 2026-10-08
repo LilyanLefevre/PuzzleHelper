@@ -37,7 +37,14 @@ class Raster(val w: Int, val h: Int, val px: IntArray) {
         return Raster(nw, nh, out)
     }
 
-    /** Central crop keeping [ratio] of each side (PRD: 70 % centre of the piece photo). */
+    /** Centred square whose side is [ratio] of the short side: the region under the viewfinder frame. */
+    fun centerSquare(ratio: Float): Raster {
+        val side = (min(w, h) * ratio).toInt()
+        val x0 = (w - side) / 2; val y0 = (h - side) / 2
+        return Raster(side, side, IntArray(side * side) { px[(y0 + it / side) * w + x0 + it % side] })
+    }
+
+    /** Central crop keeping [ratio] of each side. */
     fun centerCrop(ratio: Float): Raster {
         val cw = (w * ratio).toInt(); val ch = (h * ratio).toInt()
         val x0 = (w - cw) / 2; val y0 = (h - ch) / 2
@@ -96,6 +103,26 @@ data class Candidate(
 
 enum class Precision { CELL, ZONE, UNSURE }
 
+/** What the piece's outline says. A flat side can only lie on the puzzle's border. */
+enum class PieceKind { CORNER, EDGE, INTERIOR, UNKNOWN }
+
+/** Side profile, in the piece's own upright frame: index 0 = top, 1 = right, 2 = bottom, 3 = left. */
+enum class Side { FLAT, TAB, BLANK }
+
+data class Shape(
+    /** Clockwise angle (0..90) that the piece's straight edges make with the photo axes. */
+    val tilt: Float,
+    val sides: List<Side>,
+) {
+    val flats: Set<Int> get() = sides.indices.filter { sides[it] == Side.FLAT }.toSet()
+    val kind: PieceKind get() = when (flats.size) {
+        0 -> PieceKind.INTERIOR
+        1 -> PieceKind.EDGE
+        2 -> if ((flats.first() + 1) % 4 in flats || (flats.first() + 3) % 4 in flats) PieceKind.CORNER else PieceKind.UNKNOWN
+        else -> PieceKind.UNKNOWN
+    }
+}
+
 data class Match(
     val grid: Grid,
     val best: Candidate,
@@ -103,6 +130,7 @@ data class Match(
     /** 0..100 */
     val confidence: Int,
     val precision: Precision,
+    val kind: PieceKind = PieceKind.UNKNOWN,
 )
 
 sealed interface Analysis {
@@ -115,8 +143,10 @@ sealed interface Analysis {
  * Locates a photographed piece on the box image.
  *
  * Descriptor = mean Lab colour of a disc split in 1 centre + 2 rings x 8 sectors, sampled in a disc whose radius
- * is the piece's equivalent radius (scale-free). Rotation = cyclic shift of the sectors (8 steps of 45 deg, which
- * includes the 4 right-angle rotations). Brightness/white balance are partly cancelled by mean-centring.
+ * is the piece's equivalent radius (scale-free). The piece is first straightened from its outline, so only the
+ * 4 right-angle rotations are left to test (cyclic shifts of 2 sectors); flat sides restrict corner and edge pieces
+ * to the matching border cells and to the single rotation that puts the flat sides outward.
+ * Brightness/white balance are partly cancelled by mean-centring.
  */
 class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
 
@@ -156,13 +186,27 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         val mask = segment(pl) ?: return Analysis.NoPiece
         var n = 0; var sx = 0.0; var sy = 0.0
         for (i in mask.indices) if (mask[i]) { n++; sx += i % pl.w; sy += i / pl.w }
-        val pd = describe(pl, (sx / n).toFloat(), (sy / n).toFloat(), sqrt(n / PI).toFloat(), mask)
 
-        val scored = cands.map { (c, d) ->
-            var bestD = Float.MAX_VALUE; var bestK = 0
-            for (k in 0 until SECTORS) { val dist = distance(pd, d, k); if (dist < bestD) { bestD = dist; bestK = k } }
-            c.copy(distance = bestD, rotationDeg = (360 - bestK * 45) % 360)
+        // Straighten the piece first: rotations left to test are then exactly 0/90/180/270,
+        // and its flat sides (if any) pin it to the border with a single possible rotation.
+        val shape = shape(mask, pl.w, pl.h)
+        val pd = describe(pl, (sx / n).toFloat(), (sy / n).toFloat(), sqrt(n / PI).toFloat(), mask, shape.tilt)
+        val flats = if (shape.kind == PieceKind.EDGE || shape.kind == PieceKind.CORNER) shape.flats else null
+
+        val scored = cands.mapNotNull { (c, d) ->
+            val border = borderSides(c)
+            var bestD = Float.MAX_VALUE; var bestR = -1
+            for (q in 0..3) {                              // q quarter-turns clockwise to put the piece back
+                if (flats != null && flats.map { (it + q) % 4 }.toSet() != border) continue
+                val k = (8 - 2 * q) % 8                    // piece[j] ~ candidate[j - k]
+                var dist = distance(pd, d, k)
+                if (flats == null && border.isNotEmpty() && shape.kind == PieceKind.INTERIOR) dist *= 1.25f
+                if (dist < bestD) { bestD = dist; bestR = q }
+            }
+            if (bestR < 0) null
+            else c.copy(distance = bestD, rotationDeg = (((bestR * 90 - shape.tilt) % 360 + 360) % 360).roundToInt() % 360)
         }.sortedBy { it.distance }
+        if (scored.isEmpty()) return Analysis.NoPiece
 
         // Non-maximum suppression: alternatives must be at least 1.5 cells away from earlier picks.
         val picks = ArrayList<Candidate>()
@@ -188,14 +232,15 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
             val s = ((dMed - c.distance) / dMed).coerceIn(0f, 1f)
             c.copy(confidence = if (i == 0) conf else (conf * s / spread.coerceAtLeast(1e-3f)).roundToInt().coerceIn(0, conf))
         }
-        return Analysis.Found(Match(grid, leads[0], leads.drop(1), conf, precision), sharp, cutout(img, mask))
+        return Analysis.Found(Match(grid, leads[0], leads.drop(1), conf, precision, shape.kind), sharp, cutout(img, mask))
     }
 
     // ---------------------------------------------------------------- internals
 
     private class Descriptor(val v: FloatArray, val ok: BooleanArray, val mean: FloatArray) // v: CELLS x 3, mean-centred
 
-    private fun describe(img: LabImage, cx: Float, cy: Float, r: Float, mask: BooleanArray?): Descriptor {
+    private fun describe(img: LabImage, cx: Float, cy: Float, r: Float, mask: BooleanArray?, tiltDeg: Float = 0f): Descriptor {
+        val tilt = (tiltDeg * PI / 180).toFloat()
         val sum = FloatArray(CELLS * 3); val cnt = IntArray(CELLS)
         val R = r * RADIUS
         val x0 = max(0, (cx - R).toInt()); val x1 = min(img.w - 1, (cx + R).toInt() + 1)
@@ -209,7 +254,7 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
             val cell = when {
                 d < 0.35f -> 0
                 else -> {
-                    var a = atan2(dy, dx); if (a < 0) a += (2 * PI).toFloat()
+                    var a = atan2(dy, dx) - tilt; while (a < 0) a += (2 * PI).toFloat()
                     val s = ((a / (2 * PI)) * SECTORS).toInt() % SECTORS
                     1 + (if (d < 0.65f) 0 else SECTORS) + s
                 }
@@ -248,34 +293,152 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         return Raster(w, h, IntArray(w * h) { val i = (y0 + it / w) * img.w + x0 + it % w; if (mask[i]) img.px[i] else 0 })
     }
 
-    /** Foreground = pixels far from the border colour; keeps the largest blob with holes filled. */
+    /**
+     * Foreground = pixels far from the table colour (sampled on the image border).
+     * Otsu picks the cut between "table" and "piece" distances, so textured or unevenly lit tables still work;
+     * an opening removes speckles and thin bridges; the blob under the centre (else the largest) is the piece.
+     */
     private fun segment(img: LabImage): BooleanArray? {
         val w = img.w; val h = img.h
-        val b = max(2, (min(w, h) * 0.06f).toInt())
+        val b = max(2, (min(w, h) * 0.05f).toInt())
+        fun onBorder(x: Int, y: Int) = x < b || y < b || x >= w - b || y >= h - b
         val bg = FloatArray(3)
         for (c in 0..2) {
             val vs = ArrayList<Float>()
-            for (y in 0 until h) for (x in 0 until w) if (x < b || y < b || x >= w - b || y >= h - b) vs += img.lab[(y * w + x) * 3 + c]
+            for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) vs += img.lab[(y * w + x) * 3 + c]
             vs.sort(); bg[c] = vs[vs.size / 2]
         }
         val dist = FloatArray(w * h) { i ->
             val dl = img.lab[i * 3] - bg[0]; val da = img.lab[i * 3 + 1] - bg[1]; val db = img.lab[i * 3 + 2] - bg[2]
             sqrt(dl * dl * 0.5f + da * da + db * db)
         }
-        // Noise level of the background drives the threshold.
         val bd = ArrayList<Float>()
-        for (y in 0 until h) for (x in 0 until w) if (x < b || y < b || x >= w - b || y >= h - b) bd += dist[y * w + x]
+        for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) bd += dist[y * w + x]
         bd.sort()
-        val thr = max(14f, bd[(bd.size * 0.95f).toInt()] * 1.6f)
+        val noise = bd[(bd.size * 0.9f).toInt()]
+        val thr = max(max(8f, noise * 1.2f), otsu(dist))
         var fg = BooleanArray(w * h) { dist[it] > thr }
-        fg = largestBlob(fg, w, h) ?: return null
+        fg = dilate(erode(fg, w, h), w, h)
+        fg = blobAtCentre(fg, w, h) ?: return null
         fg = fillHoles(fg, w, h)
         val area = fg.count { it }
-        return if (area < w * h * 0.03f || area > w * h * 0.9f) null else fg
+        return if (area < w * h * 0.02f || area > w * h * 0.85f) null else fg
     }
 
-    private fun largestBlob(m: BooleanArray, w: Int, h: Int): BooleanArray? {
-        val seen = BooleanArray(m.size); var best: IntArray? = null
+    private fun otsu(v: FloatArray): Float {
+        val top = v.maxOrNull()?.takeIf { it > 0f } ?: return 0f
+        val bins = 128; val hist = IntArray(bins)
+        for (x in v) hist[min(bins - 1, (x / top * bins).toInt())]++
+        val total = v.size; var sumAll = 0.0
+        for (i in 0 until bins) sumAll += i * hist[i].toDouble()
+        var wB = 0; var sumB = 0.0; var best = 0.0; var cut = 0
+        for (i in 0 until bins) {
+            wB += hist[i]; if (wB == 0) continue
+            val wF = total - wB; if (wF == 0) break
+            sumB += i * hist[i].toDouble()
+            val mB = sumB / wB; val mF = (sumAll - sumB) / wF
+            val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
+            if (between > best) { best = between; cut = i }
+        }
+        return (cut + 1) * top / bins
+    }
+
+    private fun erode(m: BooleanArray, w: Int, h: Int) = BooleanArray(m.size) { i ->
+        val x = i % w; val y = i / w
+        m[i] && x > 0 && y > 0 && x < w - 1 && y < h - 1 && m[i - 1] && m[i + 1] && m[i - w] && m[i + w]
+    }
+
+    private fun dilate(m: BooleanArray, w: Int, h: Int) = BooleanArray(m.size) { i ->
+        val x = i % w; val y = i / w
+        m[i] || (x > 0 && m[i - 1]) || (x < w - 1 && m[i + 1]) || (y > 0 && m[i - w]) || (y < h - 1 && m[i + w])
+    }
+
+    /** Which sides of the puzzle a candidate touches (0 top, 1 right, 2 bottom, 3 left). */
+    private fun borderSides(c: Candidate): Set<Int> = buildSet {
+        if (c.row < 0.75f) add(0)
+        if (c.col > grid.cols - 0.75f) add(1)
+        if (c.row > grid.rows - 0.75f) add(2)
+        if (c.col < 0.75f) add(3)
+    }
+
+    /**
+     * Outline reading. The tilt is the angle where the mask's row/column projections show the sharpest steps
+     * (the straight parts of the four sides line up). In that upright frame, each side is a TAB if the mask sticks
+     * out past the body's edge in the middle of the side, a BLANK if it is hollow there, FLAT otherwise.
+     */
+    internal fun shape(mask: BooleanArray, w: Int, h: Int): Shape {
+        val xs = ArrayList<Int>(); val ys = ArrayList<Int>()
+        for (i in mask.indices) if (mask[i]) { xs += i % w; ys += i / w }
+        val cx = xs.average().toFloat(); val cy = ys.average().toFloat()
+        fun score(deg: Float): Float {
+            val t = deg * PI.toFloat() / 180; val c = kotlin.math.cos(t); val s = kotlin.math.sin(t)
+            val n = 2 * (w + h); val rows = IntArray(n); val cols = IntArray(n)
+            for (k in xs.indices) {
+                val dx = xs[k] - cx; val dy = ys[k] - cy
+                val u = (dx * c + dy * s + n / 2).toInt(); val v = (-dx * s + dy * c + n / 2).toInt()
+                if (u in 0 until n) cols[u]++; if (v in 0 until n) rows[v]++
+            }
+            fun steps(hst: IntArray): Float {
+                val j = IntArray(n - 1) { abs(hst[it + 1] - hst[it]) }.sortedDescending()
+                return (j[0] + j[1]).toFloat()
+            }
+            return steps(rows) + steps(cols)
+        }
+        var best = 0f; var bestS = -1f
+        var d = 0f
+        while (d < 90f) { val sc = score(d); if (sc > bestS) { bestS = sc; best = d }; d += 2f }
+        var f = best - 1.5f
+        while (f <= best + 1.5f) { val sc = score(f); if (sc > bestS) { bestS = sc; best = f }; f += 0.5f }
+        val tilt = ((best % 90f) + 90f) % 90f
+
+        // Upright grid: sample the mask rotated back by the tilt.
+        val side = (2 * hypot(w.toFloat(), h.toFloat())).toInt() / 2 + 2
+        val t = tilt * PI.toFloat() / 180; val c = kotlin.math.cos(t); val s = kotlin.math.sin(t)
+        var g = BooleanArray(side * side) { i ->
+            val u = i % side - side / 2f; val v = i / side - side / 2f
+            val x = (cx + u * c - v * s).roundToInt(); val y = (cy + u * s + v * c).roundToInt()
+            x in 0 until w && y in 0 until h && mask[y * w + x]
+        }
+        val sides = ArrayList<Side>()
+        for (k in 0..3) { sides += topSide(g, side); g = rotCcw(g, side) }
+        return Shape(tilt, sides)
+    }
+
+    private fun rotCcw(g: BooleanArray, n: Int) = BooleanArray(n * n) { i -> val x = i % n; val y = i / n; g[x * n + (n - 1 - y)] }
+
+    private fun topSide(g: BooleanArray, n: Int): Side {
+        val rows = IntArray(n); val cols = IntArray(n)
+        for (i in g.indices) if (g[i]) { rows[i / n]++; cols[i % n]++ }
+        val rMax = rows.maxOrNull() ?: 0; val cMax = cols.maxOrNull() ?: 0
+        if (rMax == 0) return Side.FLAT
+        // Body = rows/columns that are mostly piece (tabs are narrow, blanks leave wide shoulders).
+        val top = rows.indexOfFirst { it >= 0.4f * rMax }; val bottom = rows.indexOfLast { it >= 0.4f * rMax }
+        val left = cols.indexOfFirst { it >= 0.4f * cMax }; val right = cols.indexOfLast { it >= 0.4f * cMax }
+        val bw = right - left; val bh = bottom - top
+        if (bw < 6 || bh < 6) return Side.FLAT
+        fun fill(y0: Int, y1: Int): Float {
+            var on = 0; var all = 0
+            for (y in max(0, y0)..min(n - 1, y1)) for (x in left + (0.38f * bw).toInt()..left + (0.62f * bw).toInt()) { all++; if (g[y * n + x]) on++ }
+            return if (all == 0) 0f else on / all.toFloat()
+        }
+        val out = fill(top - (0.22f * bh).toInt(), top - (0.07f * bh).toInt())
+        val inside = fill(top + (0.05f * bh).toInt(), top + (0.17f * bh).toInt())
+        return when {
+            out > 0.3f -> Side.TAB
+            inside < 0.5f -> Side.BLANK
+            else -> Side.FLAT
+        }
+    }
+
+    private fun blobAtCentre(m: BooleanArray, w: Int, h: Int): BooleanArray? {
+        val centre = (h / 2) * w + w / 2
+        val blobs = blobs(m, w, h)
+        val pick = blobs.firstOrNull { centre in it.toSet() } ?: blobs.maxByOrNull { it.size } ?: return null
+        return BooleanArray(m.size).also { o -> pick.forEach { o[it] = true } }
+    }
+
+    private fun blobs(m: BooleanArray, w: Int, h: Int): List<IntArray> {
+        val seen = BooleanArray(m.size); val out = ArrayList<IntArray>()
         val stack = IntArray(m.size)
         for (s in m.indices) {
             if (!m[s] || seen[s]) continue
@@ -289,10 +452,9 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
                 if (y > 0 && m[i - w] && !seen[i - w]) { seen[i - w] = true; stack[sp++] = i - w }
                 if (y < h - 1 && m[i + w] && !seen[i + w]) { seen[i + w] = true; stack[sp++] = i + w }
             }
-            if (best == null || cur.size > best.size) best = cur.toIntArray()
+            out += cur.toIntArray()
         }
-        val b = best ?: return null
-        return BooleanArray(m.size).also { o -> b.forEach { o[it] = true } }
+        return out
     }
 
     private fun fillHoles(m: BooleanArray, w: Int, h: Int): BooleanArray {
@@ -313,7 +475,7 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         private const val RADIUS = 0.92f
         private const val CELL_PX = 20
         private const val MAX_SIDE = 1600
-        private const val PHOTO_SIDE = 220
+        private const val PHOTO_SIDE = 300
         private const val MIN_CELLS = 8f
         const val MIN_SHARPNESS = 12f
         const val CELL_CONF = 55
