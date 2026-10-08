@@ -50,29 +50,41 @@ The science, step by step (in French): [`documentation/`](documentation/README.m
 
 ## Architecture
 
-Single activity, MVVM, Hilt, Room, CameraX, OpenCV (box rectification). The matching algorithm is plain Kotlin,
-so it runs and is tested on the JVM.
+Single activity, **package by feature**, **MVVM** (one ViewModel per screen, fragments only render and navigate),
+Hilt, Room, CameraX, OpenCV for the box framing. The matching algorithm is plain Kotlin, tested on the JVM.
 
 ```mermaid
 flowchart TB
-  subgraph UI
-    L[ProjectListFragment] --> W[PuzzleWorkingFragment]
-    W --> C[PieceCaptureFragment]
-    C -- photo path --> W
-    W --- M[PuzzleMapView<br/>pan, zoom, spotlight]
+  subgraph project[feature/project]
+    L[list: Fragment + ProjectListViewModel]
+    C[create: Fragment + ProjectCreationViewModel]
+    B[create: PuzzleBoundsFragment + ViewModel]
+    D[(data: Project, DAO, Repository,<br/>ImageStorageManager)]
+    P[create: BoxImageProcessor<br/>OpenCV detection, rectification]
   end
-  W --> VM[PuzzleWorkingViewModel<br/>ScanState: Idle, Analyzing, Result, Blurry, NoPiece]
-  VM --> R[PieceRecognizer<br/>Bitmap glue]
-  R --> PM[PieceMatcher<br/>pure Kotlin]
-  VM --> Repo[ProjectRepository] --> DB[(Room)]
+  subgraph puzzle[feature/puzzle]
+    W[PuzzleWorkingFragment + ViewModel<br/>ScanState] --- M[PuzzleMapView]
+    K[capture: PieceCaptureFragment]
+  end
+  subgraph recognition[feature/recognition]
+    R[PieceRecognizer] --> PM[PieceMatcher<br/>pure Kotlin]
+  end
+  L --> W --> K
+  L --> C --> B
+  C --> P
+  B --> P
+  L & C & W --> D
+  W --> R
 ```
 
-| Path | Role |
+| Package | Content |
 |---|---|
-| `feature/recognition` | `PieceMatcher` (algorithm), `PieceRecognizer`, `PuzzleMapView`, `PuzzleLoaderView` |
-| `feature/puzzle` | working screen, scan state machine, piece capture |
-| `feature/project` | project list, creation, box bounds |
-| `shared` | Room database, image utils, shared views |
+| `core/database` | Room database, migrations, Hilt module |
+| `core/image` | image helpers shared by features (EXIF rotation, warp, camera file) |
+| `core/ui` | reusable views: corner selection, loader |
+| `feature/project` | `data/` (entity, DAO, repository, image storage), `list/`, `create/` (form, box framing) |
+| `feature/puzzle` | the puzzle table (map, scan state machine) and `capture/` (piece viewfinder) |
+| `feature/recognition` | `PieceMatcher` (algorithm) and `PieceRecognizer` (files and bitmaps) |
 
 ## Tests
 
