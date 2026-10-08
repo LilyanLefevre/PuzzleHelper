@@ -39,13 +39,14 @@ flowchart TB
 ## Les idées clés
 
 1. **Travailler à la bonne échelle.** La pièce et une case de la grille couvrent la même surface : on compare donc
-   des disques de même « rayon équivalent », quelle que soit la distance de prise de vue ([05](05-descripteur-couleur.md)).
+   des grilles de même taille relative, quelle que soit la distance de prise de vue ([05](05-descripteur-couleur.md)).
 2. **Redresser avant de comparer.** Les bords droits de la pièce donnent son inclinaison ; il ne reste ensuite que 4
    rotations à tester au lieu d'une infinité ([04](04-forme.md)).
 3. **La forme est un indice gratuit et fiable.** Un côté plat ne peut être que sur le bord du puzzle, deux côtés plats
    adjacents que dans un coin, et cela fixe aussi la rotation ([04](04-forme.md)).
 4. **Comparer des couleurs, pas des pixels.** Lumière, balance des blancs et impression diffèrent entre la boîte et
-   la pièce : on compare des couleurs moyennes par zone, centrées sur leur moyenne ([05](05-descripteur-couleur.md)).
+   la pièce : on compare la structure des couleurs, une fois retirés niveau, dégradé de lumière et contraste
+   ([05](05-descripteur-couleur.md)).
 5. **Dire quand on n'est pas sûr.** La confiance combine « mieux qu'un endroit au hasard » et « mieux que la
    deuxième meilleure piste » ([06](06-decision-confiance.md)).
 
@@ -53,5 +54,6 @@ flowchart TB
 
 Contraintes du projet : 100 % hors ligne, application < 50 Mo, réponse < 3 s sur un téléphone, résultats
 reproductibles et explicables (« même photo, même suggestion »). Une approche géométrique + couleur tient ces
-contraintes, se teste de façon déterministe sur la JVM et donne déjà de bons résultats ([07](07-validation.md)).
+contraintes et se teste de façon déterministe sur la JVM. Sur 484 photos réelles, la bonne case est la première
+piste 65 % du temps et dans les 4 pistes 89 % du temps ([07](07-validation.md)).
 Un modèle appris reste une piste pour les images très répétitives (ciel, mer).

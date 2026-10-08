@@ -6,7 +6,7 @@
 par l'utilisateur) et enregistrée (`Project.warpedPath`). C'est elle qui sert de référence ; les anciens projets
 retombent sur l'image recadrée (`imagePath`).
 
-Elle est réduite pour qu'une case fasse environ **20 pixels** de large (plafond 1600 px) : assez pour 17 couleurs
+Elle est réduite pour qu'une case fasse environ **20 pixels** de large (plafond 1600 px) : assez pour 25 couleurs
 moyennes par case, assez peu pour que la préparation tienne en une fraction de seconde.
 
 ## Prédécoupage virtuel

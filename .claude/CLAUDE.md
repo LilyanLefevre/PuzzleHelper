@@ -11,7 +11,8 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 
 ## Code map (`app/src/main/java/com/lilyan_lefevre/puzzleit`)
 - `feature/recognition/PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut, segmentation
-  (Otsu), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints), 17-zone Lab descriptor, confidence.
+  (Mahalanobis to the table), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints), 5x5 Lab grid
+  descriptor (mean, lightness ramp and contrast removed), confidence.
   `PieceRecognizer` = Bitmap glue, crops the square under the viewfinder, archives the last 30 captures + verdicts
   in `files/captures` (adb pull) for real-world debugging. The science is explained in `documentation/` (French).
 - `feature/recognition/PuzzleMapView.kt` - pan/zoom box image, spotlight, scan sweep. `PuzzleLoaderView` - loader.
@@ -35,6 +36,12 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - Phone tips: turn animations off, `adb shell cmd notification set_dnd on`, `svc power stayon true`; wireless adb drops often.
 - Do not use `UiAutomation.takeScreenshot` in Espresso tests (steals window focus); use PixelCopy.
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`.
+
+## Real-photo benchmarks (opt-in, not in CI)
+- `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py`: Puzzle-Map "120_avengers", 484 real photos with
+  row/col/quarter-turn/sides. Current: 65 % top-1 with flat sides, 89 % in the 4 leads. Measure every matcher change.
+- `RealPhotoReplayTest`: phone captures (`adb pull .../files/captures`), box from
+  `adb exec-out run-as com.lilyan_lefevre.puzzleit cat files/<project>/puzzle/extraites/*_warped.jpg`, BMP via sips.
 
 ## Known limits / next steps
 - Segmentation needs contrast between piece and table: a grey rock piece on a beige table gives "no piece".

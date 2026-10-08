@@ -28,15 +28,15 @@ Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Un
 ```mermaid
 flowchart LR
   A[Box photo] --> B[Rectified image + grid]
-  P[Piece photo] --> C[Square under the frame] --> D[Segment piece] --> O[Outline: tilt + flat sides] --> E[17-zone Lab descriptor]
+  P[Piece photo] --> C[Square under the frame] --> D[Segment piece] --> O[Outline: tilt + flat sides] --> E[5x5 Lab grid, light-normalised]
   B --> F[Candidates every half cell]
   E --> G{4 rotations<br/>corner / edge constraints}
   F --> G --> H[Best + 3 leads] --> I[Confidence]
   I --> J[Cell / zone / rough area]
 ```
 
-Colour is compared in 17 zones (centre + 2 rings x 8 sectors) of a disc scaled to the piece size, so scale and
-lighting matter little. The piece's outline is read first: it is straightened from its straight edges, and its flat
+Colour is compared on a 5x5 grid laid on the straightened piece body and scaled to its size, after removing the
+overall colour, any side-light ramp and contrast differences. The piece's outline is read first: it is straightened from its straight edges, and its flat
 sides send corner and edge pieces to the matching border cells with the only rotation that fits.
 
 The science, step by step (in French): [`documentation/`](documentation/README.md).
@@ -79,6 +79,8 @@ flowchart TB
 | Suite | Where | What |
 |---|---|---|
 | `PieceMatcherTest` | JVM | synthetic box art, rotated pieces, accuracy, rotation, blur, empty table |
+| `DatasetReplayTest` | JVM, opt-in | 484 real photos from the public Puzzle-Map dataset: 65 % top-1, 89 % in the 4 leads |
+| `RealPhotoReplayTest` | JVM, opt-in | replays captures pulled from a phone, writes the masks |
 | `PieceRecognizerDeviceTest` | device / emulator | real JPEG decode, timing (< 3 s per scan), failure paths |
 | `ScanFlowTest` | device / emulator | full journey: list, table, scan result, leads, blurry, no piece, viewfinder |
 

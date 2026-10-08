@@ -5,47 +5,50 @@
 Les couleurs sont converties de sRGB en **CIE Lab** : L = clarté, a = vert↔rouge, b = bleu↔jaune. Dans cet
 espace, une même distance correspond à peu près à une même différence perçue, ce qui n'est pas le cas en RGB.
 
-## Le descripteur à 17 zones
+## Une grille 5 × 5 sur le corps de la pièce
 
-On découpe un **disque** autour du centre de la pièce (ou du candidat) en 17 zones :
+La pièce a été **redressée** ([04](04-forme.md)) : on connaît l'orientation de ses côtés. On pose donc sur son corps
+une **grille carrée de 5 × 5 cases**, alignée sur ces côtés, et on garde la couleur Lab moyenne de chaque case.
 
-```
-        anneau extérieur : 8 secteurs (0,65 r – 0,92 r)
-        anneau intérieur : 8 secteurs (0,35 r – 0,65 r)
-        centre           : 1 disque   (0 – 0,35 r)
-```
+- Le côté de la grille vaut **0,9 ×** le côté d'un carré de même aire que la pièce. Pour un candidat de la boîte,
+  c'est 0,9 × le côté d'une case. Les deux grilles couvrent donc la même portion d'image, quelle que soit la distance
+  de prise de vue : le descripteur est **invariant à l'échelle**.
+- Le facteur 0,9 garde la grille dans le corps et loin du contour (ombre, tranche en carton).
+- Côté pièce, seuls les pixels du masque comptent ; une case presque vide (mortaise) est ignorée.
 
-et on garde la **couleur Lab moyenne** de chaque zone.
-
-- `r` est le **rayon équivalent** : `√(aire / π)`. Pour la pièce, l'aire du masque ; pour un candidat, l'aire d'une
-  case. Les deux disques couvrent donc la même portion d'image, quelle que soit la distance de prise de vue :
-  le descripteur est **invariant à l'échelle**.
-- On s'arrête à 0,92 r pour rester dans le corps de la pièce et éviter son contour (ombre, tranche en carton).
-- Côté pièce, seuls les pixels du masque comptent.
-
-## Invariance à l'éclairage
-
-On soustrait à chaque zone la **moyenne des 17 zones**. La comparaison porte alors sur la *structure* des couleurs
-(« plus bleu en haut, plus vert à droite ») plutôt que sur leur niveau absolu, qui change avec la lumière, la balance
-des blancs et l'impression. La couleur moyenne garde un petit poids séparé (voir ci-dessous).
+> Version précédente : un disque découpé en 17 zones (centre + 2 anneaux de 8 secteurs). Le disque couvrait mal les
+> coins du corps carré ; la grille gagne **+6 points** sur photos réelles ([07](07-validation.md)).
 
 ## Rotations
 
-La pièce a déjà été redressée de `θ` ([04](04-forme.md)) en décalant l'angle de chaque pixel avant de l'affecter à
-un secteur. Une rotation d'un quart de tour revient alors à **décaler les secteurs de 2 crans** (8 secteurs = 45°
-chacun) : on compare la zone `j` de la pièce à la zone `j − k` du candidat, pour `k ∈ {0, 2, 4, 6}`. Aucun
-ré-échantillonnage d'image n'est nécessaire.
+Une fois la pièce redressée, il ne reste que **4 rotations** possibles. Tourner la pièce d'un quart de tour revient
+à tourner la grille de 5 × 5 : aucun ré-échantillonnage d'image, la comparaison se fait sur 25 valeurs.
+
+## Rendre la comparaison indépendante de la prise de vue
+
+Trois corrections, appliquées **à l'identique** à la pièce et à chaque candidat de la boîte :
+
+| Étape | Ce qu'elle retire | Pourquoi |
+|---|---|---|
+| Soustraire la couleur moyenne | le niveau global (exposition, balance des blancs) | l'appareil et l'impression ne rendent pas les mêmes couleurs |
+| Retirer le **plan de clarté** `L = bx + cy` ajusté sur la grille | un dégradé linéaire de lumière | un éclairage de côté est dans le **sens de la photo**, pas de la pièce : sans cette étape, la réponse suivait le sens de prise de vue |
+| Diviser chaque canal par sa dispersion | le contraste et la saturation | une photo est souvent plus terne ou plus vive que la boîte |
+
+Ce qui reste est la **structure** des couleurs (« plus bleu en haut à gauche, plus clair au centre »), qui ne dépend
+que du contenu imprimé.
 
 ## Distance
 
-Pour un candidat et un décalage `k` :
+Pour un candidat et une rotation :
 
 ```
-D = moyenne sur les zones valides de √(0,6·ΔL² + Δa² + Δb²)
-  + 0,25 × écart des couleurs moyennes (a,b pleins, L à 30 %)
-  + 0,4 × nombre de zones manquantes
+D = moyenne sur les cases valides de √(ΔL² + Δa² + Δb²)          (valeurs normalisées)
+  + 0,02 × écart des couleurs moyennes
+  + 0,05 × nombre de cases manquantes
 ```
 
-- Une zone est valide si elle contient au moins 2 pixels des deux côtés (une mortaise peut vider un secteur).
-- Le dernier terme pénalise les comparaisons sur trop peu de zones ; en dessous de 8 zones communes la comparaison
-  est rejetée.
+La couleur moyenne garde un très faible poids : elle départage deux zones de même structure mais de teintes
+différentes, sans pénaliser une photo mal balancée.
+
+> Essai rejeté : ignorer les 20 % de cases les plus différentes (moyenne tronquée), pour absorber reflets et doigts.
+> Sur photos réelles, **−9 points** : ces cases portent aussi l'information qui distingue deux endroits proches.
