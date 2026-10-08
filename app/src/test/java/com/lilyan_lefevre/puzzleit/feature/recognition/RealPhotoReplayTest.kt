@@ -14,31 +14,6 @@ import java.nio.ByteOrder
  */
 class RealPhotoReplayTest {
 
-    private fun load(f: File): Raster {
-        val buf = ByteBuffer.wrap(f.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
-        val off = buf.getInt(10); val w = buf.getInt(18); val hRaw = buf.getInt(22); val bpp = buf.getShort(28).toInt()
-        val h = kotlin.math.abs(hRaw); val bytes = bpp / 8; val stride = (w * bytes + 3) / 4 * 4
-        val a = buf.array()
-        return Raster(w, h, IntArray(w * h) { i ->
-            val x = i % w; val y = i / w
-            val row = if (hRaw > 0) h - 1 - y else y
-            val o = off + row * stride + x * bytes
-            (255 shl 24) or ((a[o + 2].toInt() and 255) shl 16) or ((a[o + 1].toInt() and 255) shl 8) or (a[o].toInt() and 255)
-        })
-    }
-
-    private fun save(r: Raster, f: File) {
-        val stride = (r.w * 3 + 3) / 4 * 4
-        val buf = ByteBuffer.allocate(54 + stride * r.h).order(ByteOrder.LITTLE_ENDIAN)
-        buf.put('B'.code.toByte()).put('M'.code.toByte()).putInt(54 + stride * r.h).putInt(0).putInt(54)
-            .putInt(40).putInt(r.w).putInt(r.h).putShort(1).putShort(24).putInt(0).putInt(stride * r.h).putInt(2835).putInt(2835).putInt(0).putInt(0)
-        for (y in r.h - 1 downTo 0) {
-            for (x in 0 until r.w) { val p = r.px[y * r.w + x]; buf.put((p and 255).toByte()).put((p shr 8 and 255).toByte()).put((p shr 16 and 255).toByte()) }
-            repeat(stride - r.w * 3) { buf.put(0) }
-        }
-        f.writeBytes(buf.array())
-    }
-
     @Test
     fun replay() {
         val dir = System.getenv("PUZZLE_REAL_DIR")?.let(::File)
@@ -46,10 +21,10 @@ class RealPhotoReplayTest {
         val (cols, rows) = File(dir!!, "grid.txt").readText().trim().split(Regex("\\s+")).map { it.toInt() }
         val truth = File(dir!!, "truth.txt").takeIf { it.exists() }?.readLines()?.filter { it.isNotBlank() }
             ?.associate { l -> l.split(Regex("\\s+")).let { it[0] to (it[1].toInt() to it[2].toInt()) } } ?: emptyMap()
-        val matcher = PieceMatcher(load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows))
+        val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows))
         var ok = 0; var known = 0
         for (f in dir!!.listFiles()!!.filter { it.name.endsWith(".bmp") && it.name != "box.bmp" && !it.name.contains("_mask") }.sortedBy { it.name }) {
-            val photo = load(f).centerSquare(PieceRecognizer.CROP)
+            val photo = Bmp.load(f).centerSquare(PieceRecognizer.CROP)
             val ins = matcher.inspect(photo)
             val a = matcher.locate(photo)
             val verdict = when (a) {
@@ -66,7 +41,7 @@ class RealPhotoReplayTest {
                 "tilt=${ins.shape?.tilt} sides=${ins.shape?.sides} -> $verdict" + (t?.let { " truth=$it" } ?: ""))
             // Debug image: photo dimmed outside the mask.
             val img = ins.image
-            save(Raster(img.w, img.h, IntArray(img.px.size) { i -> if (ins.mask?.get(i) == true) img.px[i] else (img.px[i] shr 2) and 0x3F3F3F }),
+            Bmp.save(Raster(img.w, img.h, IntArray(img.px.size) { i -> if (ins.mask?.get(i) == true) img.px[i] else (img.px[i] shr 2) and 0x3F3F3F }),
                 File(dir, f.nameWithoutExtension + "_mask.bmp"))
         }
         if (known > 0) println("REAL accuracy: $ok/$known within one cell")
