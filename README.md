@@ -9,8 +9,9 @@ how to turn it, and how sure it is. Android, Kotlin, fully offline.
 |---|---|---|
 | ![](documentation/screenshots/list.png) | ![](documentation/screenshots/table_real.png) | ![](documentation/screenshots/result_real.png) |
 
-A piece cut from the fjord photo, turned 90° and laid on a dark table: found at its exact cell, with the right
-rotation and 88 % confidence.
+A piece cut from the fjord photo, turned 90° and laid on a dark table: found at its exact cell (row 20, column 10)
+with the right rotation and 85 % confidence. The sheet shows the piece turned the right way next to the box at that
+lead, and every lead is a piece-sized square on the map.
 
 <details>
 <summary>More states (from the instrumented tests, synthetic box art)</summary>
