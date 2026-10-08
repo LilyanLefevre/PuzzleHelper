@@ -3,7 +3,6 @@ package com.lilyan_lefevre.puzzleit.feature.recognition
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lilyan_lefevre.puzzleit.TestImages
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -12,6 +11,7 @@ import org.junit.runner.RunWith
 import java.io.File
 import kotlin.math.abs
 import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.runBlocking
 
 /** Real JPEG decode, Bitmap <-> Raster and timing on the actual phone. */
 @RunWith(AndroidJUnit4::class)

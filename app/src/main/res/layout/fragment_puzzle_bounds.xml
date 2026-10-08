@@ -20,7 +20,7 @@
         tools:src="@tools:sample/backgrounds/scenic" />
 
     <!-- Quad selection overlay -->
-    <com.lilyan_lefevre.puzzleit.shared.ui.QuadSelectionView
+    <com.lilyan_lefevre.puzzleit.core.ui.QuadSelectionView
         android:id="@+id/quadSelectionView"
         android:layout_width="0dp"
         android:layout_height="0dp"

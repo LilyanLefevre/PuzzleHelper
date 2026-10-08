@@ -11,7 +11,7 @@
         android:layout_height="match_parent"
         app:scaleType="fillCenter" />
 
-    <com.lilyan_lefevre.puzzleit.shared.ui.ScanFrameView
+    <com.lilyan_lefevre.puzzleit.feature.puzzle.capture.ScanFrameView
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 

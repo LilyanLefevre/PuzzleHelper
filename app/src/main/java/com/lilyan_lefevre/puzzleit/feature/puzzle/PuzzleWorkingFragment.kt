@@ -25,6 +25,7 @@ import com.google.android.material.chip.Chip
 import com.google.android.material.transition.MaterialSharedAxis
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
+import com.lilyan_lefevre.puzzleit.feature.puzzle.capture.PieceCaptureFragment
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
 import com.lilyan_lefevre.puzzleit.feature.recognition.Grid
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceKind

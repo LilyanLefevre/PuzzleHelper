@@ -6,7 +6,7 @@
 
     <fragment
         android:id="@+id/projectListFragment"
-        android:name="com.lilyan_lefevre.puzzleit.feature.project.ProjectListFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.project.list.ProjectListFragment"
         android:label="@string/puzzles_list_title"
         tools:layout="@layout/fragment_project_list">
 
@@ -26,7 +26,7 @@
 
     <fragment
         android:id="@+id/projectCreationFragment"
-        android:name="com.lilyan_lefevre.puzzleit.feature.project.ProjectCreationFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.project.create.ProjectCreationFragment"
         android:label="@string/create_puzzle_title"
         tools:layout="@layout/fragment_project_creation">
 
@@ -48,7 +48,7 @@
 
     <fragment
         android:id="@+id/puzzleBoundsFragment"
-        android:name="com.lilyan_lefevre.puzzleit.feature.project.PuzzleBoundsFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.project.create.PuzzleBoundsFragment"
         android:label="@string/puzzle_bounds_title"
         tools:layout="@layout/fragment_puzzle_bounds">
         <argument
@@ -75,7 +75,7 @@
 
     <fragment
         android:id="@+id/pieceCaptureFragment"
-        android:name="com.lilyan_lefevre.puzzleit.feature.puzzle.PieceCaptureFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.puzzle.capture.PieceCaptureFragment"
         android:label="Piece Capture"
         tools:layout="@layout/fragment_piece_capture" />
 

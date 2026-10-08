@@ -17,11 +17,10 @@ import androidx.test.rule.GrantPermissionRule
 import com.lilyan_lefevre.puzzleit.MainActivity
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.TestImages
-import com.lilyan_lefevre.puzzleit.feature.project.ProjectRepository
-import com.lilyan_lefevre.puzzleit.feature.puzzle.PieceCaptureFragment
+import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
+import com.lilyan_lefevre.puzzleit.feature.puzzle.capture.PieceCaptureFragment
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlinx.coroutines.runBlocking
 import org.hamcrest.CoreMatchers.containsString
 import org.junit.After
 import org.junit.Before
@@ -30,6 +29,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.runBlocking
 
 /**
  * Whole journey on the phone: list -> puzzle table -> (injected) piece photo -> result sheet -> leads -> dismiss.

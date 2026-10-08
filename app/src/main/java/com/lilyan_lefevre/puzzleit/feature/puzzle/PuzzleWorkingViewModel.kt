@@ -3,7 +3,8 @@ package com.lilyan_lefevre.puzzleit.feature.puzzle
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lilyan_lefevre.puzzleit.feature.project.ProjectRepository
+import com.lilyan_lefevre.puzzleit.feature.project.data.Project
+import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import com.lilyan_lefevre.puzzleit.feature.recognition.Analysis
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
 import com.lilyan_lefevre.puzzleit.feature.recognition.Grid
@@ -11,8 +12,9 @@ import com.lilyan_lefevre.puzzleit.feature.recognition.Match
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceMatcher
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceRecognizer
 import com.lilyan_lefevre.puzzleit.feature.recognition.toBitmap
-import com.lilyan_lefevre.puzzleit.shared.database.Project
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +23,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import javax.inject.Inject
 
 sealed interface ScanState {
     data object Idle : ScanState

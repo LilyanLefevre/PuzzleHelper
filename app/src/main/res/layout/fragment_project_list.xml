@@ -64,7 +64,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleLoaderView
+        <com.lilyan_lefevre.puzzleit.core.ui.PuzzleLoaderView
             android:layout_width="120dp"
             android:layout_height="120dp" />
 

@@ -7,7 +7,7 @@
     android:background="@color/puzzle_background"
     tools:context=".feature.puzzle.PuzzleWorkingFragment">
 
-    <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleMapView
+    <com.lilyan_lefevre.puzzleit.feature.puzzle.PuzzleMapView
         android:id="@+id/mapView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -74,7 +74,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleLoaderView
+    <com.lilyan_lefevre.puzzleit.core.ui.PuzzleLoaderView
         android:id="@+id/progressBar"
         android:layout_width="72dp"
         android:layout_height="72dp"
@@ -150,7 +150,7 @@
             android:paddingVertical="8dp"
             android:visibility="gone">
 
-            <com.lilyan_lefevre.puzzleit.feature.recognition.PuzzleLoaderView
+            <com.lilyan_lefevre.puzzleit.core.ui.PuzzleLoaderView
                 android:layout_width="64dp"
                 android:layout_height="64dp" />
 

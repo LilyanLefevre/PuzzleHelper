@@ -3,15 +3,16 @@ package com.lilyan_lefevre.puzzleit.feature.project
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lilyan_lefevre.puzzleit.feature.storage.ImageStorageManager
-import com.lilyan_lefevre.puzzleit.shared.database.Project
+import com.lilyan_lefevre.puzzleit.feature.project.data.ImageStorageManager
+import com.lilyan_lefevre.puzzleit.feature.project.data.Project
+import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
-import javax.inject.Inject
 
 /**
  * ViewModel for project list and creation operations
