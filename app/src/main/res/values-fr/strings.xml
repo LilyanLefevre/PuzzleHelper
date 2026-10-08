@@ -62,17 +62,6 @@ Commence par une photo de la boîte.</string>
     <string name="analyzing_sub">Comparaison avec la boîte, 8 rotations</string>
     <string name="best_lead">Meilleure piste</string>
     <string name="spot_cell">Ligne %1$d · Colonne %2$d</string>
-    <string name="spot_zone">Zone : %s</string>
-    <string name="spot_unsure">Zone approximative : %s</string>
-    <string name="zone_tl">en haut à gauche</string>
-    <string name="zone_t">en haut</string>
-    <string name="zone_tr">en haut à droite</string>
-    <string name="zone_l">à gauche</string>
-    <string name="zone_c">au centre</string>
-    <string name="zone_r">à droite</string>
-    <string name="zone_bl">en bas à gauche</string>
-    <string name="zone_b">en bas</string>
-    <string name="zone_br">en bas à droite</string>
     <string name="rotate_hint">Tourne-la de %d° vers la droite</string>
     <string name="rotate_none">Déjà dans le bon sens</string>
     <string name="confidence_label">Confiance</string>
@@ -103,4 +92,6 @@ Commence par une photo de la boîte.</string>
     <string name="capture_puzzle_photo">Prendre le puzzle en photo</string>
     <string name="piece_corner">Coin</string>
     <string name="piece_edge">Bord</string>
+    <string name="your_piece">Ta pièce</string>
+    <string name="on_the_box">Sur la boîte</string>
 </resources>

@@ -29,7 +29,6 @@ import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
 import com.lilyan_lefevre.puzzleit.feature.recognition.Grid
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceKind
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceMatcher
-import com.lilyan_lefevre.puzzleit.feature.recognition.Precision
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -62,6 +61,7 @@ class PuzzleWorkingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.buttonBack.setOnClickListener { findNavController().navigateUp() }
+        binding.mapView.onLeadTapped = { viewModel.select(it) }
         val capture = View.OnClickListener { findNavController().navigate(R.id.action_puzzleWorkingFragment_to_pieceCaptureFragment) }
         binding.buttonCapturePiece.setOnClickListener(capture)
         binding.buttonNewPiece.setOnClickListener(capture)
@@ -146,7 +146,8 @@ class PuzzleWorkingFragment : Fragment() {
         val leads = listOf(m.best) + m.alternatives
         val cand = r.shown
 
-        binding.mapView.showMatch(cand, m.precision, leads.filter { it !== cand })
+        binding.mapView.showLeads(leads, r.selected)
+        binding.imageBoxPatch.setImageBitmap(boxPatch(cand))
         binding.textLead.setText(if (r.selected == 0) R.string.best_lead else R.string.alt_lead)
         if (r.selected != 0) binding.textLead.text = getString(R.string.alt_lead, r.selected + 1)
         when (m.kind) {
@@ -154,7 +155,7 @@ class PuzzleWorkingFragment : Fragment() {
             PieceKind.EDGE -> binding.textLead.append(" · " + getString(R.string.piece_edge))
             else -> Unit
         }
-        binding.textSpot.text = spotLabel(cand, m.precision)
+        binding.textSpot.text = getString(R.string.spot_cell, cand.cell.second + 1, cand.cell.first + 1)
 
         showConfidence(cand.confidence)
         if (samePiece != null) { turnPiece(cand.rotationDeg); return }   // only the lead changed
@@ -211,18 +212,13 @@ class PuzzleWorkingFragment : Fragment() {
 
     private fun shortCell(c: Candidate) = "L${c.cell.second + 1} C${c.cell.first + 1}"
 
-    private fun spotLabel(c: Candidate, p: Precision): String = when (p) {
-        Precision.CELL -> getString(R.string.spot_cell, c.cell.second + 1, c.cell.first + 1)
-        Precision.ZONE -> getString(R.string.spot_zone, zoneName(c))
-        Precision.UNSURE -> getString(R.string.spot_unsure, zoneName(c))
-    }
-
-    private fun zoneName(c: Candidate): String {
-        val g = grid ?: return ""
-        val zx = (c.col / g.cols * 3).toInt().coerceIn(0, 2)
-        val zy = (c.row / g.rows * 3).toInt().coerceIn(0, 2)
-        val names = intArrayOf(R.string.zone_tl, R.string.zone_t, R.string.zone_tr, R.string.zone_l, R.string.zone_c, R.string.zone_r, R.string.zone_bl, R.string.zone_b, R.string.zone_br)
-        return getString(names[zy * 3 + zx])
+    /** The box at this lead, one cell plus a little margin, in the box's orientation. */
+    private fun boxPatch(c: Candidate): android.graphics.Bitmap? {
+        val (bmp, g) = viewModel.reference.value ?: return null
+        val cw = bmp.width / g.cols.toFloat(); val ch = bmp.height / g.rows.toFloat()
+        val w = (cw * 1.3f).toInt().coerceIn(1, bmp.width); val h = (ch * 1.3f).toInt().coerceIn(1, bmp.height)
+        val x = (c.col * cw - w / 2f).toInt().coerceIn(0, bmp.width - w); val y = (c.row * ch - h / 2f).toInt().coerceIn(0, bmp.height - h)
+        return android.graphics.Bitmap.createBitmap(bmp, x, y, w, h)
     }
 
     override fun onDestroyView() {

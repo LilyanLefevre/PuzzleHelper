@@ -62,17 +62,6 @@ Start from a photo of the box.</string>
     <string name="analyzing_sub">Comparing it with the box, 8 rotations</string>
     <string name="best_lead">Best lead</string>
     <string name="spot_cell">Row %1$d · Column %2$d</string>
-    <string name="spot_zone">Zone: %s</string>
-    <string name="spot_unsure">Rough area: %s</string>
-    <string name="zone_tl">top left</string>
-    <string name="zone_t">top</string>
-    <string name="zone_tr">top right</string>
-    <string name="zone_l">left</string>
-    <string name="zone_c">centre</string>
-    <string name="zone_r">right</string>
-    <string name="zone_bl">bottom left</string>
-    <string name="zone_b">bottom</string>
-    <string name="zone_br">bottom right</string>
     <string name="rotate_hint">Turn it %d° clockwise</string>
     <string name="rotate_none">Already the right way up</string>
     <string name="confidence_label">Confidence</string>
@@ -110,4 +99,6 @@ Start from a photo of the box.</string>
     <string name="adjust_photo_bounds">Adjust Photo Bounds</string>
     <string name="piece_corner">Corner</string>
     <string name="piece_edge">Edge</string>
+    <string name="your_piece">Your piece</string>
+    <string name="on_the_box">On the box</string>
 </resources>

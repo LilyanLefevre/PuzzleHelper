@@ -34,8 +34,12 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
     private var fitS = 1f
     private var insetTop = 0f; private var insetBottom = 0f
 
-    private var region: RectF? = null          // image space
-    private var alts: List<Pair<Float, Float>> = emptyList()   // image space
+    private var region: RectF? = null          // selected lead's cell, image space
+    private var leadCells: List<RectF> = emptyList()           // every lead's cell, image space
+    private var selected = 0
+
+    /** Called when a lead's square is tapped on the map. */
+    var onLeadTapped: ((Int) -> Unit)? = null
     private var spot = 0f                      // 0..1 spotlight intensity
     private var gridAlpha = 0f
     private var scanning = false
@@ -75,26 +79,27 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
 
     fun setScanning(on: Boolean) { scanning = on; updateClock(); invalidate() }
 
-    fun showMatch(best: Candidate, precision: Precision, others: List<Candidate>) {
+    /**
+     * Shows each lead as a square the size of one piece, numbered; [selected] gets the spotlight and the camera.
+     * Never a bigger area: a piece is one cell, so is every suggestion.
+     */
+    fun showLeads(leads: List<Candidate>, selected: Int) {
         val b = bmp ?: return
         val cw = b.width / grid.cols.toFloat(); val ch = b.height / grid.rows.toFloat()
-        val (wc, hc) = when (precision) {
-            Precision.CELL -> 1.15f to 1.15f
-            Precision.ZONE -> 3.2f to 3.2f
-            Precision.UNSURE -> max(3f, grid.cols / 3f) to max(3f, grid.rows / 3f)
+        leadCells = leads.map { c ->
+            val cx = (c.col * cw).coerceIn(cw / 2, b.width - cw / 2); val cy = (c.row * ch).coerceIn(ch / 2, b.height - ch / 2)
+            RectF(cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
         }
-        val w = min(wc * cw, b.width.toFloat()); val h = min(hc * ch, b.height.toFloat())
-        val cx = (best.col * cw).coerceIn(w / 2, b.width - w / 2); val cy = (best.row * ch).coerceIn(h / 2, b.height - h / 2)
-        region = RectF(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
-        alts = others.map { it.col * cw to it.row * ch }
+        this.selected = selected.coerceIn(0, leadCells.lastIndex)
+        region = leadCells[this.selected]
         animateSpot(1f)
-        animateGrid(if (precision == Precision.CELL) 0.22f else 0.12f)
+        animateGrid(0.18f)
         focusOn(region!!)
         updateClock()
     }
 
     fun clearMatch() {
-        region = null; alts = emptyList()
+        region = null; leadCells = emptyList()
         animateSpot(0f); animateGrid(0f); resetView(true); updateClock()
     }
 
@@ -117,7 +122,9 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
     }
 
     private fun focusOn(r: RectF) {
-        val target = (0.42f * min(vw(), vh()) / max(r.width(), r.height())).coerceIn(fitS, fitS * 14f)
+        // The piece's cell takes about a fifth of the view: big enough to see, small enough to keep the surroundings
+        // that let you find it on the table.
+        val target = (0.2f * min(vw(), vh()) / max(r.width(), r.height())).coerceIn(fitS, fitS * 14f)
         val ts = max(target, fitS)
         animateCamera(ts, vw() / 2 - r.centerX() * ts, insetTop + vh() / 2 - r.centerY() * ts, true)
     }
@@ -203,11 +210,19 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
                 stroke.strokeWidth = 2 * dp; stroke.alpha = ((1f - p) * 0.8f * spot * 255).toInt()
                 c.drawRoundRect(RectF(vr.left - e, vr.top - e, vr.right + e, vr.bottom + e), rad + e, rad + e, stroke)
             }
-            alts.forEachIndexed { i, (ax, ay) ->
-                val x = ax * s + tx; val y = ay * s + ty
-                if (x < -20 * dp || y < -20 * dp || x > width + 20 * dp || y > height + 20 * dp) return@forEachIndexed
-                fill.color = 0xFFFFFFFF.toInt(); fill.alpha = (spot * 235).toInt(); c.drawCircle(x, y, 11 * dp, fill)
-                text.alpha = (spot * 255).toInt(); c.drawText("${i + 2}", x, y + 4 * dp, text)
+            // Every lead: a piece-sized square with its number; the selected one is drawn above in citron.
+            leadCells.forEachIndexed { i, cell ->
+                val lr = RectF(cell.left * s + tx, cell.top * s + ty, cell.right * s + tx, cell.bottom * s + ty)
+                val lrad = min(10 * dp, lr.width() / 4)
+                if (i != selected) {
+                    stroke.color = 0xFFFFFFFF.toInt(); stroke.strokeWidth = 2 * dp; stroke.alpha = (spot * 220).toInt()
+                    c.drawRoundRect(lr, lrad, lrad, stroke)
+                    stroke.color = accent
+                }
+                val bx = lr.left; val by = lr.top
+                fill.color = if (i == selected) accent else 0xFFFFFFFF.toInt(); fill.alpha = (spot * 255).toInt()
+                c.drawCircle(bx, by, 11 * dp, fill)
+                text.alpha = (spot * 255).toInt(); c.drawText("${i + 1}", bx, by + 4 * dp, text)
             }
         }
 
@@ -236,6 +251,15 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
 
     private val detector = GestureDetector(ctx, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent) = true
+        override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+            // Tap on a lead's square (with a finger-sized margin) selects it.
+            val slop = 16 * dp
+            val i = leadCells.indexOfFirst { cell ->
+                e.x in cell.left * s + tx - slop..cell.right * s + tx + slop && e.y in cell.top * s + ty - slop..cell.bottom * s + ty + slop
+            }
+            if (i >= 0) { onLeadTapped?.invoke(i); return true }
+            return false
+        }
         override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
             if (scaler.isInProgress) return false
             val (x, y) = clampT(s, tx - dx, ty - dy); tx = x; ty = y; invalidate(); return true

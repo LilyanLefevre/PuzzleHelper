@@ -186,63 +186,109 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <TextView
+                android:id="@+id/textLead"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/best_lead"
+                android:textAppearance="@style/Text.Eyebrow" />
+
+            <TextView
+                android:id="@+id/textSpot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="@style/Text.Display"
+                android:textSize="26sp"
+                tools:text="Ligne 6 · Colonne 9" />
+
+            <!-- Compare: the piece, turned the right way, next to the box at this lead -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <FrameLayout
-                    android:layout_width="96dp"
-                    android:layout_height="96dp"
-                    android:background="@drawable/bg_piece_disc">
-
-                    <ImageView
-                        android:id="@+id/imagePiece"
-                        android:layout_width="72dp"
-                        android:layout_height="72dp"
-                        android:layout_gravity="center"
-                        android:adjustViewBounds="true"
-                        android:contentDescription="@null"
-                        android:scaleType="fitCenter" />
-                </FrameLayout>
-
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="18dp"
-                    android:layout_weight="1"
+                    android:gravity="center_horizontal"
                     android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/textLead"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/best_lead"
-                        android:textAppearance="@style/Text.Eyebrow" />
+                    <FrameLayout
+                        android:layout_width="104dp"
+                        android:layout_height="104dp"
+                        android:background="@drawable/bg_compare_tile">
+
+                        <ImageView
+                            android:id="@+id/imagePiece"
+                            android:layout_width="84dp"
+                            android:layout_height="84dp"
+                            android:layout_gravity="center"
+                            android:adjustViewBounds="true"
+                            android:contentDescription="@string/your_piece"
+                            android:scaleType="fitCenter" />
+                    </FrameLayout>
 
                     <TextView
-                        android:id="@+id/textSpot"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:textAppearance="@style/Text.Display"
-                        android:textSize="26sp"
-                        tools:text="Ligne 6 · Colonne 9" />
-
-                    <TextView
-                        android:id="@+id/textRotate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:drawablePadding="8dp"
-                        android:gravity="center_vertical"
-                        android:textColor="@color/puzzle_secondary_text"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        app:drawableStartCompat="@drawable/ic_rotate_small"
-                        tools:text="Tourne-la de 90° vers la droite" />
+                        android:text="@string/your_piece"
+                        android:textColor="@color/puzzle_on_surface_variant"
+                        android:textSize="12sp" />
                 </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="10dp"
+                    android:layout_marginBottom="18dp"
+                    android:text="≈"
+                    android:textColor="@color/puzzle_on_surface_variant"
+                    android:textSize="24sp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/imageBoxPatch"
+                        android:layout_width="104dp"
+                        android:layout_height="104dp"
+                        android:background="@drawable/bg_compare_tile"
+                        android:contentDescription="@string/on_the_box"
+                        android:padding="2dp"
+                        android:scaleType="centerCrop"
+                        app:shapeAppearanceOverlay="@style/Shape.Puzzle.Small"
+                        app:strokeColor="@color/puzzle_primary"
+                        app:strokeWidth="2dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/on_the_box"
+                        android:textColor="@color/puzzle_on_surface_variant"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/textRotate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_marginBottom="18dp"
+                    android:layout_weight="1"
+                    android:drawablePadding="6dp"
+                    android:textColor="@color/puzzle_secondary_text"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    app:drawableTopCompat="@drawable/ic_rotate_small"
+                    tools:text="Tourne-la de 90° vers la droite" />
             </LinearLayout>
 
             <LinearLayout
