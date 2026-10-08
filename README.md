@@ -28,15 +28,18 @@ Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Un
 ```mermaid
 flowchart LR
   A[Box photo] --> B[Rectified image + grid]
-  P[Piece photo] --> C[Centre 70 %] --> D[Segment piece] --> E[17-zone Lab descriptor]
+  P[Piece photo] --> C[Square under the frame] --> D[Segment piece] --> O[Outline: tilt + flat sides] --> E[17-zone Lab descriptor]
   B --> F[Candidates every half cell]
-  E --> G{8 rotation shifts}
+  E --> G{4 rotations<br/>corner / edge constraints}
   F --> G --> H[Best + 3 leads] --> I[Confidence]
   I --> J[Cell / zone / rough area]
 ```
 
 Colour is compared in 17 zones (centre + 2 rings x 8 sectors) of a disc scaled to the piece size, so scale and
-lighting matter little; rotating the piece is a cyclic shift of the sectors. Code: `feature/recognition/PieceMatcher.kt`.
+lighting matter little. The piece's outline is read first: it is straightened from its straight edges, and its flat
+sides send corner and edge pieces to the matching border cells with the only rotation that fits.
+
+The science, step by step (in French): [`documentation/`](documentation/README.md).
 
 ## Build and test
 

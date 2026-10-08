@@ -10,8 +10,10 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 - Out of scope for now: completed-zone detection, history/export, community features, AI models.
 
 ## Code map (`app/src/main/java/com/lilyan_lefevre/puzzleit`)
-- `feature/recognition/PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable). Grid pre-cut, piece segmentation,
-  17-zone Lab descriptor (centre + 2 rings x 8 sectors), 8 rotation shifts, confidence. `PieceRecognizer` = Bitmap glue.
+- `feature/recognition/PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut, segmentation
+  (Otsu), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints), 17-zone Lab descriptor, confidence.
+  `PieceRecognizer` = Bitmap glue, crops the square under the viewfinder, archives the last 30 captures + verdicts
+  in `files/captures` (adb pull) for real-world debugging. The science is explained in `documentation/` (French).
 - `feature/recognition/PuzzleMapView.kt` - pan/zoom box image, spotlight, scan sweep. `PuzzleLoaderView` - loader.
 - `feature/puzzle/` - working screen (`PuzzleWorkingFragment` + ViewModel state machine `ScanState`), `PieceCaptureFragment`.
 - `feature/project`, `feature/storage`, `shared/` - projects, Room DB, image utils (pre-existing).
@@ -36,7 +38,9 @@ Photograph a loose puzzle piece -> the app tells where it goes on the box image.
 
 ## Known limits / next steps
 - Segmentation needs contrast between piece and table: a grey rock piece on a beige table gives "no piece".
-- Accuracy on real piece photos is not measured yet (only synthetic fixtures). Repetitive images (sky, water) are the weak spot.
+- Accuracy on real piece photos is not measured yet (only synthetic fixtures); pull `files/captures` to build a real set. Repetitive images (sky, water) are the weak spot.
+- The project folder lives in iCloud Documents: macOS sometimes creates `* 2.*` duplicates in `app/build`, which
+  breaks resource parsing. Fix: `find app/build -name "* 2*" -prune -exec rm -rf {} +`.
 - Leads 2-3 get a derived confidence (best confidence scaled by their own score), not an independent one.
 - The camera/PieceBounds flow from `main` (device photo app + quad crop) is still in the nav graph, unused by the scan flow.
 - Test fixtures must look like real photos (grain, real blur): smooth synthetic images sit at the sharpness threshold
