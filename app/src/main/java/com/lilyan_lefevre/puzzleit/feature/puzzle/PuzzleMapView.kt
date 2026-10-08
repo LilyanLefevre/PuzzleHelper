@@ -74,9 +74,12 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
         resetView(false)
     }
 
+    /** Area left visible between the top bar and the sheet; the camera re-frames when it changes. */
     fun setViewportInsets(top: Int, bottom: Int) {
+        if (top.toFloat() == insetTop && bottom.toFloat() == insetBottom) return
         insetTop = top.toFloat(); insetBottom = bottom.toFloat()
-        if (region == null) resetView(false) else invalidate()
+        computeFit()
+        region?.let(::focusOn) ?: resetView(false)
     }
 
     fun setScanning(on: Boolean) { scanning = on; updateClock(); invalidate() }
@@ -213,6 +216,8 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
                 c.drawRoundRect(RectF(vr.left - e, vr.top - e, vr.right + e, vr.bottom + e), rad + e, rad + e, stroke)
             }
             // Every lead: a piece-sized square with its number; the selected one is drawn above in citron.
+            // Only inside the visible map, never under the top bar or the sheet.
+            c.save(); c.clipRect(0f, insetTop, width.toFloat(), height - insetBottom)
             leadCells.forEachIndexed { i, cell ->
                 val lr = RectF(cell.left * s + tx, cell.top * s + ty, cell.right * s + tx, cell.bottom * s + ty)
                 val lrad = min(10 * dp, lr.width() / 4)
@@ -226,6 +231,7 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
                 c.drawCircle(bx, by, 11 * dp, fill)
                 text.alpha = (spot * 255).toInt(); c.drawText("${i + 1}", bx, by + 4 * dp, text)
             }
+            c.restore()
         }
 
         if (scanning) {
