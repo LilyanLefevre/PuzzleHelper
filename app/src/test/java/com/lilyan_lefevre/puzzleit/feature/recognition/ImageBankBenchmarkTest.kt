@@ -42,6 +42,7 @@ class ImageBankBenchmarkTest {
     fun benchmark() {
         val dir = System.getenv("PUZZLE_IMAGES_DIR")?.let(::File)
         assumeTrue("PUZZLE_IMAGES_DIR not set", dir != null && dir.isDirectory)
+        val dump = LeadDump("bank")
         val total = Score()
         val buckets = linkedMapOf("textured (<15% flat)" to Score(), "mixed (15-40%)" to Score(), "flat-heavy (>40%)" to Score())
         val rows = ArrayList<Pair<Int, String>>()
@@ -71,6 +72,15 @@ class ImageBankBenchmarkTest {
                 )
                 val photo = PiecePhotos.photo(img, g, col, row, shot)
                 score.n++
+                if (dump.enabled) {
+                    val ins = matcher.inspect(photo)
+                    val mask = ins.mask
+                    val lm = mask?.let { matcher.rank(LabImage.from(ins.image), it, ins.shape, LeadDump.LEADS) }
+                    if (mask != null && lm != null) {
+                        val cut = Raster(ins.image.w, ins.image.h, IntArray(mask.size) { if (mask[it]) ins.image.px[it] else 0xFF000000.toInt() })
+                        dump.add(f, g, cut, col, row, (360 - shot.deg.toInt()) % 360, lm)
+                    }
+                }
                 val m = (matcher.locate(photo) as? Analysis.Found)?.match ?: continue
                 score.found++
                 val wantKind = when { i < 4 -> PieceKind.CORNER; i < 10 -> PieceKind.EDGE; else -> PieceKind.INTERIOR }

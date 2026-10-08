@@ -193,7 +193,7 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
      * Ranks the box positions for a piece whose pixels are [mask]. [shape] = its outline reading, or null to compare
      * colours only (any of the 4 right-angle rotations, no border constraint). Exposed for the dataset replays.
      */
-    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?): Match? {
+    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4): Match? {
         var n = 0; var sx = 0.0; var sy = 0.0
         for (i in mask.indices) if (mask[i]) { n++; sx += i % pl.w; sy += i / pl.w }
         if (n == 0) return null
@@ -222,7 +222,7 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         val picks = ArrayList<Candidate>()
         for (c in scored) {
             if (picks.none { hypot(it.col - c.col, it.row - c.row) < 1.5f }) picks += c
-            if (picks.size == 4) break
+            if (picks.size == leads) break
         }
         val dMed = scored[scored.size / 2].distance
         val d1 = picks[0].distance

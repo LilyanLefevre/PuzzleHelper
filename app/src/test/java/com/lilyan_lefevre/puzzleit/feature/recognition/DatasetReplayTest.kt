@@ -24,6 +24,8 @@ class DatasetReplayTest {
         override fun toString() = "exact ${pct(exact)}  ±1 ${pct(near)}  top4 ${pct(top4)}  rotation ${pct(rot)}"
     }
 
+    private val dump = LeadDump("dataset")
+
     private fun replay(dir: File): Pair<Score, Score> {
         val (cols, rows) = File(dir, "grid.txt").readText().trim().split(Regex("\\s+")).map { it.toInt() }
         val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows))
@@ -40,6 +42,12 @@ class DatasetReplayTest {
             val mask = BooleanArray(img.w * img.h) { i -> val x = i % img.w; val y = i / img.w; x in x0 + ix until x1 - ix && y in y0 + iy until y1 - iy }
             // angle = CCW rotation of the piece in the photo, so the clockwise correction is the same angle.
             val want = ((angle % 360) + 360) % 360
+            if (dump.enabled) matcher.rank(lab, mask, Shape(0f, sides), LeadDump.LEADS)?.let { lm ->
+                val bx0 = (x0 + ix).coerceIn(0, img.w - 1); val by0 = (y0 + iy).coerceIn(0, img.h - 1)
+                val bw = ((x1 - ix).coerceAtMost(img.w) - bx0).coerceAtLeast(1); val bh = ((y1 - iy).coerceAtMost(img.h) - by0).coerceAtLeast(1)
+                val body = Raster(bw, bh, IntArray(bw * bh) { img.px[(by0 + it / bw) * img.w + bx0 + it % bw] })
+                dump.add(File(dir, "box.bmp"), Grid(cols, rows), body, col, row, want, lm)
+            }
             for ((score, shape) in listOf(colourOnly to null, withSides to Shape(0f, sides))) {
                 val m = matcher.rank(lab, mask, shape) ?: continue
                 score.n++

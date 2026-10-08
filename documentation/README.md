@@ -12,7 +12,8 @@ Ces pages expliquent la science derrière, étape par étape, et ce qui est vér
 | [04 — Lire la forme](04-forme.md) | redresser la pièce, côtés plats / tenons / mortaises, coins et bords |
 | [05 — Comparer les couleurs](05-descripteur-couleur.md) | espace Lab, grille 5 × 5, éclairage, rotations |
 | [06 — Décider et doser la confiance](06-decision-confiance.md) | classement, pistes alternatives, score de confiance, précision adaptative |
-| [07 — Validation](07-validation.md) | pièces synthétiques, 484 photos réelles (Puzzle-Map), résultats, limites |
+| [07 — Validation](07-validation.md) | pièces synthétiques, photos réelles (Puzzle-Map), banque de 24 images, limites |
+| [08 — Et l'IA ?](08-ia.md) | reclassement par réseaux pré-entraînés : protocole, résultats, suite |
 
 Code de référence : [`PieceMatcher.kt`](../app/src/main/java/com/lilyan_lefevre/puzzleit/feature/recognition/PieceMatcher.kt)
 (Kotlin pur, testable sur JVM) et [`PieceRecognizer.kt`](../app/src/main/java/com/lilyan_lefevre/puzzleit/feature/recognition/PieceRecognizer.kt)
