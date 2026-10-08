@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
@@ -22,6 +23,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import com.google.android.material.chip.Chip
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
@@ -63,6 +65,17 @@ class PuzzleWorkingFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.buttonBack.setOnClickListener { findNavController().navigateUp() }
         binding.mapView.onLeadTapped = { viewModel.select(it) }
+        binding.buttonEdit.setOnClickListener {
+            findNavController().navigate(R.id.action_puzzleWorkingFragment_to_projectCreationFragment, bundleOf("projectId" to projectId))
+        }
+        binding.buttonDelete.setOnClickListener {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.delete_project_title)
+                .setMessage(getString(R.string.delete_project_message, binding.textViewProjectName.text))
+                .setPositiveButton(R.string.delete) { _, _ -> viewModel.delete() }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
         val capture = View.OnClickListener { findNavController().navigate(R.id.action_puzzleWorkingFragment_to_pieceCaptureFragment) }
         binding.buttonCapturePiece.setOnClickListener(capture)
         binding.buttonNewPiece.setOnClickListener(capture)
@@ -87,17 +100,30 @@ class PuzzleWorkingFragment : Fragment() {
     private fun observe() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.reference.collect { r -> r?.let { (bmp, g) -> grid = g; binding.mapView.setImage(bmp, g) } } }
+                launch {
+                    viewModel.reference.collect { r ->
+                        val (bmp, g) = r ?: return@collect
+                        grid = g
+                        binding.mapView.setImage(bmp, g)
+                        viewModel.project.value?.let { bindProject(it.name, it.puzzleSize) }   // the grid is known now
+                    }
+                }
                 launch { viewModel.project.collect { p -> p?.let { bindProject(it.name, it.puzzleSize) } } }
                 launch { viewModel.isLoading.collect { binding.progressBar.isVisible = it } }
                 launch { viewModel.scan.collect(::render) }
                 launch {
-                    viewModel.errorMessage.collect { error ->
-                        error?.let {
-                            Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
-                            viewModel.clearError()
-                            findNavController().navigateUp()
-                        }
+                    viewModel.error.collect { error ->
+                        error ?: return@collect
+                        Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show()
+                        viewModel.errorShown()
+                        findNavController().navigateUp()
+                    }
+                }
+                launch {
+                    viewModel.deleted.collect { gone ->
+                        if (!gone) return@collect
+                        Toast.makeText(requireContext(), getString(R.string.project_deleted_successfully, binding.textViewProjectName.text), Toast.LENGTH_SHORT).show()
+                        findNavController().navigateUp()
                     }
                 }
             }

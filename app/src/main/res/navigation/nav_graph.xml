@@ -71,6 +71,10 @@
         <action
             android:id="@+id/action_puzzleWorkingFragment_to_pieceCaptureFragment"
             app:destination="@id/pieceCaptureFragment" />
+
+        <action
+            android:id="@+id/action_puzzleWorkingFragment_to_projectCreationFragment"
+            app:destination="@id/projectCreationFragment" />
     </fragment>
 
     <fragment

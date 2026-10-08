@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lilyan_lefevre.puzzleit.feature.project.data.Project
+import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import com.lilyan_lefevre.puzzleit.feature.recognition.Analysis
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
@@ -53,31 +54,59 @@ class PuzzleWorkingViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    /** A string resource to show before leaving the screen. */
+    private val _error = MutableStateFlow<Int?>(null)
+    val error: StateFlow<Int?> = _error.asStateFlow()
+
+    private val _deleted = MutableStateFlow(false)
+    val deleted: StateFlow<Boolean> = _deleted.asStateFlow()
 
     private var matcher: PieceMatcher? = null
+    private var watching: String? = null
+    private var preparedFor: Triple<String, Int, Grid?>? = null
+    private var deleting = false
 
+    /**
+     * Follows the project live: a rename only refreshes the header, a new photo or grid re-prepares the matcher,
+     * and a deletion closes the screen.
+     */
     fun loadProject(projectId: String) {
-        if (_project.value?.id == projectId) return
+        if (watching == projectId) return
+        watching = projectId
         viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val p = projectRepository.getProjectById(projectId)
-                if (p == null) { _errorMessage.value = "Project not found"; return@launch }
+            projectRepository.getProjectByIdFlow(projectId).collect { p ->
+                if (p == null) {
+                    if (deleting || _project.value != null) _deleted.value = true else _error.value = R.string.project_not_found
+                    return@collect
+                }
+                _project.value = p
                 // Prefer the rectified box and the grid typed at creation; old projects fall back to a computed grid.
                 val path = p.warpedPath.takeIf { it.isNotBlank() && File(it).exists() } ?: p.imagePath
                 val grid = if (p.gridRows > 1 || p.gridCols > 1) Grid(p.gridCols, p.gridRows) else null
-                val prepared = recognizer.prepare(path, p.puzzleSize, grid)
-                if (prepared == null) { _errorMessage.value = "Reference image not found"; return@launch }
-                matcher = prepared.matcher
-                _reference.value = prepared.display to prepared.matcher.grid
-                _project.value = p
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to delete project: ${e.message}"
-            } finally {
-                _isLoading.value = false
+                val key = Triple(path, p.puzzleSize, grid)
+                if (key == preparedFor) return@collect
+                _isLoading.value = true
+                try {
+                    val prepared = recognizer.prepare(path, p.puzzleSize, grid)
+                    if (prepared == null) { _error.value = R.string.reference_missing; return@collect }
+                    matcher = prepared.matcher
+                    preparedFor = key
+                    _reference.value = prepared.display to prepared.matcher.grid
+                    _scan.value = ScanState.Idle
+                } catch (e: Exception) {
+                    _error.value = R.string.reference_missing
+                } finally {
+                    _isLoading.value = false
+                }
             }
+        }
+    }
+
+    fun delete() {
+        val id = watching ?: return
+        deleting = true
+        viewModelScope.launch {
+            if (projectRepository.deleteProject(id).isFailure) { deleting = false; _error.value = R.string.project_deletion_failed }
         }
     }
 
@@ -105,5 +134,5 @@ class PuzzleWorkingViewModel @Inject constructor(
 
     fun dismiss() { _scan.value = ScanState.Idle }
 
-    fun clearError() { _errorMessage.value = null }
+    fun errorShown() { _error.value = null }
 }

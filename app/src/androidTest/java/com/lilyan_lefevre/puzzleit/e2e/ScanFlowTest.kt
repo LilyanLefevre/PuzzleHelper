@@ -23,6 +23,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.hamcrest.CoreMatchers.containsString
 import org.junit.After
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -168,6 +169,26 @@ class ScanFlowTest {
             onView(withId(R.id.previewView)).check(matches(isDisplayed()))
             onView(withId(R.id.buttonClose)).perform(click())
             waitFor { onView(withId(R.id.groupIdle)).check(matches(isDisplayed())) }
+        }
+    }
+
+    @Test
+    fun editFromTheTableOpensThePrefilledForm() {
+        openTable().use {
+            onView(withId(R.id.buttonEdit)).perform(click())
+            waitFor { onView(withId(R.id.editTextName)).check(matches(withText(name))) }
+            onView(withId(R.id.editTextPieces)).check(matches(withText("${cols * rows}")))
+        }
+    }
+
+    @Test
+    fun deleteFromTableAsksThenRemovesTheProject() {
+        openTable().use {
+            onView(withId(R.id.buttonDelete)).perform(click())
+            onView(withText(R.string.delete)).inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog()).perform(click())
+            waitFor { onView(withId(R.id.fabAddProject)).check(matches(isDisplayed())) }
+            waitFor { onView(withText(name)).check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist()) }
+            assertNull(runBlocking { repository.getProjectById(id) })
         }
     }
 }
