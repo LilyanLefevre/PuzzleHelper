@@ -184,29 +184,39 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         if (sharp < MIN_SHARPNESS) return Analysis.Blurry(sharp)
         val pl = LabImage.from(img)
         val mask = segment(pl) ?: return Analysis.NoPiece
+        val shape = shape(mask, pl.w, pl.h)
+        val match = rank(pl, mask, shape) ?: return Analysis.NoPiece
+        return Analysis.Found(match, sharp, cutout(img, mask))
+    }
+
+    /**
+     * Ranks the box positions for a piece whose pixels are [mask]. [shape] = its outline reading, or null to compare
+     * colours only (any of the 4 right-angle rotations, no border constraint). Exposed for the dataset replays.
+     */
+    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?): Match? {
         var n = 0; var sx = 0.0; var sy = 0.0
         for (i in mask.indices) if (mask[i]) { n++; sx += i % pl.w; sy += i / pl.w }
-
+        if (n == 0) return null
+        val tilt = shape?.tilt ?: 0f
+        val kind = shape?.kind ?: PieceKind.UNKNOWN
         // Straighten the piece first: rotations left to test are then exactly 0/90/180/270,
         // and its flat sides (if any) pin it to the border with a single possible rotation.
-        val shape = shape(mask, pl.w, pl.h)
-        val pd = describe(pl, (sx / n).toFloat(), (sy / n).toFloat(), sqrt(n / PI).toFloat(), mask, shape.tilt)
-        val flats = if (shape.kind == PieceKind.EDGE || shape.kind == PieceKind.CORNER) shape.flats else null
+        val pd = describe(pl, (sx / n).toFloat(), (sy / n).toFloat(), sqrt(n / PI).toFloat(), mask, tilt)
+        val flats = if (kind == PieceKind.EDGE || kind == PieceKind.CORNER) shape!!.flats else null
 
         val scored = cands.mapNotNull { (c, d) ->
             val border = borderSides(c)
             var bestD = Float.MAX_VALUE; var bestR = -1
             for (q in 0..3) {                              // q quarter-turns clockwise to put the piece back
                 if (flats != null && flats.map { (it + q) % 4 }.toSet() != border) continue
-                val k = (8 - 2 * q) % 8                    // piece[j] ~ candidate[j - k]
-                var dist = distance(pd, d, k)
-                if (flats == null && border.isNotEmpty() && shape.kind == PieceKind.INTERIOR) dist *= 1.25f
+                var dist = distance(pd, d, q)
+                if (flats == null && border.isNotEmpty() && kind == PieceKind.INTERIOR) dist *= 1.25f
                 if (dist < bestD) { bestD = dist; bestR = q }
             }
             if (bestR < 0) null
-            else c.copy(distance = bestD, rotationDeg = (((bestR * 90 - shape.tilt) % 360 + 360) % 360).roundToInt() % 360)
+            else c.copy(distance = bestD, rotationDeg = (((bestR * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360)
         }.sortedBy { it.distance }
-        if (scored.isEmpty()) return Analysis.NoPiece
+        if (scored.isEmpty()) return null
 
         // Non-maximum suppression: alternatives must be at least 1.5 cells away from earlier picks.
         val picks = ArrayList<Candidate>()
@@ -232,7 +242,7 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
             val s = ((dMed - c.distance) / dMed).coerceIn(0f, 1f)
             c.copy(confidence = if (i == 0) conf else (conf * s / spread.coerceAtLeast(1e-3f)).roundToInt().coerceIn(0, conf))
         }
-        return Analysis.Found(Match(grid, leads[0], leads.drop(1), conf, precision, shape.kind), sharp, cutout(img, mask))
+        return Match(grid, leads[0], leads.drop(1), conf, precision, kind)
     }
 
     /** What the matcher sees, step by step: for the real-photo replay harness and debugging. */
@@ -248,26 +258,24 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
 
     private class Descriptor(val v: FloatArray, val ok: BooleanArray, val mean: FloatArray) // v: CELLS x 3, mean-centred
 
+    /**
+     * G x G grid of mean Lab colours over the body square, in the piece's upright frame (tilt removed).
+     * Side = 0.9 x the side of a square of the same area: the body without its outline, scale-free.
+     */
     private fun describe(img: LabImage, cx: Float, cy: Float, r: Float, mask: BooleanArray?, tiltDeg: Float = 0f): Descriptor {
-        val tilt = (tiltDeg * PI / 180).toFloat()
+        val t = (tiltDeg * PI / 180).toFloat(); val co = kotlin.math.cos(t); val si = kotlin.math.sin(t)
+        val side = r * sqrt(PI.toFloat()) * BODY
         val sum = FloatArray(CELLS * 3); val cnt = IntArray(CELLS)
-        val R = r * RADIUS
+        val R = side * 0.75f
         val x0 = max(0, (cx - R).toInt()); val x1 = min(img.w - 1, (cx + R).toInt() + 1)
         val y0 = max(0, (cy - R).toInt()); val y1 = min(img.h - 1, (cy + R).toInt() + 1)
         for (y in y0..y1) for (x in x0..x1) {
-            val dx = x + 0.5f - cx; val dy = y + 0.5f - cy
-            val d = hypot(dx, dy) / r
-            if (d >= RADIUS) continue
             val i = y * img.w + x
             if (mask != null && !mask[i]) continue
-            val cell = when {
-                d < 0.35f -> 0
-                else -> {
-                    var a = atan2(dy, dx) - tilt; while (a < 0) a += (2 * PI).toFloat()
-                    val s = ((a / (2 * PI)) * SECTORS).toInt() % SECTORS
-                    1 + (if (d < 0.65f) 0 else SECTORS) + s
-                }
-            }
+            val dx = x + 0.5f - cx; val dy = y + 0.5f - cy
+            val u = (dx * co + dy * si) / side + 0.5f; val v = (-dx * si + dy * co) / side + 0.5f
+            if (u < 0f || v < 0f || u >= 1f || v >= 1f) continue
+            val cell = (v * G).toInt() * G + (u * G).toInt()
             for (c in 0..2) sum[cell * 3 + c] += img.lab[i * 3 + c]
             cnt[cell]++
         }
@@ -276,22 +284,46 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         for (c in 0 until CELLS) if (ok[c]) { for (k in 0..2) { sum[c * 3 + k] /= cnt[c]; m[k] += sum[c * 3 + k] }; nOk++ }
         if (nOk > 0) for (k in 0..2) m[k] /= nOk
         for (c in 0 until CELLS) if (ok[c]) for (k in 0..2) sum[c * 3 + k] -= m[k]
+        // Side light = a lightness ramp across the piece in the photo: fit L = bx + cy over the grid and remove it.
+        // Done for the box too, so both sides are compared on the same terms.
+        run {
+            var sxx = 0f; var syy = 0f; var sxl = 0f; var syl = 0f
+            for (c in 0 until CELLS) if (ok[c]) {
+                val gx = c % G - (G - 1) / 2f; val gy = c / G - (G - 1) / 2f
+                sxx += gx * gx; syy += gy * gy; sxl += gx * sum[c * 3]; syl += gy * sum[c * 3]
+            }
+            val bx = if (sxx > 0f) sxl / sxx else 0f; val by = if (syy > 0f) syl / syy else 0f
+            for (c in 0 until CELLS) if (ok[c]) sum[c * 3] -= bx * (c % G - (G - 1) / 2f) + by * (c / G - (G - 1) / 2f)
+        }
+        // Contrast/saturation differ between the camera and the print: scale each channel to unit spread.
+        if (nOk > 1) for (k in 0..2) {
+            var vv = 0f
+            for (c in 0 until CELLS) if (ok[c]) vv += sum[c * 3 + k] * sum[c * 3 + k]
+            val sd = max(sqrt(vv / nOk), FLOOR[k])
+            for (c in 0 until CELLS) if (ok[c]) sum[c * 3 + k] /= sd
+        }
         return Descriptor(sum, ok, m)
     }
 
-    /** Distance with the piece rotated by k sectors: piece[j] is compared with candidate[j - k]. */
-    private fun distance(p: Descriptor, c: Descriptor, k: Int): Float {
+    /** Grid cell of the piece that lands on candidate cell (x, y) once the piece is turned q quarter-turns clockwise. */
+    private fun turned(x: Int, y: Int, q: Int): Int {
+        var px = x; var py = y
+        repeat(q) { val nx = py; val ny = G - 1 - px; px = nx; py = ny }   // undo one clockwise turn
+        return py * G + px
+    }
+
+    /** Distance with the piece turned q quarter-turns clockwise. */
+    private fun distance(p: Descriptor, c: Descriptor, q: Int): Float {
         var acc = 0f; var w = 0f
-        for (j in 0 until CELLS) {
-            val jc = if (j == 0) 0 else 1 + ((j - 1) / SECTORS) * SECTORS + (((j - 1) % SECTORS - k) % SECTORS + SECTORS) % SECTORS
+        for (y in 0 until G) for (x in 0 until G) {
+            val jc = y * G + x; val j = turned(x, y, q)
             if (!p.ok[j] || !c.ok[jc]) continue
             val dl = p.v[j * 3] - c.v[jc * 3]; val da = p.v[j * 3 + 1] - c.v[jc * 3 + 1]; val db = p.v[j * 3 + 2] - c.v[jc * 3 + 2]
-            acc += sqrt(0.6f * dl * dl + da * da + db * db); w += 1f
+            acc += sqrt(dl * dl + da * da + db * db); w += 1f
         }
         if (w < MIN_CELLS) return Float.MAX_VALUE / 4
-        // Mean colour counts only lightly (lighting / printing differ), plus a tax for cells that don't overlap.
         val dm = hypot(p.mean[1] - c.mean[1], p.mean[2] - c.mean[2]) + 0.3f * abs(p.mean[0] - c.mean[0])
-        return acc / w + 0.25f * dm + (CELLS - w) * 0.4f
+        return acc / w + 0.02f * dm + (CELLS - w) * 0.05f
     }
 
     /** The piece alone: bounding box of the mask, transparent elsewhere. */
@@ -486,15 +518,16 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
     }
 
     companion object {
-        const val SECTORS = 8
-        private const val CELLS = 1 + 2 * SECTORS
-        private const val RADIUS = 0.92f
+        private const val G = 5
+        private const val CELLS = G * G
+        private const val BODY = 0.9f
         private const val CELL_PX = 20
         private const val MAX_SIDE = 1600
         private const val PHOTO_SIDE = 420
         private const val MIN_CELLS = 8f
         const val MIN_SHARPNESS = 12f
         private const val Z_MIN = 4f
+        private val FLOOR = floatArrayOf(4f, 3f, 3f)
         const val CELL_CONF = 55
         const val ZONE_CONF = 30
 
