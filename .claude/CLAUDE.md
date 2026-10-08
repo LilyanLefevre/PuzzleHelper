@@ -8,7 +8,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 - Scan box -> rectified image + grid (rows x cols typed or computed) -> piece photo -> up to 4 leads, each a
   piece-sized square on the map, with rotation and confidence. The sheet shows the piece (turned) next to the box at
   the selected lead so the user can check. A hint, not a solver.
-- Targets: > 70 % correct first lead, < 3 s per scan on the phone, app < 50 MB, no network.
+- Targets: > 70 % correct first lead, < 3 s per scan on the phone, no network. App size: > 50 MB is fine (owner, 2026-10-08),
+  so an on-device model (ONNX Runtime) is allowed.
 - Edit / delete a puzzle: round buttons in the puzzle table's top bar (covered by e2e tests - keep them reachable).
 
 ## Code map (`app/src/main/java/com/lilyan_lefevre/puzzleit`) - package by feature, MVVM

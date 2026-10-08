@@ -52,7 +52,7 @@ flowchart TB
 
 ## Pourquoi pas de réseau de neurones ?
 
-Contraintes du projet : 100 % hors ligne, application < 50 Mo, réponse < 3 s sur un téléphone, résultats
+Contraintes du projet : 100 % hors ligne, réponse < 3 s sur un téléphone, résultats
 reproductibles et explicables (« même photo, même suggestion »). Une approche géométrique + couleur tient ces
 contraintes et se teste de façon déterministe sur la JVM. Sur 484 photos réelles, la bonne case est la première
 piste 65 % du temps et dans les 4 pistes 89 % du temps ([07](07-validation.md)).
