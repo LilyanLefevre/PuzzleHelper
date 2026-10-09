@@ -24,9 +24,28 @@ STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 TABLES = [(120, 86, 60), (190, 160, 120), (60, 40, 30), (235, 235, 230), (128, 128, 128), (40, 90, 50), (50, 50, 55)]
 
 
-def encoder(dim=128):
-    m = torchvision.models.mobilenet_v3_small(weights="DEFAULT")
-    m.classifier = torch.nn.Linear(576, dim)
+def gpu():
+    """The discrete Radeon through DirectML (not the CPU's integrated GPU, which drives the screen), else the CPU."""
+    try:
+        import torch_directml
+    except ImportError:
+        return torch.device("cpu")
+    names = [torch_directml.device_name(i) for i in range(torch_directml.device_count())]
+    return torch_directml.device(next((i for i, n in enumerate(names) if "RX" in n), torch_directml.default_device()))
+
+
+def encoder(arch="mnv3s", dim=128):
+    """Pretrained ImageNet backbone, classifier replaced by a linear embedding head."""
+    if arch == "mnv3s":
+        m = torchvision.models.mobilenet_v3_small(weights="DEFAULT"); m.classifier = torch.nn.Linear(576, dim)
+    elif arch == "mnv3l":
+        m = torchvision.models.mobilenet_v3_large(weights="DEFAULT"); m.classifier = torch.nn.Linear(960, dim)
+    elif arch == "effb0":
+        m = torchvision.models.efficientnet_b0(weights="DEFAULT"); m.classifier = torch.nn.Linear(1280, dim)
+    elif arch == "resnet18":
+        m = torchvision.models.resnet18(weights="DEFAULT"); m.fc = torch.nn.Linear(512, dim)
+    else:
+        raise ValueError(arch)
     return m
 
 
@@ -134,9 +153,12 @@ def main():
     ap.add_argument("--images-per-batch", type=int, default=16); ap.add_argument("--cells", type=int, default=16)
     ap.add_argument("--workers", type=int, default=10); ap.add_argument("--samples", help="write a few pairs here and stop")
     ap.add_argument("--export", help="write the trained model (out) as ONNX here and stop")
+    ap.add_argument("--arch", default="mnv3s", help="mnv3s, mnv3l, effb0, resnet18")
+    ap.add_argument("--max-step-s", type=float, default=0.5,
+                    help="stop if steps 5-20 average longer: long GPU commands trip the Windows watchdog (TDR) and froze the PC")
     a = ap.parse_args()
     if a.export:
-        m = encoder(); m.load_state_dict(torch.load(a.out, map_location="cpu")); m.eval()
+        m = encoder(a.arch); m.load_state_dict(torch.load(a.out, map_location="cpu")); m.eval()
         torch.onnx.export(m, torch.zeros(1, 3, SIZE, SIZE), a.export, input_names=["image"], output_names=["embedding"],
                           dynamic_axes={"image": {0: "n"}, "embedding": {0: "n"}}, opset_version=17)
         print(a.export, os.path.getsize(a.export) // 1024, "KB"); return
@@ -149,12 +171,8 @@ def main():
         for i in range(16):
             sheet.paste(unnorm(p[i]), (i * SIZE, 0)); sheet.paste(unnorm(b[i]), (i * SIZE, SIZE))
         sheet.save(os.path.join(a.samples, "pairs.png")); return
-    try:
-        import torch_directml
-        dev = torch_directml.device()
-    except ImportError:
-        dev = torch.device("cpu")
-    model = encoder().to(dev)
+    dev = gpu()
+    model = encoder(a.arch).to(dev)
     scale = torch.nn.Parameter(torch.tensor(math.log(1 / 0.07), device=dev))
     opt = torch.optim.AdamW(list(model.parameters()) + [scale], lr=a.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, a.lr, total_steps=a.steps, pct_start=0.05)
@@ -171,7 +189,11 @@ def main():
         target = torch.arange(len(p), device=dev)
         loss = (torch.nn.functional.cross_entropy(logits, target) + torch.nn.functional.cross_entropy(logits.T, target)) / 2
         opt.zero_grad(); loss.backward(); opt.step(); sched.step()
-        avg = float(loss) if avg is None else 0.98 * avg + 0.02 * float(loss)
+        avg = float(loss) if avg is None else 0.98 * avg + 0.02 * float(loss)   # float() waits for the GPU
+        if step == 5:
+            t5 = time.time()
+        if step == 20 and (time.time() - t5) / 15 > a.max_step_s:
+            raise SystemExit(f"{(time.time() - t5) / 15:.2f} s per step > {a.max_step_s}: use smaller batches")
         if step % 200 == 0 or step == a.steps - 1:
             print(f"step {step:6d}  loss {avg:.3f}  T {1 / scale.exp().item():.3f}  {time.time() - t0:.0f} s", flush=True)
             torch.save(model.state_dict(), a.out)

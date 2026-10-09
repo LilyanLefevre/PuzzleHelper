@@ -17,11 +17,9 @@ import torch
 import torchvision
 from PIL import Image
 
-try:
-    import torch_directml
-    DEVICE = torch_directml.device()
-except ImportError:
-    DEVICE = torch.device("cpu")
+from train_reranker import encoder, gpu
+
+DEVICE = gpu()
 
 MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
 STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
@@ -34,9 +32,8 @@ def model(name):
         m = torchvision.models.resnet50(weights="DEFAULT"); m.fc = torch.nn.Identity()
     elif name == "dinov2_s":
         m = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14", verbose=False)
-    elif name.endswith(".pt"):                     # re-ranker trained by train_reranker.py
-        from train_reranker import encoder
-        m = encoder(); m.load_state_dict(torch.load(name, map_location="cpu"))
+    elif name.endswith(".pt"):                     # re-ranker trained by train_reranker.py, <arch>_*.pt
+        m = encoder(os.path.basename(name).split("_")[0]); m.load_state_dict(torch.load(name, map_location="cpu"))
     else:
         raise ValueError(name)
     m.eval()
