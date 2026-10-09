@@ -145,6 +145,24 @@ régler la comparaison des couleurs.
 Même banc, mêmes pièces, avant → après intégration dans l'app : banque d'images 64 → 77 % de case exacte (ciel/mer
 51 → 65 %), Puzzle-Map 56 → 69 %, rotation 64 → 76 %.
 
+## Recherche par pixels (`PatchSearch`)
+
+Corrélation croisée normalisée d'un disque de la pièce sur la boîte réduite (12 rotations, 3 échelles, un pixel sur
+deux), ajoutée à la distance couleur avant le re-ranker. Elle ne demande ni la lecture du contour ni la grille exacte.
+Seule, sur 164 pièces de Puzzle-Map : 62 % exact (contre 56 % pour le matcher couleur). Avec le re-ranker, case exacte :
+
+| Banc | re-ranker seul | + pixels (poids 0,4) | + pixels (poids 1,0) |
+|---|---|---|---|
+| Puzzle-Map (643 photos) | 69 % | **77 %** | 75 % |
+| Banque d'images (576 pièces) | 77 % | **78 %** | 73 % (ciel/mer 53 %) |
+
+Un poids plus fort abîme les images plates (la corrélation y est du bruit). Pièces un pixel sur deux et 12 rotations au
+lieu de 24 : -1 point, calcul 3,5 fois plus court. Essai rejeté : poids 1,0.
+
+Cas réel non résolu : puzzle « Famille » (collage de photos, 200 pièces). La bonne case est au rang 17 à 60 du matcher
+couleur, et les pics de corrélation ne départagent pas (0,7 partout). Sans la vraie place des pièces (seul le
+propriétaire la connaît), impossible d'en faire un banc.
+
 ## Limites et prochaines étapes
 
 1. **Photos réelles sur table, annotées.** Le jeu public couvre la couleur et la forme, pas la segmentation sur

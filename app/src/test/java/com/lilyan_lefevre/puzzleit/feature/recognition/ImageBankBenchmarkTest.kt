@@ -49,7 +49,7 @@ class ImageBankBenchmarkTest {
         val rows = ArrayList<Pair<Int, String>>()
         for (f in dir!!.listFiles()!!.filter { it.name.endsWith(".bmp") }.sortedBy { it.name }) {
             val img = Bmp.load(f)
-            val matcher = PieceMatcher(img, 500, reranker = reranker)
+            val matcher = PieceMatcher(img, 500, reranker = reranker, useNcc = TestReranker.useNcc)
             val g = matcher.grid
             val rnd = Random(f.name.hashCode().toLong())
             val score = Score()
@@ -76,7 +76,7 @@ class ImageBankBenchmarkTest {
                 if (dump.enabled) {
                     val ins = matcher.inspect(photo)
                     val mask = ins.mask
-                    val lm = mask?.let { matcher.rank(LabImage.from(ins.image), it, ins.shape, LeadDump.LEADS) }
+                    val lm = mask?.let { matcher.rank(LabImage.from(ins.image), it, ins.shape, LeadDump.LEADS, matcher.pixelSearch(ins.image, it)) }
                     if (mask != null && lm != null) {
                         val cut = Raster(ins.image.w, ins.image.h, IntArray(mask.size) { if (mask[it]) ins.image.px[it] else 0xFF000000.toInt() })
                         dump.add(f, g, cut, col, row, (360 - shot.deg.toInt()) % 360, lm)

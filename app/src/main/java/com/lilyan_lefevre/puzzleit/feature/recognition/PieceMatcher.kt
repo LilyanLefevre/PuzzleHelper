@@ -153,6 +153,7 @@ class PieceMatcher(
     pieces: Int,
     gridOverride: Grid? = null,
     private val reranker: PieceReranker? = null,
+    useNcc: Boolean = true,
 ) {
 
     val grid: Grid
@@ -160,6 +161,7 @@ class PieceMatcher(
     private val cellW: Float
     private val cellH: Float
     private val cands: List<Pair<Candidate, Descriptor>>
+    private val patches: PatchSearch?
 
     init {
         grid = gridOverride ?: Grid.forPuzzle(pieces, reference.w / reference.h.toFloat())
@@ -181,6 +183,7 @@ class PieceMatcher(
             gy += 0.5f
         }
         cands = out
+        patches = if (useNcc) PatchSearch(reference, grid) else null
     }
 
     fun locate(photo: Raster): Analysis {
@@ -190,7 +193,8 @@ class PieceMatcher(
         val pl = LabImage.from(img)
         val mask = segment(pl) ?: return Analysis.NoPiece
         val shape = shape(mask, pl.w, pl.h)
-        val match = rank(pl, mask, shape, if (reranker != null) RERANK_LEADS else 4) ?: return Analysis.NoPiece
+        val ncc = patches?.search(img, mask)
+        val match = rank(pl, mask, shape, if (reranker != null) RERANK_LEADS else 4, ncc) ?: return Analysis.NoPiece
         val cut = cutout(img, mask)
         return Analysis.Found(rerank(match, cut, masked = true), sharp, cut)
     }
@@ -199,7 +203,7 @@ class PieceMatcher(
      * Ranks the box positions for a piece whose pixels are [mask]. [shape] = its outline reading, or null to compare
      * colours only (any of the 4 right-angle rotations, no border constraint). Exposed for the dataset replays.
      */
-    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4): Match? {
+    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4, ncc: PatchSearch.Map? = null): Match? {
         var n = 0; var sx = 0.0; var sy = 0.0
         for (i in mask.indices) if (mask[i]) { n++; sx += i % pl.w; sy += i / pl.w }
         if (n == 0) return null
@@ -221,7 +225,7 @@ class PieceMatcher(
             }
             if (bestR < 0) null
             else c.copy(distance = bestD, rotationDeg = (((bestR * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360)
-        }.sortedBy { it.distance }
+        }.let { if (ncc == null) it else withPixelEvidence(it, ncc) }.sortedBy { it.distance }
         if (scored.isEmpty()) return null
 
         // Non-maximum suppression: alternatives must be at least 1.5 cells away from earlier picks.
@@ -251,6 +255,17 @@ class PieceMatcher(
         return Match(grid, leads[0], leads.drop(1), conf, precision, kind)
     }
 
+    /** Lowers the colour distance where the piece's pixels correlate with the box (both z-scored over the candidates). */
+    private fun withPixelEvidence(c: List<Candidate>, ncc: PatchSearch.Map): List<Candidate> {
+        if (c.size < 2) return c
+        val corr = FloatArray(c.size) { ncc.at(c[it].col, c[it].row) }
+        val med = c.map { it.distance }.sorted()[c.size / 2]
+        val ok = c.indices.filter { c[it].distance < 4 * med }
+        val dm = ok.map { c[it].distance.toDouble() }.average(); val dsd = sqrt(ok.map { (c[it].distance - dm) * (c[it].distance - dm) }.average())
+        val cm = corr.average(); val csd = sqrt(corr.map { (it - cm) * (it - cm).toDouble() }.average()).coerceAtLeast(1e-6)
+        return c.mapIndexed { i, x -> x.copy(distance = max(0.01f, x.distance - (NCC_WEIGHT * dsd * (corr[i] - cm) / csd).toFloat())) }
+    }
+
     /**
      * The network picks the best 4 of the [RERANK_LEADS] leads. Its best lead keeps the confidence it had as a runner-up,
      * so a disagreement with the colour matcher lowers the precision instead of claiming a certainty nobody measured.
@@ -266,6 +281,8 @@ class PieceMatcher(
         }
         return match.copy(best = ordered[0], alternatives = ordered.drop(1), confidence = conf, precision = precision)
     }
+
+    internal fun pixelSearch(img: Raster, mask: BooleanArray) = patches?.search(img, mask)
 
     /** What the matcher sees, step by step: for the real-photo replay harness and debugging. */
     internal class Inspection(val image: Raster, val mask: BooleanArray?, val shape: Shape?, val sharpness: Float)
@@ -551,6 +568,7 @@ class PieceMatcher(
         private const val Z_MIN = 4f
         private val FLOOR = floatArrayOf(4f, 3f, 3f)
         const val RERANK_LEADS = 30
+        var NCC_WEIGHT = 0.4f
         const val CELL_CONF = 55
         const val ZONE_CONF = 30
 
