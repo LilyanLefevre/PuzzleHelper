@@ -19,7 +19,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   ProjectListViewModel), `create/` (ProjectCreation + PuzzleBounds fragments and ViewModels, BoxImageProcessor, GridProcessor).
 - `feature/puzzle/` the table: PuzzleWorkingFragment + ViewModel (`ScanState`, follows the project live, edit/delete),
   PuzzleMapView (leads = piece-sized squares, tappable, clipped to the visible map); `capture/` PieceCaptureFragment + ScanFrameView.
-- `feature/recognition/` `PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut, segmentation
+- `feature/recognition/` `PieceReranker.kt` + `OnnxEmbedder.kt` (assets/reranker.onnx re-orders the top-30 leads), `PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut, segmentation
   (Mahalanobis to the table colour), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints, 4 rotations),
   5x5 Lab grid descriptor (mean, lightness ramp and contrast removed), confidence. `PieceRecognizer` = Bitmap glue,
   crops the square under the viewfinder, archives the last 200 captures + verdicts in `files/captures`.
@@ -88,11 +88,12 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 
 ## Benchmarks (opt-in JVM tests, not in CI; data rebuilt by scripts, macOS `sips`)
 - `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py <dir>` -> `PUZZLE_DATASET_DIR`: Puzzle-Map (CC-BY-4.0),
-  7 puzzles, 643 real hand-held photos with row/col/quarter-turn/sides. Current: 56 % exact cell, 90 % in the 4 leads,
-  rotation 64 %.
+  7 puzzles, 643 real hand-held photos with row/col/quarter-turn/sides. Current (with re-ranker): 69 % exact cell, 93 % in the
+  4 leads, rotation 76 % (56 / 90 / 64 % colour matcher alone).
 - `ImageBankBenchmarkTest` + `tools/dataset/prepare_image_bank.py <dir>` -> `PUZZLE_IMAGES_DIR`: 24 real images as
   500-piece puzzles, 576 pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table).
-  Full pipeline. Current: 64 % exact (75 % textured, 63 % mixed, 51 % sky/sea-heavy), outline 96 %, found 99 %.
+  Full pipeline. Current (with re-ranker): 77 % exact (86 % textured, 79 % mixed, 65 % sky/sea-heavy), outline 96 %, found 99 %
+  (64 % without). Set `PUZZLE_RERANKER=app/src/main/assets/reranker.onnx` to enable it in both benchmarks.
 - `RealPhotoReplayTest` -> `PUZZLE_REAL_DIR`: phone captures (`adb pull .../files/captures`) + box
   (`adb exec-out run-as com.lilyan_lefevre.puzzleit cat files/<project>/puzzle/extraites/*_warped.jpg`), BMP via sips.
 - `PUZZLE_DUMP_DIR` makes the first two export each piece + the top-30 leads (`LeadDump`) for off-device experiments.
@@ -113,7 +114,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 ## Known limits / next steps
 - First-lead accuracy below target on sky/sea-heavy images and on real hand-held photos; the right cell is in the
   top-30 leads 97 % of the time, so a better re-ranker has room. Pretrained networks did not help enough
-  (`documentation/08-ia.md`); next: train a small contrastive model on synthetic pairs from `PiecePhotos`.
+  (`documentation/08-ia.md`); the trained MobileNetV3-small re-ranker is now in the app (ONNX Runtime); next: more varied synthetic photos.
 - Rotation is the weak point on Puzzle-Map (64 %).
 - Segmentation needs contrast between piece and table.
 - The project lives in iCloud Documents: iCloud creates `* 2.*` duplicates in `app/build` and Gradle fails in

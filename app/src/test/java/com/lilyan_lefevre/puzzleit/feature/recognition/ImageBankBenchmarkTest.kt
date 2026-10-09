@@ -43,12 +43,13 @@ class ImageBankBenchmarkTest {
         val dir = System.getenv("PUZZLE_IMAGES_DIR")?.let(::File)
         assumeTrue("PUZZLE_IMAGES_DIR not set", dir != null && dir.isDirectory)
         val dump = LeadDump("bank")
+        val reranker = TestReranker.fromEnv()
         val total = Score()
         val buckets = linkedMapOf("textured (<15% flat)" to Score(), "mixed (15-40%)" to Score(), "flat-heavy (>40%)" to Score())
         val rows = ArrayList<Pair<Int, String>>()
         for (f in dir!!.listFiles()!!.filter { it.name.endsWith(".bmp") }.sortedBy { it.name }) {
             val img = Bmp.load(f)
-            val matcher = PieceMatcher(img, 500)
+            val matcher = PieceMatcher(img, 500, reranker = reranker)
             val g = matcher.grid
             val rnd = Random(f.name.hashCode().toLong())
             val score = Score()

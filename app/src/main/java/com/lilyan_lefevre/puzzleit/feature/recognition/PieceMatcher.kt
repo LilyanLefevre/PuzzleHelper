@@ -148,7 +148,12 @@ sealed interface Analysis {
  * to the matching border cells and to the single rotation that puts the flat sides outward.
  * Brightness/white balance are partly cancelled by mean-centring.
  */
-class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
+class PieceMatcher(
+    private val reference: Raster,
+    pieces: Int,
+    gridOverride: Grid? = null,
+    private val reranker: PieceReranker? = null,
+) {
 
     val grid: Grid
     private val lab: LabImage
@@ -185,8 +190,9 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         val pl = LabImage.from(img)
         val mask = segment(pl) ?: return Analysis.NoPiece
         val shape = shape(mask, pl.w, pl.h)
-        val match = rank(pl, mask, shape) ?: return Analysis.NoPiece
-        return Analysis.Found(match, sharp, cutout(img, mask))
+        val match = rank(pl, mask, shape, if (reranker != null) RERANK_LEADS else 4) ?: return Analysis.NoPiece
+        val cut = cutout(img, mask)
+        return Analysis.Found(rerank(match, cut, masked = true), sharp, cut)
     }
 
     /**
@@ -243,6 +249,22 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
             c.copy(confidence = if (i == 0) conf else (conf * s / spread.coerceAtLeast(1e-3f)).roundToInt().coerceIn(0, conf))
         }
         return Match(grid, leads[0], leads.drop(1), conf, precision, kind)
+    }
+
+    /**
+     * The network picks the best 4 of the [RERANK_LEADS] leads. Its best lead keeps the confidence it had as a runner-up,
+     * so a disagreement with the colour matcher lowers the precision instead of claiming a certainty nobody measured.
+     */
+    internal fun rerank(match: Match, piece: Raster, masked: Boolean): Match {
+        val r = reranker ?: return match
+        val ordered = r.rerank(listOf(match.best) + match.alternatives, piece, reference, grid, masked).take(4)
+        val conf = ordered[0].confidence
+        val precision = when {
+            conf >= CELL_CONF -> Precision.CELL
+            conf >= ZONE_CONF -> Precision.ZONE
+            else -> Precision.UNSURE
+        }
+        return match.copy(best = ordered[0], alternatives = ordered.drop(1), confidence = conf, precision = precision)
     }
 
     /** What the matcher sees, step by step: for the real-photo replay harness and debugging. */
@@ -528,6 +550,7 @@ class PieceMatcher(reference: Raster, pieces: Int, gridOverride: Grid? = null) {
         const val MIN_SHARPNESS = 12f
         private const val Z_MIN = 4f
         private val FLOOR = floatArrayOf(4f, 3f, 3f)
+        const val RERANK_LEADS = 30
         const val CELL_CONF = 55
         const val ZONE_CONF = 30
 

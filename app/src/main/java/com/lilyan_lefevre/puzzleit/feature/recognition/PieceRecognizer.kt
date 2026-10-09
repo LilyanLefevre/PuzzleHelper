@@ -16,9 +16,17 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
 
     class Prepared(val display: Bitmap, val matcher: PieceMatcher)
 
+    /** Loaded once; null without a context (JVM tests) or if the model cannot be read: the colour matcher then works alone. */
+    private val reranker: PieceReranker? by lazy {
+        runCatching {
+            val e = OnnxEmbedder(context!!.assets.open("reranker.onnx").use { it.readBytes() })
+            PieceReranker(e::embed)
+        }.onFailure { android.util.Log.e("PieceRecognizer", "re-ranker unavailable", it) }.getOrNull()
+    }
+
     suspend fun prepare(referencePath: String, pieces: Int, grid: Grid? = null): Prepared? = withContext(Dispatchers.Default) {
         val bmp = decode(referencePath, 2400) ?: return@withContext null
-        Prepared(bmp, PieceMatcher(bmp.toRaster(), pieces, grid))
+        Prepared(bmp, PieceMatcher(bmp.toRaster(), pieces, grid, reranker))
     }
 
     /**

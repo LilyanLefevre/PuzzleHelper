@@ -17,12 +17,13 @@ import kotlinx.coroutines.runBlocking
 @RunWith(AndroidJUnit4::class)
 class PieceRecognizerDeviceTest {
 
-    private val dir: File = InstrumentationRegistry.getInstrumentation().targetContext.cacheDir
+    private val context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val dir: File = context.cacheDir
     private val cols = 20
     private val rows = 15
     private val art = TestImages.boxArt()
     private val ref = TestImages.save(art, dir, "ref_test.jpg")
-    private val recognizer = PieceRecognizer(null)
+    private val recognizer = PieceRecognizer(context)
 
     private fun prepare() = runBlocking { recognizer.prepare(ref.absolutePath, cols * rows, Grid(cols, rows)) }!!
 
@@ -31,6 +32,7 @@ class PieceRecognizerDeviceTest {
         var grid: Grid? = null
         val ms = measureTimeMillis { grid = prepare().matcher.grid }
         assertEquals(Grid(cols, rows), grid)
+        println("TIMING prepare (with re-ranker model load) $ms ms")
         assertTrue("prepare took $ms ms", ms < 3000)
     }
 
@@ -50,6 +52,7 @@ class PieceRecognizerDeviceTest {
                 if (m.best.rotationDeg == ((360 - deg.toInt()) % 360)) rot++
             }
         }
+        println("TIMING slowest scan $worst ms")
         assertTrue("located $hits/${cases.size}", hits >= 4)
         assertTrue("rotation $rot/$hits", rot >= hits - 1)
         assertTrue("slowest scan $worst ms (PRD: < 3 s)", worst < 3000)

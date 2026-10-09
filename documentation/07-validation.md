@@ -140,6 +140,11 @@ régler la comparaison des couleurs.
 - **Lancer `connectedDebugAndroidTest` sur un vrai téléphone désinstalle l'app et efface ses données.** Sur
   téléphone : `installDebug installDebugAndroidTest` puis `adb shell am instrument`.
 
+## Avec le re-ranker neuronal ([08](08-ia.md))
+
+Même banc, mêmes pièces, avant → après intégration dans l'app : banque d'images 64 → 77 % de case exacte (ciel/mer
+51 → 65 %), Puzzle-Map 56 → 69 %, rotation 64 → 76 %.
+
 ## Limites et prochaines étapes
 
 1. **Photos réelles sur table, annotées.** Le jeu public couvre la couleur et la forme, pas la segmentation sur

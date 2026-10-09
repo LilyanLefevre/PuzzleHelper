@@ -25,10 +25,11 @@ class DatasetReplayTest {
     }
 
     private val dump = LeadDump("dataset")
+    private val reranker = TestReranker.fromEnv()
 
     private fun replay(dir: File): Pair<Score, Score> {
         val (cols, rows) = File(dir, "grid.txt").readText().trim().split(Regex("\\s+")).map { it.toInt() }
-        val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows))
+        val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows), reranker)
         val colourOnly = Score(cols * rows); val withSides = Score(cols * rows)
         for (line in File(dir, "pieces.tsv").readLines().filter { it.isNotBlank() }) {
             val p = line.split('\t')
@@ -42,14 +43,15 @@ class DatasetReplayTest {
             val mask = BooleanArray(img.w * img.h) { i -> val x = i % img.w; val y = i / img.w; x in x0 + ix until x1 - ix && y in y0 + iy until y1 - iy }
             // angle = CCW rotation of the piece in the photo, so the clockwise correction is the same angle.
             val want = ((angle % 360) + 360) % 360
+            val bx0 = (x0 + ix).coerceIn(0, img.w - 1); val by0 = (y0 + iy).coerceIn(0, img.h - 1)
+            val bw = ((x1 - ix).coerceAtMost(img.w) - bx0).coerceAtLeast(1); val bh = ((y1 - iy).coerceAtMost(img.h) - by0).coerceAtLeast(1)
+            val body = Raster(bw, bh, IntArray(bw * bh) { img.px[(by0 + it / bw) * img.w + bx0 + it % bw] })
             if (dump.enabled) matcher.rank(lab, mask, Shape(0f, sides), LeadDump.LEADS)?.let { lm ->
-                val bx0 = (x0 + ix).coerceIn(0, img.w - 1); val by0 = (y0 + iy).coerceIn(0, img.h - 1)
-                val bw = ((x1 - ix).coerceAtMost(img.w) - bx0).coerceAtLeast(1); val bh = ((y1 - iy).coerceAtMost(img.h) - by0).coerceAtLeast(1)
-                val body = Raster(bw, bh, IntArray(bw * bh) { img.px[(by0 + it / bw) * img.w + bx0 + it % bw] })
                 dump.add(File(dir, "box.bmp"), Grid(cols, rows), body, col, row, want, lm)
             }
             for ((score, shape) in listOf(colourOnly to null, withSides to Shape(0f, sides))) {
-                val m = matcher.rank(lab, mask, shape) ?: continue
+                val ranked = matcher.rank(lab, mask, shape, if (reranker != null && shape != null) PieceMatcher.RERANK_LEADS else 4) ?: continue
+                val m = if (shape != null) matcher.rerank(ranked, body, masked = false) else ranked
                 score.n++
                 fun near(c: Candidate) = abs(c.col - (col + .5f)) <= 1.01f && abs(c.row - (row + .5f)) <= 1.01f
                 if (hypot(m.best.col - (col + .5f), m.best.row - (row + .5f)) <= 0.51f) score.exact++

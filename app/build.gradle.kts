@@ -54,6 +54,10 @@ dependencies {
 
     // OpenCV dependency using version catalog
     implementation(libs.opencv)
+
+    // Piece re-ranker network; the desktop build runs the same model in the JVM benchmarks
+    implementation(libs.onnxruntime.android)
+    testImplementation(libs.onnxruntime.jvm)
     
     // Android core dependencies
     implementation(libs.androidx.core.ktx)
@@ -106,4 +110,8 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.hilt.android.testing)
     kaptAndroidTest(libs.hilt.compiler)
+}
+// The desktop onnxruntime replaces the Android one (same classes, different natives) on the JVM test classpath.
+configurations.matching { it.name.contains("UnitTest") }.configureEach {
+    exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android")
 }
