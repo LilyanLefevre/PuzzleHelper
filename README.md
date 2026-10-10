@@ -8,10 +8,10 @@
 Stuck on a 1000-piece sky? Photograph a loose piece and PuzzleIt shows **where it goes on the box image**, how to
 turn it, and how sure it is. Android, Kotlin, fully offline.
 
-<p align="center"><img src="documentation/screenshots/demo.gif" width="270" alt="Demo: the result sheet slides between its levels, a lead card brings you back to the map"></p>
+<p align="center"><a href="documentation/screenshots/demo.mp4"><img src="documentation/screenshots/demo.png" width="270" alt="Demo video: the result sheet slides between its levels, a lead card brings you back to the map"></a></p>
 
-*The result sheet has four levels (the leads, the piece next to the box, why these leads, hidden). The demo runs on
-the test box art of the instrumented tests.*
+*Click for the video (10 s, recorded on a phone). The result sheet has four levels (the leads, the piece next to the
+box, why these leads, hidden). The demo runs on the test box art of the instrumented tests.*
 
 | My puzzles | Puzzle table | A piece found | Why these leads | Free map |
 |---|---|---|---|---|
