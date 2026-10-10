@@ -1,6 +1,7 @@
 package com.lilyan_lefevre.puzzleit.e2e
 
 import android.Manifest
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.ParcelFileDescriptor
 import android.view.View
@@ -19,6 +20,7 @@ import androidx.test.rule.GrantPermissionRule
 import com.lilyan_lefevre.puzzleit.MainActivity
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.TestImages
+import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import com.lilyan_lefevre.puzzleit.feature.puzzle.capture.PieceCaptureFragment
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -29,6 +31,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -86,10 +89,12 @@ class DemoTourTest {
         shell("input tap $x $y")
     }
 
-    @Test
-    fun tour() {
+    /** The puzzle to film, its box image and the grid a piece photo is cut on. */
+    private class Demo(val project: Project, val art: Bitmap, val cols: Int, val rows: Int)
+
+    /** Never "the first puzzle": the phone holds the person's private puzzles. The one to film is named on the command line. */
+    private fun chosenPuzzle(): Demo {
         hilt.inject()
-        // Never "the first puzzle": the phone holds the person's private puzzles. The one to film is named on the command line.
         val wanted = InstrumentationRegistry.getArguments().getString("demoPuzzle")
         assumeTrue("needs -e demoPuzzle \"<name of the puzzle to film>\"", wanted != null)
         val project = runBlocking { repository.getAllProjects().first() }.firstOrNull { it.name == wanted && it.warpedPath.isNotEmpty() }
@@ -97,8 +102,30 @@ class DemoTourTest {
         project!!
         val art = BitmapFactory.decodeFile(project.warpedPath, BitmapFactory.Options().apply { inSampleSize = 2 })
         val cols = sqrt(project.puzzleSize * art.width.toFloat() / art.height).roundToInt()
-        val rows = (project.puzzleSize / cols.toFloat()).roundToInt()
-        val photo = TestImages.save(TestImages.piecePhoto(art, cols, rows, (cols * 0.4f).toInt(), (rows * 0.5f).toInt(), 90f), ctx.cacheDir, "demo_piece.jpg")
+        return Demo(project, art, cols, (project.puzzleSize / cols.toFloat()).roundToInt())
+    }
+
+    private fun pieceOf(d: Demo, name: String) =
+        TestImages.save(TestImages.piecePhoto(d.art, d.cols, d.rows, (d.cols * 0.4f).toInt(), (d.rows * 0.5f).toInt(), 90f), ctx.cacheDir, name)
+
+    /** PixelCopy of the app window (the status bar is not in it): `adb pull /sdcard/Android/data/<pkg>/files/shots`. */
+    private fun shot(scenario: ActivityScenario<MainActivity>, label: String) {
+        var window: android.view.Window? = null
+        scenario.onActivity { window = it.window }
+        val w = window ?: return
+        val bmp = Bitmap.createBitmap(w.decorView.width, w.decorView.height, Bitmap.Config.ARGB_8888)
+        val latch = java.util.concurrent.CountDownLatch(1)
+        android.view.PixelCopy.request(w, bmp, { latch.countDown() }, android.os.Handler(android.os.Looper.getMainLooper()))
+        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        val dir = File(ctx.getExternalFilesDir(null), "shots").also { it.mkdirs() }
+        java.io.FileOutputStream(File(dir, "readme_$label.png")).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    @Test
+    fun tour() {
+        val demo = chosenPuzzle()
+        val project = demo.project
+        val photo = pieceOf(demo, "demo_piece.jpg")
 
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             waitFor { onView(withText(project.name)).check(matches(isDisplayed())) }
@@ -146,6 +173,75 @@ class DemoTourTest {
             shell("kill -2 ${shell("pidof screenrecord").trim()}")   // SIGINT: the recorder finishes the file
             Thread.sleep(2000)
             recorder.close()
+        }
+    }
+
+    /** The README screenshots (table, blurry photo, result, "why these leads", free map), on the same puzzle; the list is not captured, it shows every puzzle of the phone. */
+    @Test
+    fun readmeShots() {
+        val demo = chosenPuzzle()
+        val project = demo.project
+        val photo = pieceOf(demo, "demo_piece.jpg")
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitFor { onView(withText(project.name)).check(matches(isDisplayed())) }
+            tap(scenario, "project") { it is android.widget.TextView && it.text.toString() == project.name }
+            waitFor { onView(withId(R.id.buttonCapturePiece)).check(matches(isDisplayed())) }
+            Thread.sleep(2500)
+            shot(scenario, "table")
+
+            fun idle(): Boolean { var v = true; scenario.onActivity { v = it.findViewById<View>(R.id.groupIdle).visibility == View.VISIBLE }; return v }
+            fun send(file: File) = waitFor(60_000) {
+                if (idle()) {
+                    scenario.onActivity { a: FragmentActivity ->
+                        val host = a.supportFragmentManager.findFragmentById(R.id.nav_host_fragment)!!
+                        host.childFragmentManager.setFragmentResult(PieceCaptureFragment.RESULT_KEY, bundleOf(PieceCaptureFragment.PHOTO_PATH to file.absolutePath))
+                    }
+                    Thread.sleep(300)
+                }
+                check(!idle()) { "the table did not start analysing" }
+            }
+
+            send(photo)
+            waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
+            Thread.sleep(3500); shot(scenario, "result")
+
+            var width = 0f; var height = 0f
+            scenario.onActivity { width = it.window.decorView.width.toFloat(); height = it.window.decorView.height.toFloat() }
+            fun sheetTop(): Float {
+                var y = 0f
+                scenario.onActivity { val loc = IntArray(2); it.findViewById<View>(R.id.sheet).getLocationOnScreen(loc); y = loc[1] + 24 * it.resources.displayMetrics.density }
+                return y
+            }
+            swipe(width / 2, sheetTop(), 0.04f * height, 900); Thread.sleep(2500); shot(scenario, "why")
+            swipe(width / 2, sheetTop(), 0.995f * height, 200); Thread.sleep(2500); shot(scenario, "map")
+        }
+    }
+
+    /** The README screenshot of a blurry photo being refused, on the same puzzle. */
+    @Test
+    fun readmeBlurry() {
+        val demo = chosenPuzzle()
+        val project = demo.project
+        val blurry = TestImages.save(TestImages.blurred(TestImages.piecePhoto(demo.art, demo.cols, demo.rows, 5, 5, 0f)), ctx.cacheDir, "demo_blur.jpg")
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitFor { onView(withText(project.name)).check(matches(isDisplayed())) }
+            tap(scenario, "project") { it is android.widget.TextView && it.text.toString() == project.name }
+            waitFor { onView(withId(R.id.buttonCapturePiece)).check(matches(isDisplayed())) }
+            fun idle(): Boolean { var v = true; scenario.onActivity { v = it.findViewById<View>(R.id.groupIdle).visibility == View.VISIBLE }; return v }
+            waitFor(60_000) {
+                if (idle()) {
+                    scenario.onActivity { a: FragmentActivity ->
+                        val host = a.supportFragmentManager.findFragmentById(R.id.nav_host_fragment)!!
+                        host.childFragmentManager.setFragmentResult(PieceCaptureFragment.RESULT_KEY, bundleOf(PieceCaptureFragment.PHOTO_PATH to blurry.absolutePath))
+                    }
+                    Thread.sleep(300)
+                }
+                check(!idle()) { "the table did not start analysing" }
+            }
+            waitFor { onView(withId(R.id.groupError)).check(matches(isDisplayed())) }
+            Thread.sleep(1200); shot(scenario, "blurry")
         }
     }
 }

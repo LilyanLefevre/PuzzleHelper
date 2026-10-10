@@ -112,6 +112,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   `-e demoPuzzle "La vague"` (never "the first one": the phone holds the owner's private puzzles such as "Famille", which must never be filmed, captured or published; the list is not filmed either),
   read only, real swipes, animations ON; skipped without that argument. Encode with ffmpeg `-vf fps=60` H.264,
   no ffmpeg installed: `pip install imageio-ffmpeg`. Never let the recording run into the home screen). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
+  README images: `DemoTourTest#readmeShots` (table, result, why, map) and `#readmeBlurry`, same `-e demoPuzzle "La vague"`, files `readme_*.png`; scale to 405x868 (ffmpeg, lanczos) into `documentation/screenshots`.
+  `list.png` is not regenerated: the list shows every puzzle of the phone (private ones included), so it needs a phone or emulator that holds only demo puzzles.
 - Phone tips: animations off, `adb shell cmd notification set_dnd on`, `adb shell svc power stayon true`; wireless adb
   drops often (`adb devices` before running). Never use `UiAutomation.takeScreenshot` in Espresso (steals focus).
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`. Demo puzzles `demo-*` on the phone
