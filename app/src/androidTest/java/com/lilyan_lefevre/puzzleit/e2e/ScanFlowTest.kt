@@ -208,7 +208,8 @@ class ScanFlowTest {
             // Away: a long swipe down takes the sheet off whatever the screen's size, the map is free and the button brings the leads back.
             // (The peek level is checked by the card test; on a small screen the half and full levels nearly coincide.)
             drag(scenario, sheetTop(scenario), 0.98f * screenHeight(scenario)); Thread.sleep(900)
-            onView(withId(R.id.pillLeads)).check(matches(isDisplayed())); shot(scenario, "8_hidden")
+            // The swipe is a shell command: on a slow CI emulator it lands late.
+            waitFor { onView(withId(R.id.pillLeads)).check(matches(isDisplayed())) }; shot(scenario, "8_hidden")
             onView(withId(R.id.pillLeads)).perform(click()); Thread.sleep(700)
             onView(withId(R.id.textSpot)).check(matches(isDisplayed()))
         }
