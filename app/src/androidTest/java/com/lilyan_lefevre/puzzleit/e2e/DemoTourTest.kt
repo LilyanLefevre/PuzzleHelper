@@ -34,8 +34,9 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * Plays the tour that the README video shows, with slow real swipes, on the first puzzle already on the device (read only).
- * The screen records itself into /sdcard/demo.mp4: `adb pull /sdcard/demo.mp4`. Skipped when the device has no puzzle.
+ * Plays the tour that the README video shows, with slow real swipes, on the puzzle already on the device whose name is given as
+ * `-e demoPuzzle "<name>"` (read only; the phone also holds private puzzles, so it is never picked by itself).
+ * The screen records itself into /sdcard/demo.mp4: `adb pull /sdcard/demo.mp4`. Skipped without that argument or when no puzzle has that name.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -88,8 +89,11 @@ class DemoTourTest {
     @Test
     fun tour() {
         hilt.inject()
-        val project = runBlocking { repository.getAllProjects().first() }.firstOrNull { it.warpedPath.isNotEmpty() }
-        assumeTrue("needs a puzzle on the device", project != null)
+        // Never "the first puzzle": the phone holds the person's private puzzles. The one to film is named on the command line.
+        val wanted = InstrumentationRegistry.getArguments().getString("demoPuzzle")
+        assumeTrue("needs -e demoPuzzle \"<name of the puzzle to film>\"", wanted != null)
+        val project = runBlocking { repository.getAllProjects().first() }.firstOrNull { it.name == wanted && it.warpedPath.isNotEmpty() }
+        assumeTrue("no puzzle named \"$wanted\" on the device", project != null)
         project!!
         val art = BitmapFactory.decodeFile(project.warpedPath, BitmapFactory.Options().apply { inSampleSize = 2 })
         val cols = sqrt(project.puzzleSize * art.width.toFloat() / art.height).roundToInt()
@@ -98,10 +102,10 @@ class DemoTourTest {
 
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             waitFor { onView(withText(project.name)).check(matches(isDisplayed())) }
-            val recorder = instrumentation.uiAutomation.executeShellCommand("screenrecord --size 720x1544 --bit-rate 14000000 /sdcard/demo.mp4")
-            Thread.sleep(1500)
+            // The list is not filmed: it shows every puzzle of the phone. The recording starts once inside the chosen puzzle.
             tap(scenario, "project") { it is android.widget.TextView && it.text.toString() == project.name }
             waitFor { onView(withId(R.id.buttonCapturePiece)).check(matches(isDisplayed())) }
+            val recorder = instrumentation.uiAutomation.executeShellCommand("screenrecord --size 720x1544 --bit-rate 14000000 /sdcard/demo.mp4")
             Thread.sleep(2500)
 
             // The photo goes through the channel the camera screen uses; sent again until the matcher is ready.
