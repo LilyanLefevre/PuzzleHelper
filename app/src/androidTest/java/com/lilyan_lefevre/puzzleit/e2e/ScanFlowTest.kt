@@ -1,6 +1,7 @@
 package com.lilyan_lefevre.puzzleit.e2e
 
 import android.Manifest
+import android.view.View
 import androidx.core.os.bundleOf
 import androidx.fragment.app.FragmentActivity
 import androidx.test.core.app.ActivityScenario
@@ -8,6 +9,7 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -21,6 +23,7 @@ import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import com.lilyan_lefevre.puzzleit.feature.puzzle.capture.PieceCaptureFragment
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import org.hamcrest.CoreMatchers.allOf
 import org.hamcrest.CoreMatchers.containsString
 import org.junit.After
 import org.junit.Assert.assertNull
@@ -112,7 +115,7 @@ class ScanFlowTest {
         openTable().use { scenario ->
             // The project loads asynchronously: wait for it instead of asserting on the first frame.
             waitFor { onView(withId(R.id.textViewProjectName)).check(matches(withText(name))) }
-            waitFor { onView(withId(R.id.textViewProjectInfo)).check(matches(withText(containsString("20 × 15")))) }
+            waitFor { onView(withId(R.id.textViewProjectInfo)).check(matches(withText(containsString("${cols * rows}")))) }
             onView(withId(R.id.mapView)).check(matches(isDisplayed()))
             Thread.sleep(800); shot(scenario, "1_table")
         }
@@ -132,11 +135,52 @@ class ScanFlowTest {
             onView(withId(R.id.confBar)).check(matches(isDisplayed()))
             onView(withId(R.id.chipLeads)).check(matches(isDisplayed()))
             onView(withId(R.id.chipLeads)).check(matches(isDisplayed()))
-            onView(withText(containsString(ctx.getString(R.string.alt_lead, 2)))).perform(click())
+            onView(allOf(withText(containsString(ctx.getString(R.string.alt_lead, 2))), isDescendantOfA(withId(R.id.chipLeads)))).perform(click())
             waitFor { onView(withId(R.id.textLead)).check(matches(withText(containsString(ctx.getString(R.string.alt_lead, 2))))) }
             Thread.sleep(1200); shot(scenario, "4_second_lead")
             onView(withId(R.id.buttonDismiss)).perform(click())
             waitFor { onView(withId(R.id.groupIdle)).check(matches(isDisplayed())) }
+        }
+    }
+
+    /** A real swipe from [fromY] to [toY] (screen pixels) through the input system, like a finger on the sheet. */
+    private fun drag(scenario: ActivityScenario<MainActivity>, fromY: Float, toY: Float) {
+        var x = 0
+        scenario.onActivity { x = it.window.decorView.width / 2 }
+        InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input swipe $x ${fromY.toInt()} $x ${toY.toInt()} 300").close()
+    }
+
+    private fun sheetTop(scenario: ActivityScenario<MainActivity>): Float {
+        var y = 0f
+        scenario.onActivity {
+            val loc = IntArray(2); it.findViewById<View>(R.id.sheet).getLocationOnScreen(loc)
+            y = loc[1] + 24 * it.resources.displayMetrics.density
+        }
+        return y
+    }
+
+    @Test
+    fun resultSheetSlidesFromPeekToFullAndAwayAndBack() {
+        openTable().use { scenario ->
+            inject(scenario, TestImages.save(TestImages.piecePhoto(art, cols, rows, 9, 6, 90f), ctx.cacheDir, "e2e_piece2.jpg"))
+            waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
+            Thread.sleep(1800)
+            onView(withId(R.id.confBar)).check(matches(isDisplayed()))               // half level: the comparison is visible
+            // Up to the full level: the page that explains the leads.
+            shot(scenario, "5_half")
+            drag(scenario, sheetTop(scenario), 120f); Thread.sleep(700)
+            shot(scenario, "6_after_drag_up")
+            onView(withId(R.id.groupExplain)).check(matches(isDisplayed())); shot(scenario, "6_explain")
+            // Down to half, then to peek: only the leads remain.
+            drag(scenario, sheetTop(scenario), sheetTop(scenario) + 900f); Thread.sleep(700)
+            onView(withId(R.id.confBar)).check(matches(isDisplayed()))
+            drag(scenario, sheetTop(scenario), sheetTop(scenario) + 700f); Thread.sleep(700)
+            onView(withId(R.id.chipLeads)).check(matches(isDisplayed())); shot(scenario, "7_peek")
+            // Away: the map is free, the button brings the leads back.
+            drag(scenario, sheetTop(scenario), sheetTop(scenario) + 700f); Thread.sleep(700)
+            onView(withId(R.id.pillLeads)).check(matches(isDisplayed())); shot(scenario, "8_hidden")
+            onView(withId(R.id.pillLeads)).perform(click()); Thread.sleep(700)
+            onView(withId(R.id.confBar)).check(matches(isDisplayed()))
         }
     }
 

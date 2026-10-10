@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -119,26 +119,45 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
-    <!-- Bottom sheet: one visible state at a time -->
+    <!-- Bottom sheet. Result state: dragged between peek (the leads), half (comparison), full (why these leads) and hidden;
+         idle, analysing and error states are fixed. -->
     <LinearLayout
         android:id="@+id/sheet"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_height="match_parent"
         android:background="@drawable/bg_sheet"
         android:clickable="true"
         android:focusable="true"
         android:orientation="vertical"
-        android:paddingHorizontal="24dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="24dp">
+        app:behavior_expandedOffset="72dp"
+        app:behavior_fitToContents="false"
+        app:behavior_halfExpandedRatio="0.55"
+        app:behavior_hideable="true"
+        app:behavior_peekHeight="160dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 
         <View
             android:layout_width="40dp"
             android:layout_height="5dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="20dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="16dp"
             android:background="@drawable/bg_grabber" />
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/sheetScroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:overScrollMode="never">
+
+            <LinearLayout
+                android:id="@+id/sheetContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="24dp"
+                android:paddingBottom="28dp">
 
         <!-- IDLE -->
         <LinearLayout
@@ -224,6 +243,22 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <HorizontalScrollView
+                android:id="@+id/chipScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipLeads"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:selectionRequired="true"
+                    app:singleLine="true"
+                    app:singleSelection="true" />
+            </HorizontalScrollView>
+
             <TextView
                 android:id="@+id/textLead"
                 android:layout_width="wrap_content"
@@ -238,7 +273,16 @@
                 android:layout_marginTop="2dp"
                 android:textAppearance="@style/Text.Display"
                 android:textSize="26sp"
-                tools:text="Ligne 6 · Colonne 9" />
+                tools:text="En haut à gauche" />
+
+            <TextView
+                android:id="@+id/textSpotDetail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/puzzle_on_surface_variant"
+                android:textSize="14sp"
+                tools:text="à 24 % depuis la gauche · 12 % depuis le haut" />
 
             <!-- Compare: the piece, turned the right way, next to the box at this lead -->
             <LinearLayout
@@ -365,20 +409,6 @@
                 app:trackCornerRadius="6dp"
                 app:trackThickness="8dp" />
 
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:scrollbars="none">
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chipLeads"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:selectionRequired="true"
-                    app:singleLine="true"
-                    app:singleSelection="true" />
-            </HorizontalScrollView>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -409,6 +439,37 @@
                     android:textColor="@color/puzzle_on_surface"
                     app:backgroundTint="@color/puzzle_surface_high"
                     app:cornerRadius="18dp" />
+            </LinearLayout>
+
+            <!-- WHY THESE LEADS (full level) -->
+            <LinearLayout
+                android:id="@+id/groupExplain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/explain_title"
+                    android:textAppearance="@style/Text.Display"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/explain_intro"
+                    android:textColor="@color/puzzle_on_surface_variant"
+                    android:textSize="14sp" />
+
+                <LinearLayout
+                    android:id="@+id/explainList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical" />
             </LinearLayout>
         </LinearLayout>
 
@@ -470,4 +531,19 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-</FrameLayout>
+        </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
+
+    <!-- Back to the leads after the sheet was swiped away to move around the puzzle -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/pillLeads"
+        style="@style/Widget.Puzzle.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="52dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:text="@string/show_leads"
+        android:visibility="gone"
+        app:icon="@drawable/ic_bolt"
+        app:iconGravity="textStart" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

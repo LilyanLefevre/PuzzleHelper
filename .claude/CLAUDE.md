@@ -43,6 +43,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 - **Fragments**: ViewBinding with `_binding` nulled in `onDestroyView`; collect in
   `viewLifecycleOwner.lifecycleScope.launch { repeatOnLifecycle(STARTED) { launch { ... } } }`; navigation with nav
   graph actions; transitions `MaterialSharedAxis` X between screens, Y for the camera.
+- **Result sheet**: a real `BottomSheetBehavior` with four levels - peek (the leads with their %), half (piece next to the box), full ("why these leads" cards with the blinking `LeadComparisonView`), hidden (the map is free, a "Leads" pill brings it back). Its on-screen position is `getLocationOnScreen`, NOT `top` (the behaviour moves it without changing the layout `top`); set levels in an `OnPreDrawListener` once the new state is laid out. No rows x columns anywhere in the UI (unknown before the border is complete): the position is a zone + percentages.
 - **Threading**: IO / image work in injected `@Singleton` classes with `withContext(Dispatchers.IO|Default)`; Bitmaps
   are decoded with a size cap (`inSampleSize`).
 - **Custom views**: draw everything in `onDraw` (no child views), one infinite `ValueAnimator` clock started/stopped in

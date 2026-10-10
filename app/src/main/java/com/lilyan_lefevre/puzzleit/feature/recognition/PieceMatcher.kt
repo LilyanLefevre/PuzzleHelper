@@ -105,6 +105,13 @@ data class Candidate(
     val quarter: Int = 0,
     /** Fused score (network similarity and colour, z-scored): what the leads are ordered by. */
     val score: Float = 0f,
+    /** The network's and the colour matcher's z-scores for this place (higher similarity / lower colour distance = better). */
+    val simZ: Float = 0f,
+    val colourZ: Float = 0f,
+    /** Rank of this place among [pool] candidates by network similarity and by colour (1 = best); 0 when the network did not search the box. */
+    val simRank: Int = 0,
+    val colourRank: Int = 0,
+    val pool: Int = 0,
 ) {
     val cell: Pair<Int, Int> get() = col.toInt() to row.toInt()
 }
@@ -260,7 +267,8 @@ class PieceMatcher(
         }
         if (evidence != null) {
             // Confidence from the fused scores themselves, so it always follows the order of the leads.
-            val placed = withConfidence(refine(picks, evidence), CONF_TEMPERATURE)
+            val ranked = picks.map { p -> p.copy(simRank = scored.count { it.simZ > p.simZ } + 1, colourRank = scored.count { it.colourZ < p.colourZ } + 1, pool = scored.size) }
+            val placed = withConfidence(refine(ranked, evidence), CONF_TEMPERATURE)
             return Match(grid, placed[0], placed.drop(1), placed[0].confidence, precisionOf(placed[0].confidence), kind)
         }
         val dMed = scored.map { it.distance }.sorted()[scored.size / 2]
@@ -291,7 +299,7 @@ class PieceMatcher(
         fun z(v: DoubleArray): DoubleArray { val m = v.average(); val sd = sqrt(v.sumOf { (it - m) * (it - m) } / v.size).coerceAtLeast(1e-9); return DoubleArray(v.size) { (v[it] - m) / sd } }
         val zs = z(s); val zd = z(d)
         return c.indices.sortedByDescending { zs[it] - EMBED_COLOUR_WEIGHT * zd[it] }
-            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360, quarter = qBest[it], score = (zs[it] - EMBED_COLOUR_WEIGHT * zd[it]).toFloat()) }
+            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360, quarter = qBest[it], score = (zs[it] - EMBED_COLOUR_WEIGHT * zd[it]).toFloat(), simZ = zs[it].toFloat(), colourZ = zd[it].toFloat()) }
     }
 
     private fun precisionOf(conf: Int) = when {

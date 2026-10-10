@@ -51,7 +51,6 @@ Commence par une photo de la boîte.</string>
     <string name="analyzing">Lecture de la pièce…</string>
     <string name="analyzing_sub">Comparaison avec la boîte, 8 rotations</string>
     <string name="best_lead">Meilleure piste</string>
-    <string name="spot_cell">Ligne %1$d · Colonne %2$d</string>
     <string name="rotate_hint">Tourne-la de %d° vers la droite</string>
     <string name="rotate_none">Déjà dans le bon sens</string>
     <string name="confidence_label">Confiance</string>
@@ -67,7 +66,6 @@ Commence par une photo de la boîte.</string>
     <string name="no_piece_body">Pose-la seule sur une surface unie, dans le cadre.</string>
     <string name="retake">Reprendre</string>
     <string name="light">Lumière</string>
-    <string name="grid_info">%1$d pièces · grille %2$d × %3$d</string>
     <string name="back">Retour</string>
     <string name="rotate_hint_ccw">Tourne-la de %d° vers la gauche</string>
     <string name="new_puzzle_project">Nouveau Puzzle</string>
@@ -88,4 +86,25 @@ Commence par une photo de la boîte.</string>
     <string name="project_deletion_failed">Impossible de supprimer le puzzle</string>
     <string name="project_not_found">Puzzle introuvable</string>
     <string name="reference_missing">L\'image de la boîte de ce puzzle est introuvable</string>
+
+    <!-- Result sheet: levels, zone and the "why these leads" page -->
+    <string name="show_leads">Pistes</string>
+    <string name="explain_title">Pourquoi ces pistes ?</string>
+    <string name="explain_intro">Chaque piste est un endroit de la boîte où la pièce ressemble à l\'image imprimée. La pièce clignote sur la boîte : si l\'image se prolonge sans rupture à travers elle, c\'est le bon endroit.</string>
+    <string name="compare_hint">Touche pour figer ou relancer le clignotement</string>
+    <string name="compare_description">Ta pièce qui clignote sur la boîte à cette piste</string>
+    <string name="reason_similarity">Ressemblance visuelle : rang %1$d sur %2$d positions</string>
+    <string name="reason_colour">Couleurs : rang %1$d</string>
+    <string name="reason_shape">Forme lue : %1$s (un indice, parfois faux)</string>
+    <string name="piece_inner">Intérieur</string>
+    <string name="spot_percent">à %1$d %% depuis la gauche · %2$d %% depuis le haut</string>
+    <string name="zone_top_left">En haut à gauche</string>
+    <string name="zone_top">En haut</string>
+    <string name="zone_top_right">En haut à droite</string>
+    <string name="zone_left">À gauche</string>
+    <string name="zone_centre">Au centre</string>
+    <string name="zone_right">À droite</string>
+    <string name="zone_bottom_left">En bas à gauche</string>
+    <string name="zone_bottom">En bas</string>
+    <string name="zone_bottom_right">En bas à droite</string>
 </resources>

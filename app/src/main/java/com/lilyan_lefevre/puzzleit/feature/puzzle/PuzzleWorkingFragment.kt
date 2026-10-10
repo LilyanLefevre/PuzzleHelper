@@ -2,13 +2,10 @@ package com.lilyan_lefevre.puzzleit.feature.puzzle
 
 import android.animation.ValueAnimator
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.animation.OvershootInterpolator
 import android.widget.Toast
 import androidx.core.os.bundleOf
@@ -20,22 +17,29 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.transition.AutoTransition
+import androidx.transition.Fade
 import androidx.transition.TransitionManager
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.databinding.FragmentPuzzleWorkingBinding
+import com.lilyan_lefevre.puzzleit.databinding.ItemLeadExplainBinding
 import com.lilyan_lefevre.puzzleit.feature.puzzle.capture.PieceCaptureFragment
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
 import com.lilyan_lefevre.puzzleit.feature.recognition.Grid
+import com.lilyan_lefevre.puzzleit.feature.recognition.Match
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceKind
 import com.lilyan_lefevre.puzzleit.feature.recognition.PieceMatcher
 import dagger.hilt.android.AndroidEntryPoint
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-/** The puzzle table: box image on top, scan / result sheet below. */
+/**
+ * The puzzle table: box image on top, scan / result sheet below. With a result the sheet slides between four levels:
+ * peek (the leads), half (the piece next to the box), full (why these leads) and hidden (the map is free to explore).
+ */
 @AndroidEntryPoint
 class PuzzleWorkingFragment : Fragment() {
 
@@ -44,8 +48,11 @@ class PuzzleWorkingFragment : Fragment() {
 
     private val viewModel: PuzzleWorkingViewModel by viewModels()
     private lateinit var projectId: String
+    private lateinit var sheet: BottomSheetBehavior<View>
     private var grid: Grid? = null
     private var shownState: Any? = null
+    private var resultOn = false
+    private var mapInsetBottom = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,14 +94,31 @@ class PuzzleWorkingFragment : Fragment() {
             b.getString(PieceCaptureFragment.PHOTO_PATH)?.let(viewModel::analyze)
         }
 
-        // The map must stay clear of the floating top bar and of the sheet, whatever its height.
-        val sync = Runnable {
-            _binding?.let { it.mapView.setViewportInsets(it.topBar.bottom, it.root.height - it.sheet.top) }
-        }
-        binding.sheet.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> v.removeCallbacks(sync); v.postDelayed(sync, 90) }
+        sheet = BottomSheetBehavior.from(binding.sheet)
+        sheet.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(sheetView: View, newState: Int) {
+                _binding?.pillLeads?.isVisible = resultOn && newState == BottomSheetBehavior.STATE_HIDDEN
+                if (newState != BottomSheetBehavior.STATE_DRAGGING && newState != BottomSheetBehavior.STATE_SETTLING) syncMap()
+            }
+            override fun onSlide(sheetView: View, slideOffset: Float) = Unit
+        })
+        binding.pillLeads.setOnClickListener { sheet.state = BottomSheetBehavior.STATE_HALF_EXPANDED }
 
         observe()
         viewModel.loadProject(projectId)
+    }
+
+    /** The map must stay clear of the floating top bar and of the sheet, whatever its level; the full level covers it on purpose. */
+    private val syncMapRunnable = Runnable {
+        _binding?.let { b ->
+            if (sheet.state != BottomSheetBehavior.STATE_EXPANDED) mapInsetBottom = (b.root.height - b.sheet.topIn(b.root)).coerceAtLeast(0)
+            b.mapView.setViewportInsets(b.topBar.bottom, mapInsetBottom)
+        }
+    }
+
+    private fun syncMap() {
+        binding.sheet.removeCallbacks(syncMapRunnable)
+        binding.sheet.postDelayed(syncMapRunnable, 90)
     }
 
     private fun observe() {
@@ -105,7 +129,6 @@ class PuzzleWorkingFragment : Fragment() {
                         val (bmp, g) = r ?: return@collect
                         grid = g
                         binding.mapView.setImage(bmp, g)
-                        viewModel.project.value?.let { bindProject(it.name, it.puzzleSize) }   // the grid is known now
                     }
                 }
                 launch { viewModel.project.collect { p -> p?.let { bindProject(it.name, it.puzzleSize) } } }
@@ -130,11 +153,10 @@ class PuzzleWorkingFragment : Fragment() {
         }
     }
 
+    /** Name and piece count: the rows x columns of the puzzle are not shown, nobody knows them before the border is complete. */
     private fun bindProject(name: String, pieces: Int) {
         binding.textViewProjectName.text = name
-        val g = grid
-        binding.textViewProjectInfo.text =
-            if (g != null) getString(R.string.grid_info, pieces, g.cols, g.rows) else getString(R.string.pieces_name, pieces)
+        binding.textViewProjectInfo.text = getString(R.string.pieces_name, pieces)
     }
 
     // ---------------------------------------------------------------- states
@@ -145,13 +167,15 @@ class PuzzleWorkingFragment : Fragment() {
         val first = prev == null
         if (state == prev) return
         shownState = state
-        if (!first) TransitionManager.beginDelayedTransition(binding.sheet, AutoTransition().setDuration(300))
+        if (!first) TransitionManager.beginDelayedTransition(binding.sheetContent, Fade().setDuration(180))
 
         binding.groupIdle.isVisible = state is ScanState.Idle
         binding.groupAnalyzing.isVisible = state is ScanState.Analyzing
         binding.groupResult.isVisible = state is ScanState.Result
         binding.groupError.isVisible = state is ScanState.Blurry || state is ScanState.NoPiece
         binding.mapView.setScanning(state is ScanState.Analyzing)
+        resultOn = state is ScanState.Result
+        binding.pillLeads.isVisible = resultOn && sheet.state == BottomSheetBehavior.STATE_HIDDEN
 
         when (state) {
             ScanState.Idle -> binding.mapView.clearMatch()
@@ -160,6 +184,41 @@ class PuzzleWorkingFragment : Fragment() {
             ScanState.Blurry -> showError(R.string.blurry_title, R.string.blurry_body)
             ScanState.NoPiece -> showError(R.string.no_piece_title, R.string.no_piece_body)
         }
+        levelOnceLaidOut(state, newResult = state is ScanState.Result && prev !is ScanState.Result)
+    }
+
+    /**
+     * The sheet's levels depend on the height of what it shows: wait for the layout of the new state, then set them.
+     * A result opens at the half level; the other states are fixed and show their whole content.
+     */
+    private fun levelOnceLaidOut(state: ScanState, newResult: Boolean) {
+        val v = binding.sheet
+        v.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                v.viewTreeObserver.removeOnPreDrawListener(this)
+                _binding?.let { applyLevels(it, state, newResult) }
+                return true
+            }
+        })
+        v.invalidate()
+    }
+
+    private fun applyLevels(b: FragmentPuzzleWorkingBinding, state: ScanState, newResult: Boolean) {
+        val dp = resources.displayMetrics.density
+        val top = b.sheetScroll.top
+        if (state is ScanState.Result) {
+            sheet.isDraggable = true
+            sheet.isHideable = true
+            sheet.peekHeight = (top + b.chipScroll.bottomIn(b.sheetContent) + 14 * dp).toInt()
+            sheet.halfExpandedRatio = ((top + b.buttonDismiss.bottomIn(b.sheetContent) + 24 * dp) / b.root.height).coerceIn(0.25f, 0.9f)
+            if (newResult) sheet.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+        } else {
+            sheet.isHideable = false
+            sheet.isDraggable = false
+            sheet.peekHeight = top + b.sheetContent.height
+            sheet.state = BottomSheetBehavior.STATE_COLLAPSED
+        }
+        syncMap()
     }
 
     private fun showError(title: Int, body: Int) {
@@ -182,7 +241,8 @@ class PuzzleWorkingFragment : Fragment() {
             PieceKind.EDGE -> binding.textLead.append(" · " + getString(R.string.piece_edge))
             else -> Unit
         }
-        binding.textSpot.text = getString(R.string.spot_cell, cand.cell.second + 1, cand.cell.first + 1)
+        binding.textSpot.text = zoneText(cand)
+        binding.textSpotDetail.text = spotPercent(cand)
 
         showConfidence(cand.confidence)
         if (samePiece != null) { turnPiece(cand.rotationDeg); return }   // only the lead changed
@@ -195,12 +255,12 @@ class PuzzleWorkingFragment : Fragment() {
                 .withEndAction { turnPiece(cand.rotationDeg) }.start()
         }
 
-        // One chip per lead; tapping one moves the spotlight.
+        // One chip per lead, best first with its confidence; tapping one moves the spotlight.
         binding.chipLeads.removeAllViews()
         leads.forEachIndexed { i, c ->
             val chip = Chip(requireContext(), null, 0).apply {
                 id = View.generateViewId()
-                text = getString(R.string.alt_lead, i + 1) + " · " + shortCell(c)
+                text = getString(R.string.alt_lead, i + 1) + " · " + c.confidence + " %"
                 isCheckable = true
                 setChipBackgroundColorResource(R.color.chip_bg)
                 setTextColor(resources.getColorStateList(R.color.chip_text, null))
@@ -210,7 +270,37 @@ class PuzzleWorkingFragment : Fragment() {
             }
             binding.chipLeads.addView(chip)
         }
+        explainCards(r, leads)
     }
+
+    /** The full level: one card per lead with its confidence, the piece blinking over the box, and the reasons. */
+    private fun explainCards(r: ScanState.Result, leads: List<Candidate>) {
+        binding.explainList.removeAllViews()
+        val (box, g) = viewModel.reference.value ?: return
+        leads.forEachIndexed { i, c ->
+            val card = ItemLeadExplainBinding.inflate(layoutInflater, binding.explainList, false)
+            card.leadTitle.text = getString(R.string.alt_lead, i + 1)
+            card.leadValue.text = "${c.confidence} %"
+            card.leadBar.progress = c.confidence
+            card.leadCompare.bind(box, g, c, r.cutout)
+            card.leadReasons.text = reasons(r.match, c)
+            binding.explainList.addView(card.root)
+        }
+    }
+
+    private fun reasons(m: Match, c: Candidate): String = buildList {
+        if (c.pool > 0) {
+            add(getString(R.string.reason_similarity, c.simRank, c.pool))
+            add(getString(R.string.reason_colour, c.colourRank))
+        }
+        add(rotationText(c.rotationDeg))
+        when (m.kind) {
+            PieceKind.CORNER -> R.string.piece_corner
+            PieceKind.EDGE -> R.string.piece_edge
+            PieceKind.INTERIOR -> R.string.piece_inner
+            PieceKind.UNKNOWN -> null
+        }?.let { add(getString(R.string.reason_shape, getString(it))) }
+    }.joinToString("\n")
 
     /** Label, bar and count-up for the lead on screen (each lead has its own confidence). */
     private fun showConfidence(value: Int) {
@@ -225,19 +315,36 @@ class PuzzleWorkingFragment : Fragment() {
         }
     }
 
+    private fun rotationText(deg: Int) = when {
+        deg == 0 -> getString(R.string.rotate_none)
+        deg <= 180 -> getString(R.string.rotate_hint, deg)
+        else -> getString(R.string.rotate_hint_ccw, 360 - deg)
+    }
+
     private fun turnPiece(deg: Int) {
         _binding?.apply {
-            textRotate.text = when {
-                deg == 0 -> getString(R.string.rotate_none)
-                deg <= 180 -> getString(R.string.rotate_hint, deg)
-                else -> getString(R.string.rotate_hint_ccw, 360 - deg)
-            }
+            textRotate.text = rotationText(deg)
             imagePiece.animate().rotation(if (deg <= 180) deg.toFloat() else deg - 360f).setStartDelay(150).setDuration(750)
                 .setInterpolator(OvershootInterpolator(0.8f)).start()
         }
     }
 
-    private fun shortCell(c: Candidate) = "L${c.cell.second + 1} C${c.cell.first + 1}"
+    /** Where on the box, in words: a ninth of the puzzle. Rows and columns are not used, they are not known before the border is complete. */
+    private fun zoneText(c: Candidate): String {
+        val g = grid ?: return ""
+        val x = (c.col / g.cols).coerceIn(0f, 0.999f); val y = (c.row / g.rows).coerceIn(0f, 0.999f)
+        val zones = arrayOf(
+            intArrayOf(R.string.zone_top_left, R.string.zone_top, R.string.zone_top_right),
+            intArrayOf(R.string.zone_left, R.string.zone_centre, R.string.zone_right),
+            intArrayOf(R.string.zone_bottom_left, R.string.zone_bottom, R.string.zone_bottom_right),
+        )
+        return getString(zones[(y * 3).toInt()][(x * 3).toInt()])
+    }
+
+    private fun spotPercent(c: Candidate): String {
+        val g = grid ?: return ""
+        return getString(R.string.spot_percent, (100 * c.col / g.cols).roundToInt().coerceIn(0, 100), (100 * c.row / g.rows).roundToInt().coerceIn(0, 100))
+    }
 
     /** The box at this lead, one cell plus a little margin, in the box's orientation. */
     private fun boxPatch(c: Candidate): android.graphics.Bitmap? {
@@ -253,4 +360,19 @@ class PuzzleWorkingFragment : Fragment() {
         shownState = null
         _binding = null
     }
+}
+
+/** Top edge of this view in the coordinates of [root], wherever the behaviour moved it (its layout `top` does not follow). */
+private fun View.topIn(root: View): Int {
+    val me = IntArray(2); val base = IntArray(2)
+    getLocationOnScreen(me); root.getLocationOnScreen(base)
+    return me[1] - base[1]
+}
+
+/** Bottom edge of this view in the coordinates of [ancestor]. */
+private fun View.bottomIn(ancestor: View): Int {
+    var y = bottom
+    var p = parent as? View
+    while (p != null && p !== ancestor) { y += p.top; p = p.parent as? View }
+    return y
 }

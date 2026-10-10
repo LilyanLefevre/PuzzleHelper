@@ -51,7 +51,6 @@ Start from a photo of the box.</string>
     <string name="analyzing">Reading the piece…</string>
     <string name="analyzing_sub">Comparing it with the box, 8 rotations</string>
     <string name="best_lead">Best lead</string>
-    <string name="spot_cell">Row %1$d · Column %2$d</string>
     <string name="rotate_hint">Turn it %d° clockwise</string>
     <string name="rotate_none">Already the right way up</string>
     <string name="confidence_label">Confidence</string>
@@ -67,7 +66,6 @@ Start from a photo of the box.</string>
     <string name="no_piece_body">Put it alone on a plain surface, inside the frame.</string>
     <string name="retake">Retake</string>
     <string name="light">Light</string>
-    <string name="grid_info">%1$d pieces · %2$d × %3$d grid</string>
     <string name="back">Back</string>
     <string name="rotate_hint_ccw">Turn it %d° counter-clockwise</string>
     <string name="new_puzzle_project">New Puzzle Project</string>
@@ -88,4 +86,25 @@ Start from a photo of the box.</string>
     <string name="project_deletion_failed">Could not delete the puzzle</string>
     <string name="project_not_found">Puzzle not found</string>
     <string name="reference_missing">The box image of this puzzle is missing</string>
+
+    <!-- Result sheet: levels, zone and the "why these leads" page -->
+    <string name="show_leads">Leads</string>
+    <string name="explain_title">Why these leads?</string>
+    <string name="explain_intro">Each lead is a place on the box where the piece looks like the printed picture. The piece blinks over the box: if the picture continues across it without a break, that is the place.</string>
+    <string name="compare_hint">Tap to freeze or resume the blinking</string>
+    <string name="compare_description">Your piece blinking over the box at this lead</string>
+    <string name="reason_similarity">Visual match: rank %1$d of %2$d places</string>
+    <string name="reason_colour">Colours: rank %1$d</string>
+    <string name="reason_shape">Outline read as: %1$s (a hint, sometimes wrong)</string>
+    <string name="piece_inner">Interior</string>
+    <string name="spot_percent">%1$d %% from the left · %2$d %% from the top</string>
+    <string name="zone_top_left">At the top left</string>
+    <string name="zone_top">At the top</string>
+    <string name="zone_top_right">At the top right</string>
+    <string name="zone_left">On the left</string>
+    <string name="zone_centre">In the middle</string>
+    <string name="zone_right">On the right</string>
+    <string name="zone_bottom_left">At the bottom left</string>
+    <string name="zone_bottom">At the bottom</string>
+    <string name="zone_bottom_right">At the bottom right</string>
 </resources>
