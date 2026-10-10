@@ -143,6 +143,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   compose, README), client in `feature/account/` (`PocketBaseClient` OkHttp + org.json, `AccountStore` token in SharedPreferences, `SyncRepository`, account screen opened from the
   puzzle list). The server URL is typed in the app, so the backend can move. Opt-in: without an account nothing leaves the phone (INTERNET permission + cleartext allowed for a LAN
   server, advise HTTPS before exposing it). Verified against a real local PocketBase: `POCKETBASE_URL=http://127.0.0.1:8090 ./gradlew testDebugUnitTest --tests "*SyncIntegrationTest*"`
+  **Security rule from the owner: reuse audited pieces, invent nothing.** Auth/tokens/rules = PocketBase; token = Jetpack Security `EncryptedSharedPreferences` (`AccountModule`, excluded from
+  backups); `http://` only for private/home addresses (`isAcceptableServer`, `ServerAddressTest`). The list syncs by itself when it shows (`ProjectListViewModel.refresh`, 30 s throttle).
   (download PocketBase from its releases and check the checksum; `pocketbase serve --dir <tmp> --migrationsDir server/pb_migrations`). Open: deletions are not propagated to the other
   phones, automatic/background sync (WorkManager), using the progress photos for localisation.
 - First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected
