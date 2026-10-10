@@ -2,6 +2,7 @@ package com.lilyan_lefevre.puzzleit.e2e
 
 import android.Manifest
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.FragmentActivity
 import androidx.test.core.app.ActivityScenario
@@ -97,10 +98,21 @@ class ScanFlowTest {
         java.io.FileOutputStream(File(dir, "$label.png")).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    /**
+     * The photo goes through the channel the camera screen uses. The table ignores it until its matcher is prepared, so it is
+     * sent again until the screen leaves the idle state (a person needs seconds to take a photo; the test needs milliseconds).
+     */
     private fun inject(scenario: ActivityScenario<MainActivity>, photo: File) {
-        scenario.onActivity { a: FragmentActivity ->
-            val host = a.supportFragmentManager.findFragmentById(R.id.nav_host_fragment)!!
-            host.childFragmentManager.setFragmentResult(PieceCaptureFragment.RESULT_KEY, bundleOf(PieceCaptureFragment.PHOTO_PATH to photo.absolutePath))
+        fun idle(): Boolean { var v = true; scenario.onActivity { v = it.findViewById<View>(R.id.groupIdle).visibility == View.VISIBLE }; return v }
+        waitFor(30_000) {
+            if (idle()) {
+                scenario.onActivity { a: FragmentActivity ->
+                    val host = a.supportFragmentManager.findFragmentById(R.id.nav_host_fragment)!!
+                    host.childFragmentManager.setFragmentResult(PieceCaptureFragment.RESULT_KEY, bundleOf(PieceCaptureFragment.PHOTO_PATH to photo.absolutePath))
+                }
+                Thread.sleep(300)
+            }
+            check(!idle()) { "the table did not start analysing" }
         }
     }
 
@@ -171,6 +183,14 @@ class ScanFlowTest {
             drag(scenario, sheetTop(scenario), 120f); Thread.sleep(700)
             shot(scenario, "6_after_drag_up")
             onView(withId(R.id.groupExplain)).check(matches(isDisplayed())); shot(scenario, "6_explain")
+            // Freeze the first card's blinking and bring it into view: the piece must sit on the box where the lead says.
+            scenario.onActivity { act ->
+                act.findViewById<ViewGroup>(R.id.explainList).getChildAt(0).findViewById<View>(R.id.leadCompare).performClick()
+                act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).scrollTo(0, 1150)
+            }
+            Thread.sleep(500); shot(scenario, "6b_explain_overlay")
+            scenario.onActivity { act -> act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).scrollTo(0, 0) }
+            Thread.sleep(300)
             // Down to half, then to peek: only the leads remain.
             drag(scenario, sheetTop(scenario), sheetTop(scenario) + 900f); Thread.sleep(700)
             onView(withId(R.id.confBar)).check(matches(isDisplayed()))
