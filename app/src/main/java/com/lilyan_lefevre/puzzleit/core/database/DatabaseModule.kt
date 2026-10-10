@@ -2,6 +2,8 @@ package com.lilyan_lefevre.puzzleit.core.database
 
 import android.content.Context
 import androidx.room.Room
+import com.lilyan_lefevre.puzzleit.feature.history.data.ScanRecordDao
+import com.lilyan_lefevre.puzzleit.feature.progress.data.ProgressPhotoDao
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectDao
 import dagger.Module
 import dagger.Provides
@@ -26,10 +28,17 @@ object DatabaseModule {
             ProjectMigration,
             ProjectMigration2,
             ProjectMigration3,
-            ProjectMigration4
+            ProjectMigration4,
+            ProjectMigration5
         )
         .build()
     }
+
+    @Provides
+    fun provideScanRecordDao(database: AppDatabase): ScanRecordDao = database.scanRecordDao()
+
+    @Provides
+    fun provideProgressPhotoDao(database: AppDatabase): ProgressPhotoDao = database.progressPhotoDao()
 
     @Provides
     fun provideProjectDao(database: AppDatabase): ProjectDao {

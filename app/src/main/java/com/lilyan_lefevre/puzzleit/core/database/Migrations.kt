@@ -26,6 +26,24 @@ val ProjectMigration3 = object : Migration(3, 4) {
     }
 }
 
+/** v5 -> v6: scan history and progress photos, each deleted with its puzzle. */
+val ProjectMigration5 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS scans (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, projectId TEXT NOT NULL, " +
+                "createdAt INTEGER NOT NULL, piecePath TEXT NOT NULL, leads TEXT NOT NULL, verdict TEXT NOT NULL, chosenLead INTEGER NOT NULL, " +
+                "FOREIGN KEY(projectId) REFERENCES projects(id) ON UPDATE NO ACTION ON DELETE CASCADE)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_scans_projectId ON scans(projectId)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS progress_photos (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, projectId TEXT NOT NULL, " +
+                "createdAt INTEGER NOT NULL, path TEXT NOT NULL, " +
+                "FOREIGN KEY(projectId) REFERENCES projects(id) ON UPDATE NO ACTION ON DELETE CASCADE)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_progress_photos_projectId ON progress_photos(projectId)")
+    }
+}
+
 /** v4 -> v5: rectified box image. */
 val ProjectMigration4 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
