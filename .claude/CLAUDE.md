@@ -80,8 +80,12 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 - **Never run `./gradlew connectedDebugAndroidTest` on the owner's phone**: Gradle uninstalls the app afterwards and
   wipes its data (it already deleted their puzzles once). On a real phone: `./gradlew installDebug installDebugAndroidTest`
   then `adb shell am instrument -w com.lilyan_lefevre.puzzleit.test/com.lilyan_lefevre.puzzleit.HiltTestRunner`.
-  `connectedDebugAndroidTest` is for emulators / CI only.
-- 13 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
+  On emulators use the Gradle Managed Devices defined in `app/build.gradle.kts` (same devices on the CI matrix):
+  `./gradlew pixel6api34DebugAndroidTest`, `./gradlew smallphoneapi34DebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=com.lilyan_lefevre.puzzleit.e2e`
+  (only the journeys: its 192 MB Java heap OOMs the device tests; Nexus One profile, 320 dp wide: the half level
+  of the result sheet cannot show everything there) or `allDevicesDebugAndroidTest`. They never touch a plugged phone; do not run
+  `connectedDebugAndroidTest` while one is connected.
+- 15 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
   viewfinder, edit, delete). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
 - Phone tips: animations off, `adb shell cmd notification set_dnd on`, `adb shell svc power stayon true`; wireless adb
   drops often (`adb devices` before running). Never use `UiAutomation.takeScreenshot` in Espresso (steals focus).
@@ -89,7 +93,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   are for README screenshots.
 - Test fixtures must look like real photos (grain, slight blur): smooth images sit at `PieceMatcher.MIN_SHARPNESS`
   and flip between devices.
-- CI (`.github/workflows/ci.yml`): build + unit tests, then the instrumented suite on an Android 14 emulator.
+- CI (`.github/workflows/ci.yml`): build + unit tests, then the instrumented suite on two Gradle Managed Devices (a Pixel 6 and a small phone), one CI job each.
 
 ## Benchmarks (opt-in JVM tests, not in CI; data rebuilt by scripts)
 - `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py <dir>` -> `PUZZLE_DATASET_DIR`: Puzzle-Map (CC-BY-4.0),
@@ -129,4 +133,6 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 - When a session runs on the owner's PC (not the Mac), the data is in `C:\dev\data` (`real`, `pm4` = Puzzle-Map, `bank`, `train-images`) and the venv in `C:\dev\venv-puzzle`.
 - The project lives in iCloud Documents: iCloud creates `* 2.*` duplicates in `app/build` and Gradle fails in
   `parseDebugLocalResources`. Fix: `rm -rf app/build`. Moving the project out of iCloud would fix it for good.
+- onnxruntime sessions run WITHOUT memory pattern and CPU arena (`OnnxEmbedder`, `OnnxSegmenter`): the batches have many different sizes and
+  with them native memory grew 30 MB per scan (408 MB after the box index) until a 2 GB device killed the app. `PieceRecognizerDeviceTest` prints the memory.
 - Leads 2-4 get a derived confidence (best confidence scaled by their own score).

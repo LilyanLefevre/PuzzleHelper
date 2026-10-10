@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.ManagedVirtualDevice
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -44,6 +46,25 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+        }
+        animationsDisabled = true
+        // The instrumented tests run on virtual devices Gradle creates itself, the same on the PC and on the CI:
+        // ./gradlew pixel6api34DebugAndroidTest (a current phone) and ./gradlew smallphoneapi34DebugAndroidTest (320 dp wide,
+        // where the half level of the result sheet cannot show everything). Unlike connectedDebugAndroidTest they never touch
+        // a phone that happens to be plugged in (that task uninstalls the app and wipes its data).
+        managedDevices {
+            devices {
+                create<ManagedVirtualDevice>("pixel6api34") {
+                    device = "Pixel 6"
+                    apiLevel = 34
+                    systemImageSource = "google"
+                }
+                create<ManagedVirtualDevice>("smallphoneapi34") {
+                    device = "Nexus One"
+                    apiLevel = 34
+                    systemImageSource = "google"
+                }
+            }
         }
     }
 }
