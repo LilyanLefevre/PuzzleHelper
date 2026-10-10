@@ -107,4 +107,6 @@ Commence par une photo de la boîte.</string>
     <string name="zone_bottom_left">En bas à gauche</string>
     <string name="zone_bottom">En bas</string>
     <string name="zone_bottom_right">En bas à droite</string>
+    <string name="see_on_puzzle">Voir sur le puzzle ›</string>
+    <string name="overlay_toggle">Afficher la pièce sur le puzzle</string>
 </resources>

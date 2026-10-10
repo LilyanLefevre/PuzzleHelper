@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Gap kept between the top of the screen and the result sheet when it is fully open (the floating top bar). -->
+    <dimen name="sheet_top_gap">72dp</dimen>
+</resources>

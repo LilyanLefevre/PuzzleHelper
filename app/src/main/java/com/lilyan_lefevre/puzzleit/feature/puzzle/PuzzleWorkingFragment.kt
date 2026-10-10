@@ -9,7 +9,9 @@ import android.view.ViewTreeObserver
 import android.view.animation.OvershootInterpolator
 import android.widget.Toast
 import androidx.core.os.bundleOf
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
@@ -53,6 +55,7 @@ class PuzzleWorkingFragment : Fragment() {
     private var shownState: Any? = null
     private var resultOn = false
     private var mapInsetBottom = 0
+    private var overlayOn = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,11 +101,20 @@ class PuzzleWorkingFragment : Fragment() {
         sheet.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(sheetView: View, newState: Int) {
                 _binding?.pillLeads?.isVisible = resultOn && newState == BottomSheetBehavior.STATE_HIDDEN
+                _binding?.buttonOverlay?.isVisible = resultOn && newState != BottomSheetBehavior.STATE_EXPANDED && newState != BottomSheetBehavior.STATE_HALF_EXPANDED
                 if (newState != BottomSheetBehavior.STATE_DRAGGING && newState != BottomSheetBehavior.STATE_SETTLING) syncMap()
             }
             override fun onSlide(sheetView: View, slideOffset: Float) = Unit
         })
         binding.pillLeads.setOnClickListener { sheet.state = BottomSheetBehavior.STATE_HALF_EXPANDED }
+        binding.buttonOverlay.setOnClickListener {
+            overlayOn = !overlayOn
+            binding.buttonOverlay.alpha = if (overlayOn) 1f else 0.5f
+            binding.mapView.overlayOn = overlayOn
+        }
+        // The sheet's view is as tall as the screen minus the gap kept at the top when it is fully open: its bottom then sits on the
+        // screen's bottom, and the last card is not cut off.
+        binding.root.doOnLayout { root -> binding.sheet.updateLayoutParams { height = root.height - resources.getDimensionPixelSize(R.dimen.sheet_top_gap) } }
 
         observe()
         viewModel.loadProject(projectId)
@@ -175,10 +187,11 @@ class PuzzleWorkingFragment : Fragment() {
         binding.groupError.isVisible = state is ScanState.Blurry || state is ScanState.NoPiece
         binding.mapView.setScanning(state is ScanState.Analyzing)
         resultOn = state is ScanState.Result
+        binding.buttonOverlay.isVisible = resultOn
         binding.pillLeads.isVisible = resultOn && sheet.state == BottomSheetBehavior.STATE_HIDDEN
 
         when (state) {
-            ScanState.Idle -> binding.mapView.clearMatch()
+            ScanState.Idle -> { binding.mapView.clearMatch(); binding.mapView.setPiece(null) }
             ScanState.Analyzing -> Unit
             is ScanState.Result -> showResult(state, (prev as? ScanState.Result)?.takeIf { it.match === state.match })
             ScanState.Blurry -> showError(R.string.blurry_title, R.string.blurry_body)
@@ -245,10 +258,14 @@ class PuzzleWorkingFragment : Fragment() {
         binding.textSpotDetail.text = spotPercent(cand)
 
         showConfidence(cand.confidence)
+        // The lead may have been chosen on the map or on a card, not on its chip: the chips follow.
+        for (i in 0 until binding.chipLeads.childCount) (binding.chipLeads.getChildAt(i) as? Chip)?.isChecked = i == r.selected
         if (samePiece != null) { turnPiece(cand.rotationDeg); return }   // only the lead changed
 
         // The piece turns to the orientation it has on the box.
         binding.imagePiece.setImageBitmap(r.cutout)
+        binding.mapView.setPiece(r.cutout)
+        binding.mapView.overlayOn = overlayOn
         binding.imagePiece.apply {
             rotation = 0f; scaleX = 0.4f; scaleY = 0.4f; alpha = 0f
             animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(450).setInterpolator(OvershootInterpolator(1.4f))
@@ -284,6 +301,8 @@ class PuzzleWorkingFragment : Fragment() {
             card.leadBar.progress = c.confidence
             card.leadCompare.bind(box, g, c, r.cutout)
             card.leadReasons.text = reasons(r.match, c)
+            // A card leads to the puzzle: that lead is selected, the sheet gets out of the way and the piece blinks over its place.
+            card.root.setOnClickListener { viewModel.select(i); sheet.state = BottomSheetBehavior.STATE_COLLAPSED }
             binding.explainList.addView(card.root)
         }
     }

@@ -21,8 +21,11 @@ import androidx.core.content.ContextCompat
 import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
 import com.lilyan_lefevre.puzzleit.feature.recognition.Grid
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 /**
  * The box image, pannable / zoomable, with an animated spotlight on the suggested spot.
@@ -39,6 +42,12 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
     private var region: RectF? = null          // selected lead's cell, image space
     private var leadCells: List<RectF> = emptyList()           // every lead's cell, image space
     private var selected = 0
+    private var leadTurns: List<Float> = emptyList()           // every lead's clockwise rotation
+    private var sprite: PieceSprite? = null
+
+    /** The piece blinks over the selected lead's square when true. */
+    var overlayOn = true
+        set(v) { field = v; invalidate() }
 
     /** Called when a lead's square is tapped on the map. */
     var onLeadTapped: ((Int) -> Unit)? = null
@@ -58,6 +67,7 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bg; textAlign = Paint.Align.CENTER; isFakeBoldText = true; textSize = 11 * dp }
     private val scanPaint = Paint()
+    private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 
     private val clock = ValueAnimator.ofFloat(0f, 1f).apply {
         duration = 1800; repeatCount = ValueAnimator.INFINITE; interpolator = LinearInterpolator()
@@ -82,6 +92,9 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
         region?.let(::focusOn) ?: resetView(false)
     }
 
+    /** The cut-out piece to superimpose on the leads; null forgets it. */
+    fun setPiece(bitmap: Bitmap?) { sprite = bitmap?.let(::PieceSprite); invalidate() }
+
     fun setScanning(on: Boolean) { scanning = on; updateClock(); invalidate() }
 
     /**
@@ -95,6 +108,7 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
             val cx = (c.col * cw).coerceIn(cw / 2, b.width - cw / 2); val cy = (c.row * ch).coerceIn(ch / 2, b.height - ch / 2)
             RectF(cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
         }
+        leadTurns = leads.map { it.rotationDeg.toFloat() }
         this.selected = selected.coerceIn(0, leadCells.lastIndex)
         region = leadCells[this.selected]
         animateSpot(1f)
@@ -230,6 +244,16 @@ class PuzzleMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet?
                 fill.color = if (i == selected) accent else 0xFFFFFFFF.toInt(); fill.alpha = (spot * 255).toInt()
                 c.drawCircle(bx, by, 11 * dp, fill)
                 text.alpha = (spot * 255).toInt(); c.drawText("${i + 1}", bx, by + 4 * dp, text)
+            }
+            // The piece over the selected lead, at the box's scale and turned like the lead says: the picture should continue across it.
+            sprite?.takeIf { overlayOn && spot > 0.01f }?.let { sp ->
+                val cell = leadCells[selected]
+                val k = sqrt(cell.width() * cell.height()) * s / sp.side
+                c.save()
+                c.translate(cell.centerX() * s + tx, cell.centerY() * s + ty); c.rotate(leadTurns.getOrElse(selected) { 0f }); c.scale(k, k); c.translate(-sp.cx, -sp.cy)
+                spritePaint.alpha = ((0.5f - 0.5f * cos(2 * PI.toFloat() * phase)) * 0.92f * spot * 255).toInt()
+                c.drawBitmap(sp.bitmap, 0f, 0f, spritePaint)
+                c.restore()
             }
             c.restore()
         }

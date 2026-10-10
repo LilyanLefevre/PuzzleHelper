@@ -25,15 +25,12 @@ import kotlin.math.sqrt
 class LeadComparisonView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = null) : View(ctx, attrs) {
 
     private var box: Bitmap? = null
-    private var piece: Bitmap? = null
+    private var piece: PieceSprite? = null
     private var cw = 1f
     private var ch = 1f
     private var leadX = 0f
     private var leadY = 0f
     private var turn = 0f
-    private var pieceCx = 0f
-    private var pieceCy = 0f
-    private var pieceSide = 1f
     private var phase = 0f
     private var frozen = false
 
@@ -57,17 +54,10 @@ class LeadComparisonView @JvmOverloads constructor(ctx: Context, attrs: Attribut
 
     /** [piece] = the cut-out piece (transparent outside) as photographed; the lead says how far to turn it. */
     fun bind(box: Bitmap, grid: Grid, lead: Candidate, piece: Bitmap) {
-        this.box = box; this.piece = piece
+        this.box = box; this.piece = PieceSprite(piece)
         cw = box.width / grid.cols.toFloat(); ch = box.height / grid.rows.toFloat()
         leadX = lead.col * cw; leadY = lead.row * ch
         turn = lead.rotationDeg.toFloat()
-        // Centre and equivalent side of the piece (its area is one cell), measured once on the alpha channel.
-        val px = IntArray(piece.width * piece.height).also { piece.getPixels(it, 0, piece.width, 0, 0, piece.width, piece.height) }
-        var n = 0; var sx = 0.0; var sy = 0.0
-        for (i in px.indices) if ((px[i] ushr 24) > 127) { n++; sx += i % piece.width; sy += i / piece.width }
-        pieceCx = if (n > 0) (sx / n).toFloat() else piece.width / 2f
-        pieceCy = if (n > 0) (sy / n).toFloat() else piece.height / 2f
-        pieceSide = sqrt(n.coerceAtLeast(1).toDouble()).toFloat()
         contentDescription = context.getString(R.string.compare_description)
         invalidate()
     }
@@ -87,8 +77,8 @@ class LeadComparisonView @JvmOverloads constructor(ctx: Context, attrs: Attribut
         c.drawRect(leadX - cw / 2, leadY - ch / 2, leadX + cw / 2, leadY + ch / 2, ring.apply { strokeWidth = 2 * dp / k })
         val alpha = if (frozen) 0.6f else 0.5f - 0.5f * cos(2 * PI.toFloat() * phase)
         paint.alpha = (alpha * 240).toInt()
-        c.translate(leadX, leadY); c.rotate(turn); val s = sqrt(cw * ch) / pieceSide; c.scale(s, s); c.translate(-pieceCx, -pieceCy)
-        c.drawBitmap(p, 0f, 0f, paint)
+        c.translate(leadX, leadY); c.rotate(turn); val s = sqrt(cw * ch) / p.side; c.scale(s, s); c.translate(-p.cx, -p.cy)
+        c.drawBitmap(p.bitmap, 0f, 0f, paint)
         paint.alpha = 255
         c.restore()
     }

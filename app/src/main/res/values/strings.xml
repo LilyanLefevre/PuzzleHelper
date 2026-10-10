@@ -107,4 +107,6 @@ Start from a photo of the box.</string>
     <string name="zone_bottom_left">At the bottom left</string>
     <string name="zone_bottom">At the bottom</string>
     <string name="zone_bottom_right">At the bottom right</string>
+    <string name="see_on_puzzle">See on the puzzle ›</string>
+    <string name="overlay_toggle">Show the piece over the puzzle</string>
 </resources>

@@ -10,6 +10,7 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isChecked
 import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
@@ -189,6 +190,9 @@ class ScanFlowTest {
                 act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).scrollTo(0, 1150)
             }
             Thread.sleep(500); shot(scenario, "6b_explain_overlay")
+            // All the way down: the last card must be whole above the bottom edge of the screen.
+            scenario.onActivity { act -> act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).fullScroll(View.FOCUS_DOWN) }
+            Thread.sleep(500); shot(scenario, "6c_explain_bottom")
             scenario.onActivity { act -> act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).scrollTo(0, 0) }
             Thread.sleep(300)
             // Down to half, then to peek: only the leads remain.
@@ -201,6 +205,23 @@ class ScanFlowTest {
             onView(withId(R.id.pillLeads)).check(matches(isDisplayed())); shot(scenario, "8_hidden")
             onView(withId(R.id.pillLeads)).perform(click()); Thread.sleep(700)
             onView(withId(R.id.confBar)).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
+    fun aLeadCardLeadsToThePuzzleWithThePieceOverIt() {
+        openTable().use { scenario ->
+            inject(scenario, TestImages.save(TestImages.piecePhoto(art, cols, rows, 9, 6, 90f), ctx.cacheDir, "e2e_piece3.jpg"))
+            waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
+            Thread.sleep(1800)
+            drag(scenario, sheetTop(scenario), 120f); Thread.sleep(700)             // the page that explains the leads
+            // Tapping the second lead's card selects it and drops the sheet to its peek level, over the map.
+            scenario.onActivity { act -> act.findViewById<ViewGroup>(R.id.explainList).getChildAt(1).performClick() }
+            Thread.sleep(1500)
+            onView(allOf(withText(containsString(ctx.getString(R.string.alt_lead, 2))), isDescendantOfA(withId(R.id.chipLeads)))).check(matches(isChecked()))
+            onView(withId(R.id.buttonOverlay)).check(matches(isDisplayed()))
+            onView(withId(R.id.mapView)).check(matches(isDisplayed()))
+            shot(scenario, "9_card_to_map"); Thread.sleep(900); shot(scenario, "9b_card_to_map")
         }
     }
 
