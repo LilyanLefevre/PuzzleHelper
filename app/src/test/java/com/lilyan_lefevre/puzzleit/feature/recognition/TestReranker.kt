@@ -21,6 +21,8 @@ object TestReranker {
     }
 
     fun fromEnv(): PieceReranker? {
+        System.getenv("PUZZLE_REFINE_RADIUS")?.toIntOrNull()?.let { PieceMatcher.REFINE_RADIUS = it }
+        System.getenv("PUZZLE_REFINE_STEP")?.toFloatOrNull()?.let { PieceMatcher.REFINE_STEP = it }
         System.getenv("PUZZLE_REFINE")?.toIntOrNull()?.let { PieceMatcher.REFINE_LEADS = it }
         System.getenv("PUZZLE_GLOBAL")?.let { PieceMatcher.GLOBAL_EMBED = it == "1" }
         System.getenv("PUZZLE_BORDER_PENALTY")?.toFloatOrNull()?.let { PieceMatcher.BORDER_PENALTY = it }

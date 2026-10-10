@@ -209,19 +209,32 @@ class PieceMatcher(
 
     /** [leads] = how many places to return (best first); the labelling tool asks for 8. */
     fun locate(photo: Raster, leads: Int = 4): Analysis {
-        val img = photo.fit(PHOTO_SIDE)
+        val img = stage("prepare") { photo.fit(PHOTO_SIDE) }
         val sharp = sharpness(img)
         if (sharp < MIN_SHARPNESS) return Analysis.Blurry(sharp)
         val pl = LabImage.from(img)
-        val mask = findPiece(img, pl) ?: return Analysis.NoPiece
-        val shape = shape(mask, pl.w, pl.h)
-        val ncc = patches?.search(img, mask)
+        val mask = stage("segment") { findPiece(img, pl) } ?: return Analysis.NoPiece
+        val shape = stage("outline") { shape(mask, pl.w, pl.h) }
+        val ncc = stage("pixels") { patches?.search(img, mask) }
         val cut = cutout(img, mask)
-        val evidence = if (GLOBAL_EMBED) embedSims(cut, shape.tilt) else null
-        val match = rank(pl, mask, shape, if (reranker != null && evidence == null) max(RERANK_LEADS, leads) else leads, ncc, evidence) ?: return Analysis.NoPiece
+        val evidence = stage("network") { if (GLOBAL_EMBED) embedSims(cut, shape.tilt) else null }
+        val match = stage("rank") { rank(pl, mask, shape, if (reranker != null && evidence == null) max(RERANK_LEADS, leads) else leads, ncc, evidence) } ?: return Analysis.NoPiece
         // With the network's evidence on every candidate the leads are already ordered by it; otherwise it re-ranks the colour leads.
-        return Analysis.Found(if (evidence != null) match else rerank(match, cut, masked = true, keep = leads), sharp, cut)
+        return Analysis.Found(if (evidence != null) match else stage("rerank") { rerank(match, cut, masked = true, keep = leads) }, sharp, cut)
     }
+
+    /** Called with the name and duration (ms) of each stage of a scan: the device tests and the log read it. */
+    var trace: ((String, Long) -> Unit)? = null
+
+    private inline fun <T> stage(name: String, block: () -> T): T {
+        val t0 = System.nanoTime()
+        val r = block()
+        trace?.invoke(name, (System.nanoTime() - t0) / 1_000_000)
+        return r
+    }
+
+    /** True once [buildIndex] has finished (or there is no network): scans then search the whole box with it. */
+    val indexReady: Boolean get() = reranker == null || index != null
 
     /**
      * Ranks the box positions for a piece whose pixels are [mask]. [shape] = its outline reading, or null to compare
@@ -268,7 +281,7 @@ class PieceMatcher(
         if (evidence != null) {
             // Confidence from the fused scores themselves, so it always follows the order of the leads.
             val ranked = picks.map { p -> p.copy(simRank = scored.count { it.simZ > p.simZ } + 1, colourRank = scored.count { it.colourZ < p.colourZ } + 1, pool = scored.size) }
-            val placed = withConfidence(refine(ranked, evidence), CONF_TEMPERATURE)
+            val placed = withConfidence(stage("refine") { refine(ranked, evidence) }, CONF_TEMPERATURE)
             return Match(grid, placed[0], placed.drop(1), placed[0].confidence, precisionOf(placed[0].confidence), kind)
         }
         val dMed = scored.map { it.distance }.sorted()[scored.size / 2]
@@ -326,7 +339,7 @@ class PieceMatcher(
         return picks.mapIndexed { i, c ->
             if (i >= REFINE_LEADS) return@mapIndexed c
             val spots = ArrayList<Pair<Float, Float>>()
-            for (dy in -2..2) for (dx in -2..2) spots += (c.col + dx * REFINE_STEP) to (c.row + dy * REFINE_STEP)
+            for (dy in -REFINE_RADIUS..REFINE_RADIUS) for (dx in -REFINE_RADIUS..REFINE_RADIUS) spots += (c.col + dx * REFINE_STEP) to (c.row + dy * REFINE_STEP)
             val e = r.embedBox(reference, grid, spots)
             val p = evidence.piece[c.quarter]
             val sim = FloatArray(e.size) { k -> var acc = 0f; for (j in p.indices) acc += p[j] * e[k][j]; acc }
@@ -742,7 +755,9 @@ class PieceMatcher(
         var RERANK_TEMPERATURE = 0.7
         private const val CONF_PICKS = 8
         var REFINE_LEADS = 4
-        private const val REFINE_STEP = 0.125f
+        /** 3 x 3 squares per lead, 0.15 cell apart: 0.10 cell mean error on real hits against 0.08 for 5 x 5 at 0.125, for a third of the work. */
+        var REFINE_STEP = 0.15f
+        var REFINE_RADIUS = 1
         private const val REFINE_SOFTNESS = 0.03f
         var NCC_WEIGHT = 0.4f
         /** With the network searching the whole box: cost factor of a rotation whose flat sides do not match the border (infinity = a wall, which a wrong outline reading turns into a wrong answer). */

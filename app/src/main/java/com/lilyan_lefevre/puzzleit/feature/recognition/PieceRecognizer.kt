@@ -9,6 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -17,7 +18,8 @@ import kotlinx.coroutines.withContext
 @Singleton
 class PieceRecognizer @Inject constructor(@ApplicationContext private val context: Context?) {
 
-    class Prepared(val display: Bitmap, val matcher: PieceMatcher)
+    /** [warm] completes once the box index is built and the first scan's cold costs are paid (it runs in the background). */
+    class Prepared(val display: Bitmap, val matcher: PieceMatcher, val warm: Job)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -41,11 +43,18 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
     suspend fun prepare(referencePath: String, pieces: Int, grid: Grid? = null): Prepared? = withContext(Dispatchers.Default) {
         val bmp = decode(referencePath, 2400) ?: return@withContext null
         val matcher = PieceMatcher(bmp.toRaster(), pieces, grid, reranker, segmenter = segmenter, indexOnDemand = false)
+        matcher.trace = { stage, ms -> android.util.Log.d("PieceTrace", "$stage $ms ms") }
         // The index of the box (network embeddings of every square) is the slow part: built in the background and kept next to
         // the reference image, named after the model and grid so a change of either rebuilds it. Scans meanwhile use colours only.
         val cache = File(referencePath.substringBeforeLast('.') + "_index_${matcher.grid.cols}x${matcher.grid.rows}_$rerankerBytes.bin")
-        scope.launch { runCatching { matcher.buildIndex(cache) }.onFailure { android.util.Log.e("PieceRecognizer", "box index failed", it) } }
-        Prepared(bmp, matcher)
+        val warm = scope.launch {
+            runCatching {
+                matcher.buildIndex(cache)
+                // A first scan pays for loading the networks and warming the code (about two seconds on a phone): do it before the person scans.
+                matcher.locate(warmUpPhoto())
+            }.onFailure { android.util.Log.e("PieceRecognizer", "warm-up failed", it) }
+        }
+        Prepared(bmp, matcher, warm)
     }
 
     /**
@@ -82,6 +91,15 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
     companion object {
         const val CROP = 0.5f
         private const val KEEP = 200
+    }
+
+    /** A table with a light piece-sized blob in the middle: enough for every stage of a scan to run once. */
+    private fun warmUpPhoto(): Raster {
+        val n = 420
+        return Raster(n, n, IntArray(n * n) { i ->
+            val x = i % n - n / 2; val y = i / n - n / 2
+            if (x * x + y * y < 70 * 70) 0xFFD8C8A8.toInt() else 0xFF3A3530.toInt()
+        })
     }
 
     private fun decode(path: String, maxSide: Int): Bitmap? {

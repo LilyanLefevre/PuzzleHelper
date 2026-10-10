@@ -36,9 +36,17 @@ class PieceRecognizerDeviceTest {
         assertTrue("prepare took $ms ms", ms < 3000)
     }
 
+    /** The box index and the warm-up run in the background after prepare(): scans are timed once they are done, as in use (a person looks at the table first). */
+    private fun waitForWarmUp(p: PieceRecognizer.Prepared): Long {
+        val t0 = System.currentTimeMillis()
+        runBlocking { kotlinx.coroutines.withTimeout(120_000) { p.warm.join() } }
+        return System.currentTimeMillis() - t0
+    }
+
     @Test
     fun locatesRotatedPiecesFromJpegPhotos() {
         val p = prepare()
+        println("TIMING box index + warm-up for ${cols * rows} pieces: ${waitForWarmUp(p)} ms (after prepare)")
         val cases = listOf(Triple(4, 3, 0f), Triple(12, 8, 90f), Triple(15, 11, 180f), Triple(7, 5, 270f), Triple(10, 2, 90f), Triple(3, 12, 180f))
         var hits = 0; var rot = 0; var worst = 0L
         for ((i, t) in cases.withIndex()) {
