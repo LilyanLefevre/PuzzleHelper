@@ -29,11 +29,18 @@ flowchart TB
         S -- rien --> X[« Aucune pièce détectée »]
         S --> FO[Lecture de la forme<br/>inclinaison + 4 côtés]
         FO --> DP[Descripteur couleur<br/>de la pièce redressée]
+        FO --> EP[Empreinte réseau<br/>de la pièce, 4 rotations]
     end
-    DC --> M[Comparaison<br/>4 rotations, contraintes coin/bord]
+    subgraph Index[En tâche de fond]
+        C --> EB[Empreinte réseau de chaque<br/>position à demi-case, mise en cache]
+    end
+    DC --> M[Fusion couleur + réseau<br/>contraintes coin/bord, rotations]
     DP --> M
     FO --> M
-    M --> R[Meilleure piste + 3 alternatives<br/>confiance, rotation à appliquer]
+    EP --> M
+    EB --> M
+    M --> RF[Affinage sous-case,<br/>pièce posée sur la boîte]
+    RF --> R[Meilleure piste + 3 alternatives<br/>confiance, rotation à appliquer]
 ```
 
 ## Les idées clés
@@ -50,10 +57,9 @@ flowchart TB
 5. **Dire quand on n'est pas sûr.** La confiance combine « mieux qu'un endroit au hasard » et « mieux que la
    deuxième meilleure piste » ([06](06-decision-confiance.md)).
 
-## Pourquoi pas de réseau de neurones ?
+## Et les réseaux de neurones ?
 
-Contraintes du projet : 100 % hors ligne, réponse < 3 s sur un téléphone, résultats
-reproductibles et explicables (« même photo, même suggestion »). Une approche géométrique + couleur tient ces
-contraintes et se teste de façon déterministe sur la JVM. Sur 484 photos réelles, la bonne case est la première
-piste 65 % du temps et dans les 4 pistes 89 % du temps ([07](07-validation.md)).
-Un modèle appris reste une piste pour les images très répétitives (ciel, mer).
+Contraintes du projet : 100 % hors ligne, réponse < 3 s sur un téléphone, résultats reproductibles (« même photo, même
+suggestion »). La géométrie et la couleur seules plafonnent sur les images répétitives (ciel, mer). L'app embarque donc deux
+petits modèles ONNX qui tournent sur le téléphone : U²-Net-small pour découper la pièce et un MobileNetV3-small entraîné
+pour comparer la pièce à chaque position de la boîte ([08](08-ia.md)). Les mesures sont dans [07](07-validation.md).

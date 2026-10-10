@@ -18,8 +18,8 @@ cols = round(√(N · a))
 rows = round(N / cols)
 ```
 
-Exemple : 1000 pièces sur une image 3:2 → 39 × 26 = 1014 cases. Si l'utilisateur a saisi le nombre de lignes et de
-colonnes à la création (`gridRows`, `gridCols`), c'est cette grille qui est utilisée.
+Exemple : 1000 pièces sur une image 3:2 → 39 × 26 = 1014 cases. Le nombre de lignes et de colonnes saisi à la création n'est
+plus utilisé : il n'est pas fiable avant que le tour du puzzle soit fait, et seule la taille d'une pièce compte.
 
 La grille est **virtuelle** : les vraies pièces ne sont pas des carrés parfaits et leurs centres ne tombent pas
 exactement sur ceux de la grille. D'où les positions candidates au demi-pas.

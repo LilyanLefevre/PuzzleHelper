@@ -1,7 +1,7 @@
 # Documentation PuzzleIt
 
 PuzzleIt dit **où va une pièce de puzzle** sur l'image de la boîte, à partir d'une simple photo de la pièce,
-sans réseau et sans apprentissage : uniquement de la géométrie et de la couleur.
+sans réseau (100 % hors ligne) : de la géométrie et de la couleur, plus deux petits modèles ONNX embarqués (découpe de la pièce, comparaison avec la boîte).
 Ces pages expliquent la science derrière, étape par étape, et ce qui est vérifié par les tests.
 
 | Page | Contenu |
