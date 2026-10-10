@@ -85,8 +85,10 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   (only the journeys: its 192 MB Java heap OOMs the device tests; Nexus One profile, 320 dp wide: the half level
   of the result sheet cannot show everything there) or `allDevicesDebugAndroidTest`. They never touch a plugged phone; do not run
   `connectedDebugAndroidTest` while one is connected.
-- 15 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
-  viewfinder, edit, delete). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
+- 16 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
+  viewfinder, edit, delete) and `e2e/DemoTourTest` (records the README video into `/sdcard/demo.mp4` on the first puzzle of
+  the phone, read only, real swipes, animations ON; skipped when there is no puzzle. Encode with ffmpeg `-vf fps=60` H.264,
+  no ffmpeg installed: `pip install imageio-ffmpeg`. Never let the recording run into the home screen). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
 - Phone tips: animations off, `adb shell cmd notification set_dnd on`, `adb shell svc power stayon true`; wireless adb
   drops often (`adb devices` before running). Never use `UiAutomation.takeScreenshot` in Espresso (steals focus).
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`. Demo puzzles `demo-*` on the phone
