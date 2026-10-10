@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Étiqueter les pièces</title>
+<style>
+  :root { --bg:#0f0d17; --surface:#1a1726; --high:#262236; --outline:#3a3550; --primary:#e6f04a; --warn:#ffb74d; --text:#eceaf4; --muted:#9a96ad; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:8px 14px; background:var(--surface); border-bottom:1px solid var(--outline); }
+  label { color:var(--muted); font-size:12px; }
+  input, button { background:var(--high); color:var(--text); border:1px solid var(--outline); border-radius:10px; padding:5px 10px; font:inherit; }
+  button { cursor:pointer; } button:hover { border-color:var(--primary); }
+  button.primary { background:var(--primary); color:#15130a; border-color:var(--primary); font-weight:600; }
+  input[type=number] { width:64px; } input[type=range] { padding:0; width:110px; }
+  main { flex:1; display:flex; min-height:0; }
+  #list { width:120px; overflow:auto; background:var(--surface); border-right:1px solid var(--outline); padding:6px; }
+  #list div { padding:4px 6px; border-radius:8px; cursor:pointer; font-size:12px; display:flex; justify-content:space-between; }
+  #list div.cur { background:var(--high); outline:1px solid var(--primary); }
+  .ok { color:var(--primary); } .doubt { color:var(--warn); }
+  #side { width:250px; padding:10px; display:flex; flex-direction:column; gap:8px; background:var(--surface); border-right:1px solid var(--outline); overflow:auto; }
+  #side h3, #leadsBox h3 { margin:0; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; font-weight:500; }
+  #view { flex:1; min-width:0; position:relative; background:#000; }
+  #box { width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
+  #leadsBox { width:170px; padding:10px; overflow:auto; background:var(--surface); border-left:1px solid var(--outline); display:flex; flex-direction:column; gap:6px; }
+  #leads canvas { width:150px; height:150px; border-radius:10px; cursor:pointer; border:1px solid var(--outline); margin-bottom:6px; display:block; }
+  #photo { width:230px; height:230px; border-radius:12px; background:#000; border:1px solid var(--outline); }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  #info { color:var(--muted); font-size:13px; min-height:36px; } #info b { color:var(--text); }
+  kbd { background:var(--high); border:1px solid var(--outline); border-radius:6px; padding:0 5px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <label>Dossier du puzzle <input id="folder" type="file" webkitdirectory></label>
+  <span id="puzzle" style="color:var(--muted)"></span>
+  <button id="export" class="primary">Exporter truth.txt</button>
+  <span id="stats" style="color:var(--muted)"></span>
+</header>
+<main>
+  <div id="list"></div>
+  <div id="side">
+    <h3>Photo (carré analysé), remise droite</h3>
+    <canvas id="photo" width="230" height="230"></canvas>
+    <div id="info">Choisis le dossier du puzzle (captures, box.jpg, grid.txt, leads.json, cuts).</div>
+    <h3>Pièce posée sur la boîte</h3>
+    <div class="row"><button id="rotL">⟲ 5°</button><button id="rotR">⟳ 5°</button><button id="rotL90">⟲ 90°</button><button id="rotR90">⟳ 90°</button></div>
+    <div class="row"><label>Rotation</label><input id="rot" type="number" step="1" value="0"> °</div>
+    <div class="row"><label>Opacité</label><input id="alpha" type="range" min="15" max="100" value="80"></div>
+    <div class="row"><label>Taille</label><input id="size" type="range" min="70" max="140" value="100"></div>
+    <div class="row"><button id="doubt">Douteuse <kbd>D</kbd></button><button id="clear">Effacer</button><button id="fit">Centrer <kbd>C</kbd></button></div>
+    <div style="color:var(--muted);font-size:12px">Glisse la pièce sur son emplacement. Molette = zoom, glisser le fond = déplacer la vue. <kbd>Q</kbd>/<kbd>E</kbd> tournent de 5°, <kbd>R</kbd> de 90°, <kbd>←</kbd>/<kbd>→</kbd> changent de pièce, <kbd>1</kbd>–<kbd>8</kbd> prennent une proposition.</div>
+  </div>
+  <div id="view"><canvas id="box"></canvas></div>
+  <div id="leadsBox"><h3>Propositions de l'algo</h3><div id="leads"></div></div>
+</main>
+<script>
+// Position = centre of the piece in cell units (continuous), rotation = clockwise degrees to turn the photo so it sits like on the box.
+// Labels live in localStorage per capture file name; Export writes the file the replay test reads.
+const $ = id => document.getElementById(id);
+const cv = $('box'), g = cv.getContext('2d');
+let caps = [], cur = -1, boxImg = null, grid = { c: 17, r: 12 }, leads = {}, cuts = {};
+let view = { k: 1, ox: 0, oy: 0 };                    // screen = box px * k + offset, in canvas pixels
+let alpha = 0.8, drag = null;
+const dpr = () => window.devicePixelRatio || 1;
+const key = f => 'label:' + f.name;
+const load = f => { try { const l = JSON.parse(localStorage.getItem(key(f))) || {}; if (l.col != null && l.cx == null) { l.cx = l.col + .5; l.cy = l.row + .5; } return l; } catch (e) { return {}; } };
+const save = (f, v) => { try { localStorage.setItem(key(f), JSON.stringify(v)); } catch (e) { /* private mode: labels only live until export */ } };
+const lab = () => caps[cur] && caps[cur].lab;
+const cell = () => ({ w: boxImg.width / grid.c, h: boxImg.height / grid.r });
+const base = n => n.replace(/\.\w+$/, '');
+const img = url => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = url; });
+
+$('folder').onchange = async e => {
+  const files = [...e.target.files], by = p => files.filter(f => f.webkitRelativePath.split('/').slice(1).join('/').match(p));
+  const one = p => by(p)[0];
+  const root = files[0]?.webkitRelativePath.split('/')[0] || '';
+  $('puzzle').textContent = root;
+  const gridTxt = one(/^grid\.txt$/); if (gridTxt) { const [c, r] = (await gridTxt.text()).trim().split(/\s+/).map(Number); grid = { c, r }; }
+  const lf = one(/^leads\.json$/); leads = lf ? JSON.parse(await lf.text()) : {};
+  const boxFile = one(/^box\.(jpg|jpeg|png)$/); boxImg = boxFile ? await img(URL.createObjectURL(boxFile)) : null;
+  cuts = {}; for (const f of by(/^cuts\/[^/]+\.png$/)) cuts[base(f.name)] = { url: URL.createObjectURL(f) };
+  caps = by(/^captures\/[^/]+\.(jpg|jpeg|png)$/i).sort((a, b) => a.name.localeCompare(b.name)).map(f => ({ file: f, name: f.name, url: URL.createObjectURL(f), lab: load(f) }));
+  renderList(); fitAll(); select(caps.length ? 0 : -1);
+};
+
+function renderList() {
+  $('list').innerHTML = '';
+  caps.forEach((c, i) => {
+    const d = document.createElement('div'); d.className = i === cur ? 'cur' : '';
+    const l = c.lab, mark = l.doubt ? '<span class="doubt">?</span>' : l.cx != null ? '<span class="ok">✓</span>' : '';
+    d.innerHTML = `<span>${base(c.name).slice(-6)}</span>${mark}`; d.onclick = () => select(i); $('list').appendChild(d);
+  });
+  const done = caps.filter(c => c.lab.cx != null && !c.lab.doubt).length;
+  $('stats').textContent = `${done} étiquetées, ${caps.filter(c => c.lab.doubt).length} douteuses, ${caps.length} captures`;
+}
+
+// Cut-out piece of a capture (alpha PNG from the matcher) with its centroid and equivalent side, measured once.
+async function cutOf(c) {
+  if (c.cut !== undefined) return c.cut;
+  const src = cuts[base(c.name)]; if (!src) return (c.cut = null);
+  const i = await img(src.url); if (!i) return (c.cut = null);
+  const cvs = document.createElement('canvas'); cvs.width = i.width; cvs.height = i.height; const x = cvs.getContext('2d'); x.drawImage(i, 0, 0);
+  const d = x.getImageData(0, 0, i.width, i.height).data; let n = 0, sx = 0, sy = 0;
+  for (let p = 0; p < i.width * i.height; p++) if (d[p * 4 + 3] > 127) { n++; sx += p % i.width; sy += Math.floor(p / i.width); }
+  return (c.cut = { i, cx: n ? sx / n : i.width / 2, cy: n ? sy / n : i.height / 2, side: Math.sqrt(Math.max(n, 1)) });
+}
+
+async function select(i) {
+  cur = i; renderList(); if (i < 0) return;
+  const c = caps[i]; c.photo = await img(c.url); await cutOf(c);
+  $('rot').value = Math.round(lab().rot ?? 0); $('size').value = Math.round((lab().size ?? 1) * 100);
+  focusOn(); drawPhoto(); drawLeads(); info(); draw();
+  const el = $('list').children[i]; if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
+function sizeCanvas() { const r = $('view').getBoundingClientRect(), d = dpr(); cv.width = Math.max(10, r.width * d); cv.height = Math.max(10, r.height * d); }
+function fitAll() { sizeCanvas(); if (!boxImg) return; const k = Math.min(cv.width / boxImg.width, cv.height / boxImg.height); view = { k, ox: (cv.width - boxImg.width * k) / 2, oy: (cv.height - boxImg.height * k) / 2 }; }
+// Zoom so that about 7 cells are visible, centred on where the piece is (label, else best proposal).
+function focusOn() {
+  sizeCanvas(); if (!boxImg || cur < 0) return;
+  const l = lab(), first = (leads[caps[cur].name] || [])[0], t = l.cx != null ? [l.cx, l.cy] : first ? [first[0], first[1]] : null;
+  if (!t) return fitAll();
+  const { w, h } = cell(), k = cv.width / (7 * w);
+  view = { k, ox: cv.width / 2 - t[0] * w * k, oy: cv.height / 2 - t[1] * h * k };
+}
+window.onresize = () => { sizeCanvas(); draw(); };
+
+function draw() {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
+  if (!boxImg) return;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(boxImg, view.ox, view.oy, boxImg.width * view.k, boxImg.height * view.k);
+  const { w, h } = cell(); g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 1; g.beginPath();
+  for (let x = 0; x <= grid.c; x++) { const X = view.ox + x * w * view.k; g.moveTo(X, view.oy); g.lineTo(X, view.oy + boxImg.height * view.k); }
+  for (let y = 0; y <= grid.r; y++) { const Y = view.oy + y * h * view.k; g.moveTo(view.ox, Y); g.lineTo(view.ox + boxImg.width * view.k, Y); }
+  g.stroke();
+  const c = caps[cur], l = lab(); if (!c || l.cx == null) return;
+  const X = view.ox + l.cx * w * view.k, Y = view.oy + l.cy * h * view.k;
+  g.save(); g.translate(X, Y);
+  if (c.cut) {                                          // the real piece, at the box's scale (its area = one cell)
+    const s = (Math.sqrt(w * h) * (l.size ?? 1) / c.cut.side) * view.k;
+    g.rotate(((l.rot ?? 0) * Math.PI) / 180); g.scale(s, s); g.globalAlpha = alpha;
+    g.drawImage(c.cut.i, -c.cut.cx, -c.cut.cy); g.globalAlpha = 1;
+  } else { g.strokeStyle = '#e6f04a'; g.lineWidth = 3; g.strokeRect(-w * view.k / 2, -h * view.k / 2, w * view.k, h * view.k); }
+  g.restore();
+  g.strokeStyle = '#e6f04a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X - 7, Y); g.lineTo(X + 7, Y); g.moveTo(X, Y - 7); g.lineTo(X, Y + 7); g.stroke();
+}
+
+function drawPhoto() {
+  const c = $('photo'), x = c.getContext('2d'), p = caps[cur] && caps[cur].photo; x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
+  if (!p) return;
+  const s = Math.min(p.width, p.height) * 0.5, sx = (p.width - s) / 2, sy = (p.height - s) / 2;
+  x.save(); x.translate(c.width / 2, c.height / 2); x.rotate((((lab().rot ?? 0)) * Math.PI) / 180);
+  x.drawImage(p, sx, sy, s, s, -c.width / 2, -c.height / 2, c.width, c.height); x.restore();
+}
+
+function drawLeads() {
+  const box = $('leads'); box.innerHTML = ''; if (cur < 0 || !boxImg) return;
+  const { w, h } = cell();
+  ((leads[caps[cur].name]) || []).slice(0, 8).forEach(([col, row, rot], i) => {
+    const c = document.createElement('canvas'); c.width = c.height = 150;
+    const x = c.getContext('2d'); x.drawImage(boxImg, (col - 1.25) * w, (row - 1.25) * h, 2.5 * w, 2.5 * h, 0, 0, 150, 150);
+    x.strokeStyle = '#e6f04a'; x.lineWidth = 2; x.strokeRect(30, 30, 90, 90); x.fillStyle = '#e6f04a'; x.font = 'bold 16px sans-serif'; x.fillText(String(i + 1), 6, 18);
+    c.onclick = () => pickLead(i); box.appendChild(c);
+  });
+  if (!box.children.length) box.textContent = 'Pas de proposition.';
+}
+function pickLead(i) { const l = ((leads[caps[cur].name]) || [])[i]; if (!l) return; $('rot').value = Math.round(l[2]); update({ cx: l[0], cy: l[1], rot: l[2] }); focusOn(); draw(); }
+
+function info() {
+  const l = lab(); if (!l) return;
+  $('info').innerHTML = l.cx == null ? 'Pas encore étiquetée : clique sur la boîte pour poser la pièce.' : `Centre <b>${l.cx.toFixed(2)}</b> / <b>${l.cy.toFixed(2)}</b> (cases, case ${Math.floor(l.cx)},${Math.floor(l.cy)}), rotation <b>${Math.round(l.rot ?? 0)}°</b>${l.doubt ? ' — <span class="doubt">douteuse</span>' : ''}`;
+}
+function update(patch) { const c = caps[cur]; if (!c) return; c.lab = { ...c.lab, ...patch }; if (c.lab.cx != null) { c.lab.col = Math.floor(c.lab.cx); c.lab.row = Math.floor(c.lab.cy); } save(c.file, c.lab); renderList(); drawPhoto(); info(); draw(); }
+
+// Pointer: drag the piece if it is under the pointer, else pan; a plain click on the box puts the piece there.
+const toBox = (px, py) => ({ x: (px - view.ox) / view.k, y: (py - view.oy) / view.k });
+const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
+cv.onpointerdown = e => {
+  if (!boxImg || cur < 0) return; cv.setPointerCapture(e.pointerId);
+  const p = pos(e), b = toBox(p.x, p.y), { w, h } = cell(), l = lab();
+  const onPiece = l.cx != null && Math.hypot(b.x - l.cx * w, b.y - l.cy * h) < 0.75 * Math.sqrt(w * h) * (l.size ?? 1);
+  drag = { mode: onPiece ? 'piece' : 'pan', sx: p.x, sy: p.y, ox: view.ox, oy: view.oy, moved: false, dx: l.cx != null ? l.cx - b.x / w : 0, dy: l.cx != null ? l.cy - b.y / h : 0 };
+  cv.style.cursor = 'grabbing';
+};
+cv.onpointermove = e => {
+  if (!drag) return; const p = pos(e); if (Math.hypot(p.x - drag.sx, p.y - drag.sy) > 4) drag.moved = true;
+  const { w, h } = cell();
+  if (drag.mode === 'pan') { view.ox = drag.ox + p.x - drag.sx; view.oy = drag.oy + p.y - drag.sy; draw(); }
+  else if (drag.moved) { const b = toBox(p.x, p.y); update({ cx: Math.round((b.x / w + drag.dx) * 100) / 100, cy: Math.round((b.y / h + drag.dy) * 100) / 100 }); }
+};
+cv.onpointerup = e => {
+  if (!drag) return; const p = pos(e), b = toBox(p.x, p.y), { w, h } = cell();
+  if (!drag.moved && drag.mode === 'pan' && b.x >= 0 && b.y >= 0 && b.x < boxImg.width && b.y < boxImg.height) update({ cx: Math.round(b.x / w * 100) / 100, cy: Math.round(b.y / h * 100) / 100, rot: lab().rot ?? 0 });
+  drag = null; cv.style.cursor = 'grab';
+};
+cv.onwheel = e => {
+  e.preventDefault(); if (!boxImg) return;
+  const p = pos(e), f = Math.exp(-e.deltaY * 0.0015), nk = Math.min(40, Math.max(0.05, view.k * f));
+  view.ox = p.x - (p.x - view.ox) * nk / view.k; view.oy = p.y - (p.y - view.oy) * nk / view.k; view.k = nk; draw();
+};
+
+const turn = d => { if (cur < 0) return; const v = ((((lab().rot ?? 0) + d) % 360) + 360) % 360; $('rot').value = Math.round(v); update({ rot: v }); };
+$('rotL').onclick = () => turn(-5); $('rotR').onclick = () => turn(5); $('rotL90').onclick = () => turn(-90); $('rotR90').onclick = () => turn(90);
+$('rot').oninput = () => { if (cur >= 0) update({ rot: (((+$('rot').value || 0) % 360) + 360) % 360 }); };
+$('alpha').oninput = () => { alpha = $('alpha').value / 100; draw(); };
+$('size').oninput = () => { if (cur >= 0) update({ size: $('size').value / 100 }); };
+$('doubt').onclick = () => { if (cur >= 0) update({ doubt: !lab().doubt }); };
+$('clear').onclick = () => { if (cur < 0) return; const c = caps[cur]; c.lab = {}; save(c.file, {}); select(cur); };
+$('fit').onclick = () => { focusOn(); draw(); };
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return; const k = e.key.toLowerCase();
+  if (e.key === 'ArrowRight' && cur < caps.length - 1) select(cur + 1);
+  else if (e.key === 'ArrowLeft' && cur > 0) select(cur - 1);
+  else if (k === 'q') turn(-5); else if (k === 'e') turn(5); else if (k === 'r') turn(e.shiftKey ? -90 : 90);
+  else if (k === 'c') $('fit').click(); else if (k === 'd') $('doubt').click();
+  else if (/^[1-8]$/.test(e.key)) pickLead(+e.key - 1);
+});
+
+// "<file>.bmp col row rotation cx cy": the BMP name matches what the replay test loads; doubtful pieces stay out of the score.
+$('export').onclick = () => {
+  const lines = caps.filter(c => c.lab.cx != null && !c.lab.doubt).map(c => `${base(c.name)}.bmp ${Math.floor(c.lab.cx)} ${Math.floor(c.lab.cy)} ${Math.round(c.lab.rot ?? 0)} ${c.lab.cx} ${c.lab.cy}`);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/plain' })); a.download = 'truth.txt'; a.click();
+};
+</script>
+</body>
+</html>

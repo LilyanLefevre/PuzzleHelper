@@ -19,6 +19,7 @@ import torchvision
 from PIL import Image, ImageFilter
 
 SIZE = 96
+WIDE = os.environ.get("PUZZLE_WIDE") == "1"   # set by --wide (env: DataLoader workers re-import this module)  # --wide: camera variations measured on the owner's real photos (up to x2 per channel, saturation)
 MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
 STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 TABLES = [(120, 86, 60), (190, 160, 120), (60, 40, 30), (235, 235, 230), (128, 128, 128), (40, 90, 50), (50, 50, 55)]
@@ -88,11 +89,18 @@ def photo_body(rnd, arr, cw, ch, cx, cy, col, row, cols, rows):
     masked = rnd.random() < 0.5                       # bank dump (black outside) or real photo (table around)
     table = np.zeros(3, np.float32) if masked else np.array(rnd.choice(TABLES), np.float32) * rnd.uniform(.8, 1.2)
     # Camera: white balance, exposure, side light, gamma; then the table where there is no piece.
-    gains = np.array([rnd.uniform(.82, 1.18) for _ in range(3)], np.float32) * rnd.uniform(.75, 1.2)
+    if WIDE:
+        gains = np.array([rnd.uniform(.6, 1.5) for _ in range(3)], np.float32) * rnd.uniform(.6, 1.8)
+    else:
+        gains = np.array([rnd.uniform(.82, 1.18) for _ in range(3)], np.float32) * rnd.uniform(.75, 1.2)
     a = rnd.uniform(0, 2 * math.pi); g = rnd.uniform(0, .6)
     v, u = np.mgrid[0:2 * hh, 0:2 * hw].astype(np.float32)
     light = 1 + g * (math.cos(a) * (u / (2 * hw) - .5) + math.sin(a) * (v / (2 * hh) - .5))
     img = np.clip(255 * ((src * gains * light[..., None]) / 255).clip(0, 1) ** rnd.uniform(.8, 1.25), 0, 255)
+    if WIDE:                                           # saturation and contrast of the phone's processing
+        grey = img.mean(2, keepdims=True)
+        img = np.clip(grey + (img - grey) * rnd.uniform(.5, 1.5), 0, 255)
+        img = np.clip((img - 128) * rnd.uniform(.7, 1.4) + 128, 0, 255)
     img = np.where(m[..., None], img, table)
     # Rotation residue of the outline reading, resampled twice like the real pipeline.
     deg = rnd.uniform(-7, 7)
@@ -153,16 +161,22 @@ def main():
     ap.add_argument("--images-per-batch", type=int, default=16); ap.add_argument("--cells", type=int, default=16)
     ap.add_argument("--workers", type=int, default=10); ap.add_argument("--samples", help="write a few pairs here and stop")
     ap.add_argument("--export", help="write the trained model (out) as ONNX here and stop")
+    ap.add_argument("--wide", action="store_true", help="wider camera variations (white balance, exposure, saturation, contrast)")
+    ap.add_argument("--exclude", help="comma-separated image name prefixes kept out of training (held-out boxes)")
     ap.add_argument("--arch", default="mnv3s", help="mnv3s, mnv3l, effb0, resnet18")
     ap.add_argument("--max-step-s", type=float, default=0.5,
                     help="stop if steps 5-20 average longer: long GPU commands trip the Windows watchdog (TDR) and froze the PC")
     a = ap.parse_args()
+    global WIDE
+    if a.wide:
+        os.environ["PUZZLE_WIDE"] = "1"; WIDE = True
     if a.export:
         m = encoder(a.arch); m.load_state_dict(torch.load(a.out, map_location="cpu")); m.eval()
         torch.onnx.export(m, torch.zeros(1, 3, SIZE, SIZE), a.export, input_names=["image"], output_names=["embedding"],
                           dynamic_axes={"image": {0: "n"}, "embedding": {0: "n"}}, opset_version=17)
         print(a.export, os.path.getsize(a.export) // 1024, "KB"); return
-    files = sorted(os.path.join(a.images, f) for f in os.listdir(a.images) if f.endswith(".jpg"))
+    skip = tuple(a.exclude.split(",")) if a.exclude else ()
+    files = sorted(os.path.join(a.images, f) for f in os.listdir(a.images) if f.endswith(".jpg") and not f.startswith(skip))
     if a.samples:
         os.makedirs(a.samples, exist_ok=True)
         p, b = next(iter(Pairs(files, 2, 8, 0)))
