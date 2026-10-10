@@ -13,6 +13,9 @@ interface ProgressPhotoDao {
     @Query("SELECT * FROM progress_photos WHERE projectId = :projectId ORDER BY createdAt DESC")
     fun observe(projectId: String): Flow<List<ProgressPhoto>>
 
+    @Query("SELECT * FROM progress_photos WHERE projectId = :projectId")
+    suspend fun all(projectId: String): List<ProgressPhoto>
+
     @Query("DELETE FROM progress_photos WHERE id = :id")
     suspend fun delete(id: Long)
 }

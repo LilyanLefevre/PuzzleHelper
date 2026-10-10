@@ -87,6 +87,9 @@ dependencies {
     // To handle image loading
     implementation(libs.glide)
 
+    // HTTP client for the optional sync with the owner's own server (PocketBase)
+    implementation(libs.okhttp)
+
     // OpenCV dependency using version catalog
     implementation(libs.opencv)
 

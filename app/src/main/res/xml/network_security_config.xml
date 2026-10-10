@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- A home server on the local network (http://192.168.x.x:8090) has no certificate. Put HTTPS in front of it (Caddy, see
+         server/README.md) before exposing it to the internet. The app talks to no other server. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -2,6 +2,7 @@ package com.lilyan_lefevre.puzzleit.feature.history.data
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.lilyan_lefevre.puzzleit.feature.account.data.AccountStore
 import com.lilyan_lefevre.puzzleit.feature.recognition.Match
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -16,6 +17,7 @@ import kotlinx.coroutines.withContext
 class ScanHistoryRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: ScanRecordDao,
+    private val account: AccountStore,
 ) {
     fun history(projectId: String): Flow<List<ScanRecord>> = dao.observe(projectId)
 
@@ -35,5 +37,6 @@ class ScanHistoryRepository @Inject constructor(
     suspend fun delete(record: ScanRecord) = withContext(Dispatchers.IO) {
         dao.delete(record.id)
         File(record.piecePath).delete()
+        account.markDeleted("scan:${record.projectId}:${record.createdAt}")
     }
 }

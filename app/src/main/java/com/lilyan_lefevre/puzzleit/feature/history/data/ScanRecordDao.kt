@@ -16,6 +16,9 @@ interface ScanRecordDao {
     @Query("SELECT * FROM scans WHERE projectId = :projectId ORDER BY createdAt DESC")
     fun observe(projectId: String): Flow<List<ScanRecord>>
 
+    @Query("SELECT * FROM scans WHERE projectId = :projectId")
+    suspend fun all(projectId: String): List<ScanRecord>
+
     @Query("SELECT * FROM scans WHERE id = :id")
     suspend fun get(id: Long): ScanRecord?
 

@@ -1,5 +1,6 @@
 package com.lilyan_lefevre.puzzleit.feature.project.data
 
+import com.lilyan_lefevre.puzzleit.feature.account.data.AccountStore
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -10,7 +11,8 @@ import kotlinx.coroutines.flow.Flow
 @Singleton
 class ProjectRepository @Inject constructor(
     private val projectDao: ProjectDao,
-    private val imageStorageManager: ImageStorageManager
+    private val imageStorageManager: ImageStorageManager,
+    private val account: AccountStore,
 ) {
 
     /**
@@ -82,6 +84,7 @@ class ProjectRepository @Inject constructor(
             if (project != null) {
                 imageStorageManager.deleteProjectImages(project.id)
                 projectDao.deleteProject(project)
+                account.markDeleted("puzzle:$projectId")
                 Result.success(true)
             } else {
                 Result.failure(Exception("Project not found"))

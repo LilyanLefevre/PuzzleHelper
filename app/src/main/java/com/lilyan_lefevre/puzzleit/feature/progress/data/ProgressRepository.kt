@@ -1,6 +1,7 @@
 package com.lilyan_lefevre.puzzleit.feature.progress.data
 
 import android.content.Context
+import com.lilyan_lefevre.puzzleit.feature.account.data.AccountStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -14,6 +15,7 @@ import kotlinx.coroutines.withContext
 class ProgressRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: ProgressPhotoDao,
+    private val account: AccountStore,
 ) {
     fun photos(projectId: String): Flow<List<ProgressPhoto>> = dao.observe(projectId)
 
@@ -29,5 +31,6 @@ class ProgressRepository @Inject constructor(
     suspend fun delete(photo: ProgressPhoto) = withContext(Dispatchers.IO) {
         dao.delete(photo.id)
         File(photo.path).delete()
+        account.markDeleted("photo:${photo.projectId}:${photo.createdAt}")
     }
 }
