@@ -142,8 +142,10 @@ class PuzzleWorkingFragment : Fragment() {
     }
 
     private fun syncMap() {
-        binding.sheet.removeCallbacks(syncMapRunnable)
-        binding.sheet.postDelayed(syncMapRunnable, 90)
+        // The sheet can still settle after the screen was left: the view is gone then.
+        val sheetView = _binding?.sheet ?: return
+        sheetView.removeCallbacks(syncMapRunnable)
+        sheetView.postDelayed(syncMapRunnable, 90)
     }
 
     private fun observe() {
