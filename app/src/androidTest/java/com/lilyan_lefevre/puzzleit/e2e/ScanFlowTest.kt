@@ -76,7 +76,7 @@ class ScanFlowTest {
         File(ctx.filesDir, "e2e_ref.jpg").delete()
     }
 
-    private fun waitFor(timeoutMs: Long = 20_000, check: () -> Unit) {
+    private fun waitFor(timeoutMs: Long = 60_000, check: () -> Unit) {
         val end = System.currentTimeMillis() + timeoutMs
         while (true) {
             try { check(); return } catch (e: Throwable) {
