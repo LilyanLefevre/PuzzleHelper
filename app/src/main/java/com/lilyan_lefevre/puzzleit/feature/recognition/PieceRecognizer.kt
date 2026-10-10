@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -22,7 +24,10 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
     /** [warm] completes once the box index is built and the first scan's cold costs are paid (it runs in the background). */
     class Prepared(val display: Bitmap, val matcher: PieceMatcher, val warm: Job)
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // The box index and the warm-up scan run on a thread of their own, at the lowest priority: on a phone with few cores they used to
+    // take both threads of Dispatchers.Default and a scan the person asked for waited until they were done.
+    private val background = Executors.newSingleThreadExecutor { r -> Thread(r, "box-index").apply { isDaemon = true; priority = Thread.MIN_PRIORITY } }.asCoroutineDispatcher()
+    private val scope = CoroutineScope(SupervisorJob() + background)
     private var warmJob: Job? = null
 
     /** Abandons the background work of the last [prepare] (the person left the table: it would only compete with what comes next). */
