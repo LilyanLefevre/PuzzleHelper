@@ -21,5 +21,6 @@ data class Project(
     val thumbnailPath: String, // Thumbnail image path
     val warpedPath: String = "", // Redressed/High-res puzzle box image path
     val puzzleQuad: String? = null,
-    val status: String = "active"
+    val status: String = "active",
+    val updatedAt: Long = System.currentTimeMillis() // last edit: of two versions, a sync keeps the newest
 )

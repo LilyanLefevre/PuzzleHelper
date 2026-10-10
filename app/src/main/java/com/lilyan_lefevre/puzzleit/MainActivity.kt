@@ -17,6 +17,7 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.lilyan_lefevre.puzzleit.databinding.ActivityMainNavBinding
 import com.lilyan_lefevre.puzzleit.feature.account.data.AccountStore
+import com.lilyan_lefevre.puzzleit.feature.account.data.SyncRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
@@ -29,6 +30,7 @@ import org.opencv.android.OpenCVLoader
 class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var accountStore: AccountStore
+    @Inject lateinit var syncRepository: SyncRepository
 
     private lateinit var binding: ActivityMainNavBinding
 
@@ -89,6 +91,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // Leaving the app is the moment to push what changed: there is no sync button.
+    override fun onStop() {
+        super.onStop()
+        syncRepository.syncInBackground()
     }
 
     override fun onSupportNavigateUp(): Boolean {

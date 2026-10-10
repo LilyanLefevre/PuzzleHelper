@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lilyan_lefevre.puzzleit.core.database.AppDatabase
 import com.lilyan_lefevre.puzzleit.core.database.ProjectMigration5
+import com.lilyan_lefevre.puzzleit.core.database.ProjectMigration6
 import com.lilyan_lefevre.puzzleit.feature.history.data.ScanRecord
 import com.lilyan_lefevre.puzzleit.feature.history.data.Verdict
 import com.lilyan_lefevre.puzzleit.feature.history.data.decodeLeads
@@ -77,19 +78,20 @@ class ScanHistoryTest {
     fun `an existing database gets the new tables and keeps its puzzles`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         context.deleteDatabase("migration-test")
-        fun open() = Room.databaseBuilder(context, AppDatabase::class.java, "migration-test").addMigrations(ProjectMigration5).allowMainThreadQueries().build()
+        fun open() = Room.databaseBuilder(context, AppDatabase::class.java, "migration-test").addMigrations(ProjectMigration5, ProjectMigration6).allowMainThreadQueries().build()
 
-        // A version 5 database: today's schema without the two new tables.
+        // A version 5 database: today's schema without the two new tables and the last-edit date.
         open().apply {
-            projectDao().insertProject(Project(id = "old", name = "Old", puzzleSize = 300, imagePath = "i", thumbnailPath = "t"))
+            projectDao().insertProject(Project(id = "old", name = "Old", puzzleSize = 300, creationDate = 1234, imagePath = "i", thumbnailPath = "t", updatedAt = 99))
             openHelper.writableDatabase.apply {
-                execSQL("DROP TABLE scans"); execSQL("DROP TABLE progress_photos"); execSQL("PRAGMA user_version = 5")
+                execSQL("DROP TABLE scans"); execSQL("DROP TABLE progress_photos"); execSQL("ALTER TABLE projects DROP COLUMN updatedAt"); execSQL("PRAGMA user_version = 5")
             }
             close()
         }
         // Room validates the migrated schema against the entities and throws when they differ.
         val migrated = open()
         assertEquals("Old", migrated.projectDao().getProjectById("old")!!.name)
+        assertEquals(1234L, migrated.projectDao().getProjectById("old")!!.updatedAt)          // a puzzle never edited counts as edited when it was created
         val id = migrated.scanRecordDao().insert(ScanRecord(projectId = "old", createdAt = 1, piecePath = "x", leads = encodeLeads(match())))
         assertEquals(Verdict.UNKNOWN, migrated.scanRecordDao().get(id)!!.verdict)
         migrated.close()

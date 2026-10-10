@@ -72,7 +72,7 @@ class ProjectRepository @Inject constructor(
      * Update an existing project
      */
     suspend fun updateProject(project: Project) {
-        projectDao.updateProject(project)
+        projectDao.updateProject(project.copy(updatedAt = System.currentTimeMillis()))
     }
 
     /**

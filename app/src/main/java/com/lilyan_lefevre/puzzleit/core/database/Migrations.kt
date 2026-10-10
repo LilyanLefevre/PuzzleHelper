@@ -44,6 +44,14 @@ val ProjectMigration5 = object : Migration(5, 6) {
     }
 }
 
+/** v6 -> v7: when a puzzle was last edited, so a sync keeps the newest version of its name, piece count and grid. */
+val ProjectMigration6 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE projects ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE projects SET updatedAt = creationDate")
+    }
+}
+
 /** v4 -> v5: rectified box image. */
 val ProjectMigration4 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {

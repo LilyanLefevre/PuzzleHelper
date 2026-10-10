@@ -7,6 +7,7 @@ import com.lilyan_lefevre.puzzleit.R
 import com.lilyan_lefevre.puzzleit.feature.project.data.ImageStorageManager
 import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
+import com.lilyan_lefevre.puzzleit.feature.project.data.deleteBoxFiles
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import java.util.UUID
@@ -104,11 +105,7 @@ class ProjectCreationViewModel @Inject constructor(
                         when (val r = storage.saveProjectBundle(existing.id, name.trim(), original, originalBmp, warpedBmp)) {
                             is ImageStorageManager.ProjectBundleResult.Success -> {
                                 updated = updated.copy(imagePath = r.originalPath, thumbnailPath = r.thumbPath, warpedPath = r.warpedPath)
-                                listOf(existing.imagePath, existing.thumbnailPath).filter { it.isNotEmpty() }.forEach { File(it).delete() }
-                                // The box index is cached next to the reference image under its name: it goes with it.
-                                File(existing.warpedPath).takeIf { existing.warpedPath.isNotEmpty() }?.let { w ->
-                                    w.parentFile?.listFiles { f -> f.name.startsWith(w.nameWithoutExtension) }?.forEach { it.delete() }
-                                }
+                                existing.deleteBoxFiles()
                                 processor.discardTemporary(original, d.rectifiedPath)
                             }
                             is ImageStorageManager.ProjectBundleResult.Error -> { _error.value = r.exception.message; return@launch }

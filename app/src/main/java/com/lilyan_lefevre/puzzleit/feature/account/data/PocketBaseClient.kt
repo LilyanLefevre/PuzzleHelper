@@ -168,9 +168,9 @@ class PocketBaseClient @Inject constructor(private val http: OkHttpClient) {
         JSONObject(call(Request.Builder().url("${base(server)}/api/collections/$collection/records").header("Authorization", token)
             .post(multipart(fields, files)).build()))
 
-    suspend fun update(server: String, token: String, collection: String, id: String, fields: Map<String, String>) {
+    suspend fun update(server: String, token: String, collection: String, id: String, fields: Map<String, String>, files: Map<String, File> = emptyMap()) {
         call(Request.Builder().url("${base(server)}/api/collections/$collection/records/$id").header("Authorization", token)
-            .patch(multipart(fields, emptyMap())).build())
+            .patch(multipart(fields, files)).build())
     }
 
     suspend fun delete(server: String, token: String, collection: String, id: String) {

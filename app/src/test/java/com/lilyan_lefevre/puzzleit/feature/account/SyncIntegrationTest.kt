@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lilyan_lefevre.puzzleit.core.database.AppDatabase
+import com.lilyan_lefevre.puzzleit.core.image.ImageUtils
 import com.lilyan_lefevre.puzzleit.feature.account.data.AccountStore
 import com.lilyan_lefevre.puzzleit.feature.account.data.PocketBaseClient
 import com.lilyan_lefevre.puzzleit.feature.account.data.SyncRepository
@@ -12,12 +13,16 @@ import com.lilyan_lefevre.puzzleit.feature.history.data.ScanHistoryRepository
 import com.lilyan_lefevre.puzzleit.feature.history.data.ScanRecord
 import com.lilyan_lefevre.puzzleit.feature.history.data.Verdict
 import com.lilyan_lefevre.puzzleit.feature.progress.data.ProgressPhoto
+import com.lilyan_lefevre.puzzleit.feature.project.data.ImageStorageManager
 import com.lilyan_lefevre.puzzleit.feature.project.data.Project
+import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -74,12 +79,90 @@ class SyncIntegrationTest {
         assertEquals(Verdict.CORRECT, db1.scanRecordDao().all("p1").single().verdict)
 
         // A scan deleted on phone 1 is deleted on the server, and phone 1 does not download it again.
-        // (Known limit: phone 2 still has it and would send it back; deletions are not propagated between phones yet.)
         val repo1 = ScanHistoryRepository(context, db1.scanRecordDao(), store)
         repo1.delete(db1.scanRecordDao().all("p1").single())
         sync1.sync()
         assertTrue(client.list(server, store.token!!, "scans").isEmpty())
         assertTrue(db1.scanRecordDao().all("p1").isEmpty())
+
+        // Phone 2 still has that scan: its next sync deletes it too instead of sending it back.
+        sync2.sync()
+        assertTrue(db2.scanRecordDao().all("p1").isEmpty())
+        assertTrue(client.list(server, store.token!!, "scans").isEmpty())
+
+        // Same for a whole puzzle: deleted on phone 1, it disappears from phone 2 (with its files) and is not recreated on the server.
+        ProjectRepository(db1.projectDao(), ImageStorageManager(context, ImageUtils()), store).deleteProject("p1")
+        sync1.sync(); sync2.sync()
+        assertNull(db2.projectDao().getProjectById("p1"))
+        assertFalse(File(context.filesDir, "p1").exists())
+        assertTrue(client.list(server, store.token!!, "puzzles").isEmpty())
+        db1.close(); db2.close()
+    }
+
+    @Test
+    fun `the latest edit of a puzzle wins on every phone, never the oldest`() = runBlocking {
+        assumeTrue("POCKETBASE_URL not set", server != null)
+        val store = AccountStore(prefs)
+        store.signIn(server!!, client.register(server, "edit-${System.nanoTime()}@test.dev", "Password12345"))
+        val box = file("p3/puzzle/original/box.jpg", "box")
+
+        val (db1, sync1) = freshDevice()
+        val repo1 = ProjectRepository(db1.projectDao(), ImageStorageManager(context, ImageUtils()), store)
+        db1.projectDao().insertProject(Project(id = "p3", name = "Old name", puzzleSize = 500, gridRows = 20, gridCols = 25, creationDate = 1000,
+            imagePath = box.path, thumbnailPath = box.path, updatedAt = 1000))
+        sync1.sync()
+        val (db2, sync2) = freshDevice()
+        sync2.sync()
+        assertEquals("Old name", db2.projectDao().getProjectById("p3")!!.name)
+
+        // Phone 1 edits the name, the piece count and the grid; phone 2 receives all three.
+        repo1.updateProject(db1.projectDao().getProjectById("p3")!!.copy(name = "New name", puzzleSize = 1000, gridRows = 25, gridCols = 40))
+        sync1.sync(); sync2.sync()
+        val onPhone2 = db2.projectDao().getProjectById("p3")!!
+        assertEquals(listOf("New name", 1000, 25, 40), listOf(onPhone2.name, onPhone2.puzzleSize, onPhone2.gridRows, onPhone2.gridCols))
+
+        // A phone that still holds the old version (older edit date) does not overwrite the newer one when it syncs.
+        db2.projectDao().updateProject(onPhone2.copy(name = "Stale", updatedAt = 1500))
+        sync2.sync(); sync1.sync()
+        assertEquals("New name", db2.projectDao().getProjectById("p3")!!.name)
+        assertEquals("New name", db1.projectDao().getProjectById("p3")!!.name)
+        db1.close(); db2.close()
+    }
+
+    @Test
+    fun `a retaken box photo reaches the other phone and the newest wins`() = runBlocking {
+        assumeTrue("POCKETBASE_URL not set", server != null)
+        val store = AccountStore(prefs)
+        store.signIn(server!!, client.register(server, "photo-${System.nanoTime()}@test.dev", "Password12345"))
+
+        fun boxPhotos(stamp: String, content: String): Project {
+            val base = "p2/puzzle"
+            val image = file("$base/original/Vague_puzzle_${stamp}_original.jpg", content)
+            val warped = file("$base/extraites/Vague_puzzle_${stamp}_warped.jpg", content)
+            val thumb = file("$base/original/Vague_puzzle_${stamp}_thumb.jpg", content)
+            return Project(id = "p2", name = "Vague", puzzleSize = 500, imagePath = image.path, thumbnailPath = thumb.path, warpedPath = warped.path)
+        }
+
+        val (db1, sync1) = freshDevice()
+        db1.projectDao().insertProject(boxPhotos("20260101_100000", "first"))
+        sync1.sync()
+        File(context.filesDir, "p2").deleteRecursively()
+        val (db2, sync2) = freshDevice()
+        sync2.sync()
+        assertEquals("first", File(db2.projectDao().getProjectById("p2")!!.warpedPath).readText())
+
+        // Phone 1 retakes the photo (what the edit screen does: new files with a new date, the old ones removed).
+        val old = db1.projectDao().getProjectById("p2")!!
+        File(context.filesDir, "p2").deleteRecursively()
+        db1.projectDao().updateProject(boxPhotos("20260202_100000", "second").copy(creationDate = old.creationDate))
+        assertTrue(sync1.sync().uploaded > 0)
+
+        // Phone 2 gets the new photo, and phone 1 keeps it (the old photo on phone 2 does not win back).
+        sync2.sync(); sync1.sync()
+        val onPhone2 = db2.projectDao().getProjectById("p2")!!
+        assertEquals("second", File(onPhone2.warpedPath).readText())
+        assertTrue(onPhone2.warpedPath.contains("20260202_100000"))
+        assertEquals("second", File(db1.projectDao().getProjectById("p2")!!.warpedPath).readText())
         db1.close(); db2.close()
     }
 }

@@ -29,7 +29,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   crops the square under the viewfinder, archives the last 200 captures + verdicts in `files/captures`.
 - `feature/history/` (`data/`: `ScanRecord` = a scanned piece with its leads as fractions of the box + the person's verdict, DAO, `ScanHistoryRepository`; `HistoryFragment`) and
   `feature/progress/` (`data/`: `ProgressPhoto` + DAO + `ProgressRepository`; `ProgressFragment` takes the photo with the system camera). Both tables are deleted with their puzzle
-  (FK cascade; the files live in `files/<projectId>/scans|progress`, removed with the puzzle's folder). DB version 6 (`ProjectMigration5`, covered by `ScanHistoryTest`).
+  (FK cascade; the files live in `files/<projectId>/scans|progress`, removed with the puzzle's folder). DB version 7 (`ProjectMigration5` and `6`, covered by `ScanHistoryTest`; `updatedAt` = last edit of a puzzle, the sync keeps the newest).
   The result sheet asks "is that where the piece goes?" (`PuzzleWorkingViewModel.evaluate`): verdicts are the future real-world training / evaluation data.
 - `feature/account/` (`data/`: `PocketBaseClient`, `AccountStore` on encrypted prefs, `AccountModule` (OkHttp + prefs), `SyncRepository`, `isAcceptableServer`; `AccountFragment` + ViewModel, opened from the puzzle list).
   Repositories that delete things (`ProjectRepository`, `ScanHistoryRepository`, `ProgressRepository`) call `AccountStore.markDeleted` so the next sync tells the server.
@@ -166,7 +166,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
    `cd server && docker compose up -d --build`, the tunnel is created in the Cloudflare Zero Trust dashboard and its token goes in `server/.env` typed by the owner on the Pi (never through the chat, never committed),
    `PUZZLEIT_BIND=127.0.0.1`, `docker compose --profile tunnel up -d`; create the owner's account in the app, then lock the sign-up in the PocketBase dashboard. Not tested yet: the Dockerfile, the tunnel.
 2. Try the account screen with a real server on the owner's phone (the e2e tests only cover the screen and the bad-address refusal).
-3. Sync gaps: deletions are not propagated to the *other* phones (they would send the item back: needs server-side tombstones), no background sync while the app is closed (WorkManager).
+3. Sync gaps left: no sync while the app is closed (WorkManager, a dependency to ask the owner about; the app syncs on show and when it goes to the background). Done: deletions reach the other phones (`deletions` collection), retaken box photo (`photoId`), latest edit wins (`updatedAt`). The owner does not want any "sync now" button.
+   Login is mandatory (no guest), the production server is `BuildConfig.PUZZLEIT_SERVER`, providers (Google...) come from the server's `auth-methods`; the Pi redeploys through `.github/workflows/server.yml` (self-hosted runner, clone in `~/PuzzleIt`).
 4. Use the progress photos to help the localisation (the reason they exist), measure the box index build time on the phone for La vague (never done).
 5. Owner's phone: wireless adb drops often; run tests there with `installDebug installDebugAndroidTest` + `am instrument` (animations off, restore them after), never `connectedDebugAndroidTest`.
 - First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected

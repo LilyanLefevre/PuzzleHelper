@@ -29,7 +29,8 @@ object DatabaseModule {
             ProjectMigration2,
             ProjectMigration3,
             ProjectMigration4,
-            ProjectMigration5
+            ProjectMigration5,
+            ProjectMigration6
         )
         .build()
     }

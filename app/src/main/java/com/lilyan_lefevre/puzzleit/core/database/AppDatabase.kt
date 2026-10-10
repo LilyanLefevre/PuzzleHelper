@@ -14,7 +14,7 @@ import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectDao
  */
 @Database(
     entities = [Project::class, ScanRecord::class, ProgressPhoto::class],
-    version = 6, // 6: scan history and progress photos
+    version = 7, // 6: scan history and progress photos; 7: last edit date of a puzzle
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
