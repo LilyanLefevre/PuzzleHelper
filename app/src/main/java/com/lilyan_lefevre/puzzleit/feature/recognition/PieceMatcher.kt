@@ -218,8 +218,11 @@ class PieceMatcher(
             val border = borderSides(c)
             var bestD = Float.MAX_VALUE; var bestR = -1
             for (q in 0..3) {                              // q quarter-turns clockwise to put the piece back
-                if (flats != null && flats.map { (it + q) % 4 }.toSet() != border) continue
                 var dist = distance(pd, d, q)
+                if (flats != null && flats.map { (it + q) % 4 }.toSet() != border) {
+                    if (BORDER_PENALTY.isInfinite()) continue
+                    dist *= BORDER_PENALTY                  // the outline reading is wrong often enough on real pieces: a cost, not a wall
+                }
                 if (flats == null && border.isNotEmpty() && kind == PieceKind.INTERIOR) dist *= 1.25f
                 if (dist < bestD) { bestD = dist; bestR = q }
             }
@@ -374,60 +377,94 @@ class PieceMatcher(
     }
 
     /**
-     * Foreground = pixels far from the table colour (sampled on the image border).
-     * Otsu picks the cut between "table" and "piece" distances, so textured or unevenly lit tables still work;
-     * an opening removes speckles and thin bridges; the blob under the centre (else the largest) is the piece.
+     * Foreground = pixels far from the table, which is modelled on the image border as a lighting plane per Lab
+     * channel (a lamp makes one side of the table brighter) fitted without the intruders there (hand, jeans, a
+     * crease): a few outliers must not raise the threshold above the piece's dark parts. Pixels far from the table
+     * seed the piece, and it grows into the pixels that are only a little off the table (a navy zone of the picture
+     * on a dark table), so dark parts stay attached. An opening removes speckles and thin bridges.
      */
     private fun segment(img: LabImage): BooleanArray? {
         val w = img.w; val h = img.h
         val b = max(2, (min(w, h) * 0.05f).toInt())
         fun onBorder(x: Int, y: Int) = x < b || y < b || x >= w - b || y >= h - b
-        // Table colour as a distribution: robust centre (median) and spread (MAD) per Lab channel.
-        // A quilted or textured table varies a lot in lightness but little in hue, so a dark blue piece on a dark
-        // grey table is still far from it once each channel is scaled by its own spread.
-        val med = FloatArray(3); val spread = FloatArray(3)
-        for (c in 0..2) {
-            val vs = ArrayList<Float>()
-            for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) vs += img.lab[(y * w + x) * 3 + c]
-            vs.sort(); med[c] = vs[vs.size / 2]
-            val dev = vs.map { abs(it - med[c]) }.sorted()
-            spread[c] = max(if (c == 0) 3f else 1.5f, 1.4826f * dev[dev.size / 2])
+        val border = (0 until w * h).filter { onBorder(it % w, it / w) }
+        // z = distance to the table plane, each channel scaled by its own spread (a textured table varies a lot in
+        // lightness but little in hue, so a dark blue piece stays far from it).
+        val plane = Array(3) { floatArrayOf(0f, 0f, 0f) }
+        val spread = FloatArray(3) { SPREAD_FLOOR[it] }
+        fun resid(i: Int, c: Int) = img.lab[i * 3 + c] - (plane[c][0] + plane[c][1] * (i % w) / w + plane[c][2] * (i / w) / h)
+        fun zAt(i: Int): Float { var acc = 0f; for (c in 0..2) { val d = resid(i, c) / spread[c]; acc += d * d }; return sqrt(acc) }
+        for (c in 0..2) plane[c][0] = border.map { img.lab[it * 3 + c] }.sorted().let { it[it.size / 2] }
+        var keep = border
+        repeat(3) {
+            for (c in 0..2) {
+                val dev = keep.map { abs(resid(it, c)) }.sorted()
+                spread[c] = max(SPREAD_FLOOR[c], 1.4826f * dev[dev.size / 2])
+            }
+            keep = border.filter { zAt(it) < OUTLIER_Z }.takeIf { it.size > border.size / 3 } ?: keep
+            for (c in 0..2) fitPlane(img, keep, c, w, h, plane[c])
         }
-        val z = FloatArray(w * h) { i ->
-            var acc = 0f
-            for (c in 0..2) { val d = (img.lab[i * 3 + c] - med[c]) / spread[c]; acc += d * d }
-            sqrt(acc)
-        }
-        val bz = ArrayList<Float>()
-        for (y in 0 until h) for (x in 0 until w) if (onBorder(x, y)) bz += z[y * w + x]
-        bz.sort()
-        // Anything clearly outside what the table border shows.
-        val thr = max(Z_MIN, bz[(bz.size * 0.99f).toInt()] * 1.1f)
-        var fg = BooleanArray(w * h) { z[it] > thr }
+        val z = FloatArray(w * h) { zAt(it) }
+        val bz = keep.map { z[it] }.sorted()
+        val seedThr = max(Z_MIN, bz[(bz.size * 0.99f).toInt()] * 1.1f)
+        val growThr = max(Z_GROW, bz[(bz.size * 0.95f).toInt()] * 1.1f)
+        var fg = BooleanArray(w * h) { z[it] > seedThr }
         fg = dilate(erode(fg, w, h), w, h)                                   // opening: speckles out
+        // Hysteresis: the piece's own seeds grow into the weaker pixels they touch, but only inside their convex hull
+        // (a piece is nearly convex), so a lit patch of table next to it cannot be swallowed.
+        fg = pieceBlob(fg, w, h) ?: return null
+        val room = hullMask(fg, w, h, HULL_MARGIN)
+        val stack = IntArray(w * h); var sp = 0
+        for (i in fg.indices) if (fg[i]) stack[sp++] = i
+        while (sp > 0) {
+            val i = stack[--sp]; val x = i % w; val y = i / w
+            for (j in intArrayOf(if (x > 0) i - 1 else -1, if (x < w - 1) i + 1 else -1, if (y > 0) i - w else -1, if (y < h - 1) i + w else -1))
+                if (j >= 0 && !fg[j] && room[j] && z[j] > growThr) { fg[j] = true; stack[sp++] = j }
+        }
+        fg = dilate(erode(fg, w, h), w, h)
         repeat(2) { fg = dilate(fg, w, h) }; repeat(2) { fg = erode(fg, w, h) }   // closing: glue the parts
-        fg = blobAtCentre(fg, w, h) ?: return null
+        fg = pieceBlob(fg, w, h) ?: return null
         fg = fillHoles(fg, w, h)
         val area = fg.count { it }
         return if (area < w * h * 0.01f || area > w * h * 0.85f) null else fg
     }
 
-    private fun otsu(v: FloatArray): Float {
-        val top = v.maxOrNull()?.takeIf { it > 0f } ?: return 0f
-        val bins = 128; val hist = IntArray(bins)
-        for (x in v) hist[min(bins - 1, (x / top * bins).toInt())]++
-        val total = v.size; var sumAll = 0.0
-        for (i in 0 until bins) sumAll += i * hist[i].toDouble()
-        var wB = 0; var sumB = 0.0; var best = 0.0; var cut = 0
-        for (i in 0 until bins) {
-            wB += hist[i]; if (wB == 0) continue
-            val wF = total - wB; if (wF == 0) break
-            sumB += i * hist[i].toDouble()
-            val mB = sumB / wB; val mF = (sumAll - sumB) / wF
-            val between = wB.toDouble() * wF * (mB - mF) * (mB - mF)
-            if (between > best) { best = between; cut = i }
+    /** Pixels inside the convex hull of [m] (monotone chain), grown by [margin] px. */
+    private fun hullMask(m: BooleanArray, w: Int, h: Int, margin: Float): BooleanArray {
+        val pts = m.indices.filter { m[it] }.map { (it % w) to (it / w) }.sortedWith(compareBy({ it.first }, { it.second }))
+        fun cross(o: Pair<Int, Int>, a: Pair<Int, Int>, b: Pair<Int, Int>) =
+            (a.first - o.first).toLong() * (b.second - o.second) - (a.second - o.second).toLong() * (b.first - o.first)
+        fun half(src: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
+            val out = ArrayList<Pair<Int, Int>>()
+            for (p in src) { while (out.size >= 2 && cross(out[out.size - 2], out[out.size - 1], p) <= 0) out.removeAt(out.size - 1); out += p }
+            return out
         }
-        return (cut + 1) * top / bins
+        val hull = half(pts).dropLast(1) + half(pts.reversed()).dropLast(1)   // counter-clockwise in image axes
+        if (hull.size < 3) return m.copyOf()
+        return BooleanArray(w * h) { i ->
+            val x = i % w; val y = i / w
+            hull.indices.all { k ->
+                val a = hull[k]; val b = hull[(k + 1) % hull.size]
+                // signed distance to the edge a->b, positive inside
+                cross(a, b, x to y) / hypot((b.first - a.first).toFloat(), (b.second - a.second).toFloat()).coerceAtLeast(1e-3f) >= -margin
+            }
+        }
+    }
+
+    /** Least-squares plane v = p0 + p1 x/w + p2 y/h over [pts] of Lab channel [c]; leaves [p] alone if the system is singular. */
+    private fun fitPlane(img: LabImage, pts: List<Int>, c: Int, w: Int, h: Int, p: FloatArray) {
+        val m = Array(3) { DoubleArray(4) }
+        for (i in pts) {
+            val f = doubleArrayOf(1.0, (i % w).toDouble() / w, (i / w).toDouble() / h); val v = img.lab[i * 3 + c].toDouble()
+            for (r in 0..2) { for (k in 0..2) m[r][k] += f[r] * f[k]; m[r][3] += f[r] * v }
+        }
+        for (col in 0..2) {                                                  // Gauss-Jordan with partial pivoting
+            val piv = (col..2).maxByOrNull { abs(m[it][col]) }!!
+            if (abs(m[piv][col]) < 1e-9) return
+            val t = m[col]; m[col] = m[piv]; m[piv] = t
+            for (r in 0..2) if (r != col) { val k = m[r][col] / m[col][col]; for (j in col..3) m[r][j] -= k * m[col][j] }
+        }
+        for (k in 0..2) p[k] = (m[k][3] / m[k][k]).toFloat()
     }
 
     private fun erode(m: BooleanArray, w: Int, h: Int) = BooleanArray(m.size) { i ->
@@ -517,10 +554,13 @@ class PieceMatcher(
         }
     }
 
-    private fun blobAtCentre(m: BooleanArray, w: Int, h: Int): BooleanArray? {
+    /** The piece sits in the middle of the viewfinder with table around it: the blob under the centre, else the biggest one not cut by the image border, else the biggest. */
+    private fun pieceBlob(m: BooleanArray, w: Int, h: Int): BooleanArray? {
         val centre = (h / 2) * w + w / 2
         val blobs = blobs(m, w, h)
-        val pick = blobs.firstOrNull { centre in it.toSet() } ?: blobs.maxByOrNull { it.size } ?: return null
+        fun touchesBorder(b: IntArray) = b.any { val x = it % w; val y = it / w; x == 0 || y == 0 || x == w - 1 || y == h - 1 }
+        val pick = blobs.firstOrNull { b -> b.any { it == centre } }
+            ?: blobs.filter { !touchesBorder(it) }.maxByOrNull { it.size } ?: blobs.maxByOrNull { it.size } ?: return null
         return BooleanArray(m.size).also { o -> pick.forEach { o[it] = true } }
     }
 
@@ -566,9 +606,14 @@ class PieceMatcher(
         private const val MIN_CELLS = 8f
         const val MIN_SHARPNESS = 12f
         private const val Z_MIN = 4f
+        private const val Z_GROW = 3.6f
+        private const val OUTLIER_Z = 3.5f
+        private const val HULL_MARGIN = 1f
+        private val SPREAD_FLOOR = floatArrayOf(3f, 1.5f, 1.5f)
         private val FLOOR = floatArrayOf(4f, 3f, 3f)
         const val RERANK_LEADS = 30
         var NCC_WEIGHT = 0.4f
+        var BORDER_PENALTY = Float.POSITIVE_INFINITY
         const val CELL_CONF = 55
         const val ZONE_CONF = 30
 
