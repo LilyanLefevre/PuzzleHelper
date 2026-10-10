@@ -15,6 +15,7 @@
 /captures
 __pycache__/
 /server/pb_data/
+/server/.env
 .externalNativeBuild
 .cxx
 local.properties

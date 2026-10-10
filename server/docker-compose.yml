@@ -3,7 +3,20 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "8090:8090"
+      # 0.0.0.0 = reachable on the home network. Put PUZZLEIT_BIND=127.0.0.1 in .env when only the Cloudflare tunnel should reach it.
+      - "${PUZZLEIT_BIND:-0.0.0.0}:8090:8090"
     volumes:
       # Everything the server stores (accounts, records, photos) lives here: back this folder up.
       - ./pb_data:/pb/pb_data
+
+  # Optional, free: an https address on your own domain without opening a port on the box. Start with `docker compose --profile tunnel up -d`.
+  # CLOUDFLARED_TOKEN comes from the tunnel you create in the Cloudflare dashboard (see README), kept in server/.env (never committed).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN:?set CLOUDFLARED_TOKEN in server/.env}
+    depends_on:
+      - puzzleit

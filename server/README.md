@@ -39,6 +39,23 @@ Without Docker: download the binary for your machine from the PocketBase release
   100.64-127.x.x for Tailscale, `*.local`, `localhost`); anywhere else it requires `https://`.
 - The app talks to no server but the one you type.
 
+## Reach it from anywhere: a free Cloudflare Tunnel
+
+A tunnel gives the server an `https://` address on your own domain without opening a port on your router: the Raspberry calls out to Cloudflare, nothing calls in.
+Free, but it needs **a domain whose DNS is managed by Cloudflare** (a Cloudflare account is free; the domain itself is not). Without a domain, use Tailscale instead
+(the app already accepts its `100.x.x.x` addresses over `http://`).
+
+1. Cloudflare dashboard, Zero Trust, Networks, Tunnels, *Create a tunnel* (Cloudflared). Name it `puzzleit` and copy the **token** it shows.
+2. In that tunnel, *Public hostname*: `puzzleit.your-domain.com`, service type `HTTP`, URL `puzzleit:8090` (the compose service name).
+3. On the Raspberry, in `server/`:
+   ```bash
+   printf 'CLOUDFLARED_TOKEN=<the token>\nPUZZLEIT_BIND=127.0.0.1\n' > .env && chmod 600 .env
+   docker compose --profile tunnel up -d --build
+   ```
+4. In the app, the server is `https://puzzleit.your-domain.com`.
+
+Cloudflare terminates the HTTPS connection, so it can technically see the traffic: that is the price of the free tunnel. Lock the sign-up (below) once your account exists.
+
 ## Keep it safe
 
 - **Back up `pb_data/`** (accounts, records and photos are all in it).
