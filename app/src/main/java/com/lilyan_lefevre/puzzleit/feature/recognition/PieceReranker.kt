@@ -1,5 +1,6 @@
 package com.lilyan_lefevre.puzzleit.feature.recognition
 
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -34,8 +35,11 @@ class PieceReranker(private val embed: (List<FloatArray>) -> List<FloatArray>) {
         embed(degs.map { tensor(body(piece, it, masked)) }).map(::unit)
 
     /** Unit embeddings of the box square under each (col, row) of [spots], in small batches. */
-    internal fun embedBox(box: Raster, grid: Grid, spots: List<Pair<Float, Float>>): List<FloatArray> =
-        spots.chunked(128).flatMap { chunk -> embed(chunk.map { (c, r) -> tensor(patch(box, grid, c, r)) }).map(::unit) }
+    internal fun embedBox(box: Raster, grid: Grid, spots: List<Pair<Float, Float>>, stop: () -> Boolean = { false }): List<FloatArray> =
+        spots.chunked(128).flatMap { chunk ->
+            if (stop()) throw CancellationException("box index cancelled")
+            embed(chunk.map { (c, r) -> tensor(patch(box, grid, c, r)) }).map(::unit)
+        }
 
     /** The piece turned clockwise by [deg], then its body: the central square, scaled from the piece's area. */
     private fun body(piece: Raster, deg: Int, masked: Boolean): Raster {

@@ -454,11 +454,12 @@ class PieceMatcher(
     /**
      * Builds the box index, or reads it from [cache] when that file matches (it is written there otherwise). Blocking and a few
      * seconds per thousand squares on a phone: call it off the UI thread. Until it is done, scans use the colour matcher alone.
+     * [stop] is polled between batches: when it says true the build is abandoned with a CancellationException.
      */
-    fun buildIndex(cache: File? = null) {
+    fun buildIndex(cache: File? = null, stop: () -> Boolean = { false }) {
         val r = reranker ?: return
         if (index != null) return
-        index = cache?.let(::readIndex) ?: r.embedBox(reference, grid, cands.map { it.first.col to it.first.row }).also { cache?.let { f -> writeIndex(f, it) } }
+        index = cache?.let(::readIndex) ?: r.embedBox(reference, grid, cands.map { it.first.col to it.first.row }, stop).also { cache?.let { f -> writeIndex(f, it) } }
     }
 
     private fun readIndex(f: File): List<FloatArray>? = runCatching {

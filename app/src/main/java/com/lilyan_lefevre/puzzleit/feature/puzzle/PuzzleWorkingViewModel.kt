@@ -134,5 +134,7 @@ class PuzzleWorkingViewModel @Inject constructor(
 
     fun dismiss() { _scan.value = ScanState.Idle }
 
+    override fun onCleared() { recognizer.cancelWarmUp() }
+
     fun errorShown() { _error.value = null }
 }

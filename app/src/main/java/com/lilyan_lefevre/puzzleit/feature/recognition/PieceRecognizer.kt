@@ -10,6 +10,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -22,6 +23,10 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
     class Prepared(val display: Bitmap, val matcher: PieceMatcher, val warm: Job)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var warmJob: Job? = null
+
+    /** Abandons the background work of the last [prepare] (the person left the table: it would only compete with what comes next). */
+    fun cancelWarmUp() { warmJob?.cancel() }
 
     /** Loaded once; null without a context (JVM tests) or if the model cannot be read: the colour matcher then works alone. */
     private var rerankerBytes = 0
@@ -47,13 +52,15 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
         // The index of the box (network embeddings of every square) is the slow part: built in the background and kept next to
         // the reference image, named after the model and grid so a change of either rebuilds it. Scans meanwhile use colours only.
         val cache = File(referencePath.substringBeforeLast('.') + "_index_${matcher.grid.cols}x${matcher.grid.rows}_$rerankerBytes.bin")
+        warmJob?.cancel()
         val warm = scope.launch {
             runCatching {
-                matcher.buildIndex(cache)
+                matcher.buildIndex(cache) { !isActive }
                 // A first scan pays for loading the networks and warming the code (about two seconds on a phone): do it before the person scans.
                 matcher.locate(warmUpPhoto())
             }.onFailure { android.util.Log.e("PieceRecognizer", "warm-up failed", it) }
         }
+        warmJob = warm
         Prepared(bmp, matcher, warm)
     }
 
