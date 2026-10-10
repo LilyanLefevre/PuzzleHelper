@@ -52,8 +52,11 @@ class MainActivity : AppCompatActivity() {
         val appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
-        // List, working table and scanner draw their own headers.
-        val ownHeader = setOf(R.id.projectListFragment, R.id.puzzleWorkingFragment, R.id.pieceCaptureFragment)
+        // These screens draw their own header (with its own back button): showing the toolbar too gave two arrows.
+        val ownHeader = setOf(
+            R.id.projectListFragment, R.id.puzzleWorkingFragment, R.id.pieceCaptureFragment,
+            R.id.accountFragment, R.id.historyFragment, R.id.progressFragment,
+        )
         navController.addOnDestinationChangedListener { _, dest, _ ->
             binding.toolbar.visibility = if (dest.id in ownHeader) View.GONE else View.VISIBLE
         }
