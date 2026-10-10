@@ -1,0 +1,9 @@
+services:
+  puzzleit:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      # Everything the server stores (accounts, records, photos) lives here: back this folder up.
+      - ./pb_data:/pb/pb_data
