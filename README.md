@@ -23,7 +23,7 @@ Every lead is a piece-sized square on the map with its share of confidence; the 
 way, next to the box at the selected lead so you can check it by eye. A blurry photo or an empty table is refused with a
 message (`documentation/screenshots/blurry.png`).
 
-Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Unsplash](https://unsplash.com) (Unsplash License).
+Demo box images: Hokusai's *The Great Wave*, Van Gogh's *The Starry Night* and Monet's *Water Lilies*, all public domain ([Wikimedia Commons](https://commons.wikimedia.org)).
 
 ## Features
 - Scan the box once: the photo is straightened (OpenCV) and becomes the reference image. No grid to type.

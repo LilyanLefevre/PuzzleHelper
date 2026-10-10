@@ -218,6 +218,40 @@ class DemoTourTest {
         }
     }
 
+    /**
+     * The README screenshot of the list. It needs puzzles that are not the person's: on an emulator only (never on a real phone), it creates three from the
+     * public-domain images wave.jpg, starry.jpg and lilies.jpg of the directory given as `-e demoBoxDir <dir>`, and removes them afterwards.
+     */
+    @Test
+    fun readmeList() {
+        hilt.inject()
+        assumeTrue("emulator only: it would add puzzles to a real phone", android.os.Build.HARDWARE == "ranchu" || android.os.Build.HARDWARE == "goldfish")
+        val dir = InstrumentationRegistry.getArguments().getString("demoBoxDir")
+        assumeTrue("needs -e demoBoxDir <dir with wave.jpg, starry.jpg, lilies.jpg>", dir != null)
+        val demos = listOf(Triple("wave", "La vague", 1000), Triple("starry", "La nuit étoilée", 500), Triple("lilies", "Les nymphéas", 1000))
+        val ids = demos.map { "demo-list-${it.first}" }
+        val files = demos.map { File(ctx.filesDir, "demo_list_${it.first}.jpg") }
+
+        try {
+            runBlocking {
+                demos.forEachIndexed { i, (key, name, pieces) ->
+                    val art = BitmapFactory.decodeFile(File(dir, "$key.jpg").path)
+                    val cols = sqrt(pieces * art.width.toFloat() / art.height).roundToInt()
+                    val ref = TestImages.save(art, ctx.filesDir, files[i].name).absolutePath
+                    repository.deleteProject(ids[i])
+                    repository.createProject(ids[i], ref, ref, ref, name, pieces, (pieces / cols.toFloat()).roundToInt(), cols, "medium", null)
+                }
+            }
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                waitFor { onView(withText(demos.last().second)).check(matches(isDisplayed())) }
+                Thread.sleep(2000); shot(scenario, "list")
+            }
+        } finally {
+            runBlocking { ids.forEach { repository.deleteProject(it) } }
+            files.forEach { it.delete() }
+        }
+    }
+
     /** The README screenshot of a blurry photo being refused, on the same puzzle. */
     @Test
     fun readmeBlurry() {

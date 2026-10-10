@@ -113,7 +113,9 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   read only, real swipes, animations ON; skipped without that argument. Encode with ffmpeg `-vf fps=60` H.264,
   no ffmpeg installed: `pip install imageio-ffmpeg`. Never let the recording run into the home screen). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
   README images: `DemoTourTest#readmeShots` (table, result, why, map) and `#readmeBlurry`, same `-e demoPuzzle "La vague"`, files `readme_*.png`; scale to 405x868 (ffmpeg, lanczos) into `documentation/screenshots`.
-  `list.png` is not regenerated: the list shows every puzzle of the phone (private ones included), so it needs a phone or emulator that holds only demo puzzles.
+  `list.png` is never taken on the phone (the list shows every puzzle, private ones included): `DemoTourTest#readmeList` runs on the emulator only (`Build.HARDWARE` ranchu/goldfish), creates three public-domain puzzles from
+  `-e demoBoxDir <dir>` (wave.jpg, starry.jpg, lilies.jpg from Wikimedia Commons) and deletes them. Start the AVD `puzzle34` (`emulator -avd puzzle34 -no-window -gpu swiftshader_indirect`), `adb -s emulator-5554 shell wm size 1440x3088`
+  and `wm density 560` (same proportions as the phone), `cmd locale set-app-locales com.lilyan_lefevre.puzzleit --locales fr-FR`, install with `adb -s emulator-5554 install` (never `installDebug`: it also hits the plugged phone).
 - Phone tips: animations off, `adb shell cmd notification set_dnd on`, `adb shell svc power stayon true`; wireless adb
   drops often (`adb devices` before running). Never use `UiAutomation.takeScreenshot` in Espresso (steals focus).
 - Tests touch the real app DB: they only insert/delete project id `e2e-scan-flow`. Demo puzzles `demo-*` on the phone
