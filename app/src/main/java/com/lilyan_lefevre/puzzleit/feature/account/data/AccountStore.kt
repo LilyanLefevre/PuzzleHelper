@@ -1,7 +1,6 @@
 package com.lilyan_lefevre.puzzleit.feature.account.data
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.SharedPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,13 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 data class Account(val server: String, val email: String)
 
 /**
- * Where the server is and who is signed in, kept on the device (the password never is, only the server's token), plus the list of
+ * Where the server is and who is signed in, kept on the device in encrypted preferences (the password never is, only the server's token), plus the list of
  * things deleted here that the server must still be told about.
  */
 @Singleton
-class AccountStore @Inject constructor(@ApplicationContext context: Context) {
-
-    private val prefs = context.getSharedPreferences("account", Context.MODE_PRIVATE)
+class AccountStore @Inject constructor(@AccountPrefs private val prefs: SharedPreferences) {
 
     private val _account = MutableStateFlow(readAccount())
     val account: StateFlow<Account?> = _account.asStateFlow()

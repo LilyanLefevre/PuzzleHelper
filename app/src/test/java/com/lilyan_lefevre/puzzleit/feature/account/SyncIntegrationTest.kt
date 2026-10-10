@@ -33,10 +33,12 @@ class SyncIntegrationTest {
     private val server = System.getenv("POCKETBASE_URL")
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val client = PocketBaseClient(OkHttpClient())
+    // The Keystore behind the encrypted preferences does not exist on the JVM: plain preferences here.
+    private val prefs = context.getSharedPreferences("test-account", Context.MODE_PRIVATE)
 
     private fun freshDevice(): Pair<AppDatabase, SyncRepository> {
         val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
-        return db to SyncRepository(context, client, AccountStore(context), db.projectDao(), db.scanRecordDao(), db.progressPhotoDao())
+        return db to SyncRepository(context, client, AccountStore(prefs), db.projectDao(), db.scanRecordDao(), db.progressPhotoDao())
     }
 
     private fun file(path: String, content: String) = File(context.filesDir, path).apply { parentFile!!.mkdirs(); writeText(content) }
@@ -44,7 +46,7 @@ class SyncIntegrationTest {
     @Test
     fun `a puzzle, its scans and photos reach a second phone and deletions follow`() = runBlocking {
         assumeTrue("POCKETBASE_URL not set", server != null)
-        val store = AccountStore(context)
+        val store = AccountStore(prefs)
         val email = "sync-${System.nanoTime()}@test.dev"
         store.signIn(server!!, client.register(server, email, "Password12345"))
 

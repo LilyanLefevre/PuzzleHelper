@@ -154,6 +154,6 @@ Start from a photo of the box.</string>
     <string name="signed_in_as">%1$s on %2$s</string>
     <string name="synced">Synced: %1$d sent, %2$d received.</string>
     <string name="sync_failed">Could not reach the server: %1$s</string>
-    <string name="server_invalid">The address must start with http:// or https://</string>
+    <string name="server_invalid">Use an https:// address, or http:// only for a server on your home network (192.168.x.x, 10.x.x.x, name.local).</string>
     <string name="credentials_invalid">Enter your email and a password of 8 characters or more.</string>
 </resources>

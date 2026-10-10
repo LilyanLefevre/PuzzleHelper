@@ -89,6 +89,8 @@ dependencies {
 
     // HTTP client for the optional sync with the owner's own server (PocketBase)
     implementation(libs.okhttp)
+    // The server token is stored encrypted with a key held by the Android Keystore (Jetpack Security, nothing home-made)
+    implementation(libs.androidx.security.crypto)
 
     // OpenCV dependency using version catalog
     implementation(libs.opencv)

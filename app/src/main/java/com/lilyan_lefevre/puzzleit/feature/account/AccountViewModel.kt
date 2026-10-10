@@ -10,6 +10,7 @@ import com.lilyan_lefevre.puzzleit.feature.account.data.BackendException
 import com.lilyan_lefevre.puzzleit.feature.account.data.PocketBaseClient
 import com.lilyan_lefevre.puzzleit.feature.account.data.SyncReport
 import com.lilyan_lefevre.puzzleit.feature.account.data.SyncRepository
+import com.lilyan_lefevre.puzzleit.feature.account.data.isAcceptableServer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +45,7 @@ class AccountViewModel @Inject constructor(
     fun signIn(server: String, email: String, password: String, create: Boolean) {
         val url = server.trim()
         when {
-            !url.startsWith("http://") && !url.startsWith("https://") -> { _notice.value = Notice.Failed(R.string.server_invalid); return }
+            !isAcceptableServer(url) -> { _notice.value = Notice.Failed(R.string.server_invalid); return }
             email.isBlank() || password.length < 8 -> { _notice.value = Notice.Failed(R.string.credentials_invalid); return }
         }
         run {
