@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.animation.OvershootInterpolator
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.core.view.doOnLayout
@@ -86,6 +87,18 @@ class PuzzleWorkingFragment : Fragment() {
                 .setNegativeButton(R.string.cancel, null)
                 .show()
         }
+        binding.buttonMore.setOnClickListener { anchor ->
+            PopupMenu(requireContext(), anchor).apply {
+                inflate(R.menu.puzzle_more)
+                setOnMenuItemClickListener {
+                    val action = if (it.itemId == R.id.menuHistory) R.id.action_puzzleWorkingFragment_to_historyFragment else R.id.action_puzzleWorkingFragment_to_progressFragment
+                    findNavController().navigate(action, bundleOf("projectId" to projectId))
+                    true
+                }
+            }.show()
+        }
+        binding.buttonRight.setOnClickListener { viewModel.evaluate(true) }
+        binding.buttonWrong.setOnClickListener { viewModel.evaluate(false) }
         val capture = View.OnClickListener { findNavController().navigate(R.id.action_puzzleWorkingFragment_to_pieceCaptureFragment) }
         binding.buttonCapturePiece.setOnClickListener(capture)
         binding.buttonNewPiece.setOnClickListener(capture)
@@ -258,6 +271,9 @@ class PuzzleWorkingFragment : Fragment() {
         binding.textSpotDetail.text = spotPercent(cand)
 
         showConfidence(cand.confidence)
+        binding.buttonRight.isVisible = !r.evaluated
+        binding.buttonWrong.isVisible = !r.evaluated
+        binding.textEvaluate.setText(if (r.evaluated) R.string.evaluate_thanks else R.string.evaluate_question)
         // The lead may have been chosen on the map or on a card, not on its chip: the chips follow.
         for (i in 0 until binding.chipLeads.childCount) (binding.chipLeads.getChildAt(i) as? Chip)?.isChecked = i == r.selected
         if (samePiece != null) { turnPiece(cand.rotationDeg); return }   // only the lead changed
@@ -351,13 +367,7 @@ class PuzzleWorkingFragment : Fragment() {
     /** Where on the box, in words: a ninth of the puzzle. Rows and columns are not used, they are not known before the border is complete. */
     private fun zoneText(c: Candidate): String {
         val g = grid ?: return ""
-        val x = (c.col / g.cols).coerceIn(0f, 0.999f); val y = (c.row / g.rows).coerceIn(0f, 0.999f)
-        val zones = arrayOf(
-            intArrayOf(R.string.zone_top_left, R.string.zone_top, R.string.zone_top_right),
-            intArrayOf(R.string.zone_left, R.string.zone_centre, R.string.zone_right),
-            intArrayOf(R.string.zone_bottom_left, R.string.zone_bottom, R.string.zone_bottom_right),
-        )
-        return getString(zones[(y * 3).toInt()][(x * 3).toInt()])
+        return getString(zoneRes(c.col / g.cols, c.row / g.rows))
     }
 
     private fun spotPercent(c: Candidate): String {

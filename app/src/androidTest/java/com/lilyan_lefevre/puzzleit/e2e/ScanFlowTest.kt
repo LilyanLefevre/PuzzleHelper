@@ -11,6 +11,7 @@ import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.RootMatchers.isPlatformPopup
 import androidx.test.espresso.matcher.ViewMatchers.isChecked
 import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
@@ -255,6 +256,33 @@ class ScanFlowTest {
             val photo = TestImages.save(TestImages.emptyTable(), ctx.cacheDir, "e2e_empty.jpg")
             inject(scenario, photo)
             waitFor { onView(withId(R.id.groupError)).check(matches(isDisplayed())) }
+        }
+    }
+
+    @Test
+    fun aScanIsRatedAndKeptInTheHistory() {
+        openTable().use { scenario ->
+            inject(scenario, TestImages.save(TestImages.piecePhoto(art, cols, rows, 9, 6, 90f), ctx.cacheDir, "e2e_piece4.jpg"))
+            waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
+            Thread.sleep(1800)
+            onView(withId(R.id.buttonRight)).perform(scrollTo(), click())
+            onView(withId(R.id.textEvaluate)).check(matches(withText(R.string.evaluate_thanks)))
+            Thread.sleep(500)                                                                  // the verdict is written in the background
+            onView(withId(R.id.buttonMore)).perform(click())
+            onView(withText(R.string.menu_history)).inRoot(isPlatformPopup()).perform(click())
+            waitFor { onView(withText(R.string.verdict_correct)).check(matches(isDisplayed())) }
+            shot(scenario, "10_history")
+        }
+    }
+
+    @Test
+    fun progressScreenOpensFromTheMenu() {
+        openTable().use { scenario ->
+            onView(withId(R.id.buttonMore)).perform(click())
+            onView(withText(R.string.menu_progress)).inRoot(isPlatformPopup()).perform(click())
+            waitFor { onView(withId(R.id.buttonAddPhoto)).check(matches(isDisplayed())) }
+            onView(withId(R.id.textEmpty)).check(matches(isDisplayed()))
+            shot(scenario, "11_progress")
         }
     }
 

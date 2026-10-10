@@ -75,6 +75,34 @@
         <action
             android:id="@+id/action_puzzleWorkingFragment_to_projectCreationFragment"
             app:destination="@id/projectCreationFragment" />
+        <action
+            android:id="@+id/action_puzzleWorkingFragment_to_historyFragment"
+            app:destination="@id/historyFragment" />
+        <action
+            android:id="@+id/action_puzzleWorkingFragment_to_progressFragment"
+            app:destination="@id/progressFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.history.HistoryFragment"
+        android:label="@string/history_title"
+        tools:layout="@layout/fragment_history">
+        <argument
+            android:name="projectId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/progressFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.progress.ProgressFragment"
+        android:label="@string/progress_title"
+        tools:layout="@layout/fragment_progress">
+        <argument
+            android:name="projectId"
+            app:argType="string"
+            android:defaultValue="" />
     </fragment>
 
     <fragment

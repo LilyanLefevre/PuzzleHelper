@@ -110,6 +110,26 @@
             app:iconGravity="textStart"
             app:iconPadding="0dp"
             app:iconSize="20dp" />
+
+        <!-- Scan history and progress photos -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonMore"
+            style="@style/Widget.Puzzle.IconButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/more_button"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            app:icon="@drawable/ic_more"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp" />
     </LinearLayout>
 
     <com.lilyan_lefevre.puzzleit.core.ui.PuzzleLoaderView
@@ -409,6 +429,46 @@
                 app:trackCornerRadius="6dp"
                 app:trackThickness="8dp" />
 
+            <!-- Did the lead on screen fit? Stored with the scan in the history. -->
+            <LinearLayout
+                android:id="@+id/rowEvaluate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/textEvaluate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/evaluate_question"
+                    android:textColor="@color/puzzle_on_surface_variant"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonRight"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/evaluate_yes"
+                    android:textColor="@color/puzzle_on_surface"
+                    app:backgroundTint="@color/puzzle_surface_high"
+                    app:cornerRadius="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonWrong"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/evaluate_no"
+                    android:textColor="@color/puzzle_on_surface"
+                    app:backgroundTint="@color/puzzle_surface_high"
+                    app:cornerRadius="16dp" />
+            </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"

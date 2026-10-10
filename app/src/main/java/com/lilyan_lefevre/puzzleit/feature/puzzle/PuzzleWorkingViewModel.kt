@@ -3,8 +3,9 @@ package com.lilyan_lefevre.puzzleit.feature.puzzle
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import com.lilyan_lefevre.puzzleit.R
+import com.lilyan_lefevre.puzzleit.feature.history.data.ScanHistoryRepository
+import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import com.lilyan_lefevre.puzzleit.feature.recognition.Analysis
 import com.lilyan_lefevre.puzzleit.feature.recognition.Candidate
@@ -28,7 +29,8 @@ import kotlinx.coroutines.withContext
 sealed interface ScanState {
     data object Idle : ScanState
     data object Analyzing : ScanState
-    data class Result(val match: Match, val cutout: Bitmap, val selected: Int = 0) : ScanState {
+    /** [recordId] is the scan in the history (0 when it could not be stored), [evaluated] that the person already said if the lead was right. */
+    data class Result(val match: Match, val cutout: Bitmap, val selected: Int = 0, val recordId: Long = 0, val evaluated: Boolean = false) : ScanState {
         val shown: Candidate get() = if (selected == 0) match.best else match.alternatives[selected - 1]
     }
     data object Blurry : ScanState
@@ -40,6 +42,7 @@ sealed interface ScanState {
 class PuzzleWorkingViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     private val recognizer: PieceRecognizer,
+    private val history: ScanHistoryRepository,
 ) : ViewModel() {
 
     private val _project = MutableStateFlow<Project?>(null)
@@ -121,7 +124,12 @@ class PuzzleWorkingViewModel @Inject constructor(
             val wait = 1400 - (System.currentTimeMillis() - started)
             if (wait > 0) kotlinx.coroutines.delay(wait)
             _scan.value = when (a) {
-                is Analysis.Found -> ScanState.Result(a.match, a.cutout.toBitmap())
+                is Analysis.Found -> {
+                    val cutout = a.cutout.toBitmap()
+                    // A failed save must not hide the answer: the scan just stays out of the history.
+                    val id = runCatching { history.record(watching.orEmpty(), a.match, cutout) }.getOrDefault(0L)
+                    ScanState.Result(a.match, cutout, recordId = id)
+                }
                 is Analysis.Blurry -> ScanState.Blurry
                 Analysis.NoPiece -> ScanState.NoPiece
             }
@@ -129,7 +137,14 @@ class PuzzleWorkingViewModel @Inject constructor(
     }
 
     fun select(index: Int) {
-        (_scan.value as? ScanState.Result)?.let { _scan.value = it.copy(selected = index) }
+        (_scan.value as? ScanState.Result)?.let { _scan.value = it.copy(selected = index, evaluated = false) }
+    }
+
+    /** The person says whether the lead on screen is where the piece goes (feeds the history, and later the training data). */
+    fun evaluate(correct: Boolean) {
+        val r = _scan.value as? ScanState.Result ?: return
+        _scan.value = r.copy(evaluated = true)
+        if (r.recordId != 0L) viewModelScope.launch { history.evaluate(r.recordId, correct, r.selected) }
     }
 
     fun dismiss() { _scan.value = ScanState.Idle }

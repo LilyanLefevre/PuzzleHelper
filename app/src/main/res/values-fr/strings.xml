@@ -109,4 +109,34 @@ Commence par une photo de la boîte.</string>
     <string name="zone_bottom_right">En bas à droite</string>
     <string name="see_on_puzzle">Voir sur le puzzle ›</string>
     <string name="overlay_toggle">Afficher la pièce sur le puzzle</string>
+
+    <!-- Évaluation d'une piste -->
+    <string name="evaluate_question">C\'est bien là que va la pièce ?</string>
+    <string name="evaluate_yes">Oui</string>
+    <string name="evaluate_no">Non</string>
+    <string name="evaluate_thanks">Merci, c\'est noté.</string>
+
+    <!-- Historique des scans et suivi d'avancement -->
+    <string name="more_button">Plus</string>
+    <string name="menu_history">Historique des scans</string>
+    <string name="menu_progress">Suivi d\'avancement</string>
+    <string name="history_title">Historique</string>
+    <string name="history_empty">Aucune pièce scannée sur ce puzzle pour l\'instant.</string>
+    <plurals name="history_summary">
+        <item quantity="one">%1$d scan · %2$d confirmé juste</item>
+        <item quantity="other">%1$d scans · %2$d confirmés justes</item>
+    </plurals>
+    <string name="scanned_piece">Pièce scannée</string>
+    <string name="confidence_percent">confiance %1$d %%</string>
+    <string name="verdict_correct">Bonne place</string>
+    <string name="verdict_wrong">Introuvable</string>
+    <string name="verdict_unknown">Pas évalué</string>
+    <string name="delete_scan_title">Supprimer ce scan ?</string>
+    <string name="delete_scan_message">Il disparaît de l\'historique.</string>
+    <string name="progress_title">Avancement</string>
+    <string name="progress_empty">Photographie le puzzle tel qu\'il est pour suivre son avancement.</string>
+    <string name="progress_add">Photographier le puzzle</string>
+    <string name="progress_photo">Photo du puzzle</string>
+    <string name="delete_photo_title">Supprimer cette photo ?</string>
+    <string name="delete_photo_message">La photo est supprimée de l\'appareil.</string>
 </resources>

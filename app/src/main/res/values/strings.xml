@@ -109,4 +109,34 @@ Start from a photo of the box.</string>
     <string name="zone_bottom_right">At the bottom right</string>
     <string name="see_on_puzzle">See on the puzzle ›</string>
     <string name="overlay_toggle">Show the piece over the puzzle</string>
+
+    <!-- Evaluation of a lead -->
+    <string name="evaluate_question">Is that where the piece goes?</string>
+    <string name="evaluate_yes">Yes</string>
+    <string name="evaluate_no">No</string>
+    <string name="evaluate_thanks">Thanks, noted.</string>
+
+    <!-- Scan history and progress photos -->
+    <string name="more_button">More</string>
+    <string name="menu_history">Scan history</string>
+    <string name="menu_progress">Progress photos</string>
+    <string name="history_title">Scan history</string>
+    <string name="history_empty">No piece scanned on this puzzle yet.</string>
+    <plurals name="history_summary">
+        <item quantity="one">%1$d scan · %2$d confirmed right</item>
+        <item quantity="other">%1$d scans · %2$d confirmed right</item>
+    </plurals>
+    <string name="scanned_piece">Scanned piece</string>
+    <string name="confidence_percent">confidence %1$d %%</string>
+    <string name="verdict_correct">Right place</string>
+    <string name="verdict_wrong">Not found</string>
+    <string name="verdict_unknown">Not rated</string>
+    <string name="delete_scan_title">Delete this scan?</string>
+    <string name="delete_scan_message">It disappears from the history.</string>
+    <string name="progress_title">Progress</string>
+    <string name="progress_empty">Photograph the puzzle as it stands to follow its progress.</string>
+    <string name="progress_add">Photograph the puzzle</string>
+    <string name="progress_photo">Photo of the puzzle</string>
+    <string name="delete_photo_title">Delete this photo?</string>
+    <string name="delete_photo_message">The photo is removed from the device.</string>
 </resources>
