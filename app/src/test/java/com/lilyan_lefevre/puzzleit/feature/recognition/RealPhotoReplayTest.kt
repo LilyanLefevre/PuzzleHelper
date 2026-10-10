@@ -21,7 +21,7 @@ class RealPhotoReplayTest {
         val (cols, rows) = File(dir!!, "grid.txt").readText().trim().split(Regex("\\s+")).map { it.toInt() }
         val truth = File(dir!!, "truth.txt").takeIf { it.exists() }?.readLines()?.filter { it.isNotBlank() }
             ?.associate { l -> l.split(Regex("\\s+")).let { it[0] to (it[1].toInt() to it[2].toInt()) } } ?: emptyMap()
-        val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows), TestReranker.fromEnv(), TestReranker.useNcc)
+        val matcher = PieceMatcher(Bmp.load(File(dir, "box.bmp")), cols * rows, Grid(cols, rows), TestReranker.fromEnv(), TestReranker.useNcc, TestReranker.segmenter)
         var ok = 0; var known = 0
         for (f in dir!!.listFiles()!!.filter { it.name.endsWith(".bmp") && it.name != "box.bmp" && !it.name.contains("_mask") }.sortedBy { it.name }) {
             val photo = Bmp.load(f).centerSquare(PieceRecognizer.CROP)

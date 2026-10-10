@@ -7,7 +7,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Android glue: files/bitmaps <-> [Raster]. The algorithm itself lives in [PieceMatcher]. */
@@ -16,17 +19,33 @@ class PieceRecognizer @Inject constructor(@ApplicationContext private val contex
 
     class Prepared(val display: Bitmap, val matcher: PieceMatcher)
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     /** Loaded once; null without a context (JVM tests) or if the model cannot be read: the colour matcher then works alone. */
+    private var rerankerBytes = 0
     private val reranker: PieceReranker? by lazy {
         runCatching {
-            val e = OnnxEmbedder(context!!.assets.open("reranker.onnx").use { it.readBytes() })
+            val bytes = context!!.assets.open("reranker.onnx").use { it.readBytes() }
+            rerankerBytes = bytes.size
+            val e = OnnxEmbedder(bytes)
             PieceReranker(e::embed)
         }.onFailure { android.util.Log.e("PieceRecognizer", "re-ranker unavailable", it) }.getOrNull()
     }
 
+    /** Cuts the piece out of the photo; null (table-colour segmentation instead) if the model cannot be read. */
+    private val segmenter: PieceSegmenter? by lazy {
+        runCatching { PieceSegmenter(OnnxSegmenter(context!!.assets.open("segmenter.onnx").use { it.readBytes() })::run) }
+            .onFailure { android.util.Log.e("PieceRecognizer", "segmenter unavailable", it) }.getOrNull()
+    }
+
     suspend fun prepare(referencePath: String, pieces: Int, grid: Grid? = null): Prepared? = withContext(Dispatchers.Default) {
         val bmp = decode(referencePath, 2400) ?: return@withContext null
-        Prepared(bmp, PieceMatcher(bmp.toRaster(), pieces, grid, reranker))
+        val matcher = PieceMatcher(bmp.toRaster(), pieces, grid, reranker, segmenter = segmenter, indexOnDemand = false)
+        // The index of the box (network embeddings of every square) is the slow part: built in the background and kept next to
+        // the reference image, named after the model and grid so a change of either rebuilds it. Scans meanwhile use colours only.
+        val cache = File(referencePath.substringBeforeLast('.') + "_index_${matcher.grid.cols}x${matcher.grid.rows}_$rerankerBytes.bin")
+        scope.launch { runCatching { matcher.buildIndex(cache) }.onFailure { android.util.Log.e("PieceRecognizer", "box index failed", it) } }
+        Prepared(bmp, matcher)
     }
 
     /**

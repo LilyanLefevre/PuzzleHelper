@@ -1,5 +1,8 @@
 package com.lilyan_lefevre.puzzleit.feature.recognition
 
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -154,6 +157,9 @@ class PieceMatcher(
     gridOverride: Grid? = null,
     private val reranker: PieceReranker? = null,
     useNcc: Boolean = true,
+    private val segmenter: PieceSegmenter? = null,
+    /** true: the box index is built on the first scan (tests); false: the app builds it in the background with [buildIndex]. */
+    private val indexOnDemand: Boolean = true,
 ) {
 
     val grid: Grid
@@ -186,24 +192,26 @@ class PieceMatcher(
         patches = if (useNcc) PatchSearch(reference, grid) else null
     }
 
-    fun locate(photo: Raster): Analysis {
+    /** [leads] = how many places to return (best first); the labelling tool asks for 8. */
+    fun locate(photo: Raster, leads: Int = 4): Analysis {
         val img = photo.fit(PHOTO_SIDE)
         val sharp = sharpness(img)
         if (sharp < MIN_SHARPNESS) return Analysis.Blurry(sharp)
         val pl = LabImage.from(img)
-        val mask = segment(pl) ?: return Analysis.NoPiece
+        val mask = findPiece(img, pl) ?: return Analysis.NoPiece
         val shape = shape(mask, pl.w, pl.h)
         val ncc = patches?.search(img, mask)
-        val match = rank(pl, mask, shape, if (reranker != null) RERANK_LEADS else 4, ncc) ?: return Analysis.NoPiece
         val cut = cutout(img, mask)
-        return Analysis.Found(rerank(match, cut, masked = true), sharp, cut)
+        val sims = if (GLOBAL_EMBED) embedSims(cut, shape.tilt) else null
+        val match = rank(pl, mask, shape, if (reranker != null) max(RERANK_LEADS, leads) else leads, ncc, sims) ?: return Analysis.NoPiece
+        return Analysis.Found(rerank(match, cut, masked = true, keep = leads), sharp, cut)
     }
 
     /**
      * Ranks the box positions for a piece whose pixels are [mask]. [shape] = its outline reading, or null to compare
      * colours only (any of the 4 right-angle rotations, no border constraint). Exposed for the dataset replays.
      */
-    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4, ncc: PatchSearch.Map? = null): Match? {
+    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4, ncc: PatchSearch.Map? = null, sims: Array<FloatArray>? = null): Match? {
         var n = 0; var sx = 0.0; var sy = 0.0
         for (i in mask.indices) if (mask[i]) { n++; sx += i % pl.w; sy += i / pl.w }
         if (n == 0) return null
@@ -214,21 +222,25 @@ class PieceMatcher(
         val pd = describe(pl, (sx / n).toFloat(), (sy / n).toFloat(), sqrt(n / PI).toFloat(), mask, tilt)
         val flats = if (kind == PieceKind.EDGE || kind == PieceKind.CORNER) shape!!.flats else null
 
-        val scored = cands.mapNotNull { (c, d) ->
+        val allowed = cands.map { BooleanArray(4) { true } }                // rotations left after the border constraint
+        val index = ArrayList<Int>()                                          // cands index of each scored candidate
+        val scored = cands.withIndex().mapNotNull { (ci, cd) ->
+            val (c, d) = cd
             val border = borderSides(c)
             var bestD = Float.MAX_VALUE; var bestR = -1
             for (q in 0..3) {                              // q quarter-turns clockwise to put the piece back
                 var dist = distance(pd, d, q)
                 if (flats != null && flats.map { (it + q) % 4 }.toSet() != border) {
-                    if (BORDER_PENALTY.isInfinite()) continue
+                    if (sims == null || BORDER_PENALTY.isInfinite()) { allowed[ci][q] = false; continue }   // colours alone are too weak to drop the wall
                     dist *= BORDER_PENALTY                  // the outline reading is wrong often enough on real pieces: a cost, not a wall
                 }
                 if (flats == null && border.isNotEmpty() && kind == PieceKind.INTERIOR) dist *= 1.25f
                 if (dist < bestD) { bestD = dist; bestR = q }
             }
             if (bestR < 0) null
-            else c.copy(distance = bestD, rotationDeg = (((bestR * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360)
-        }.let { if (ncc == null) it else withPixelEvidence(it, ncc) }.sortedBy { it.distance }
+            else { index += ci; c.copy(distance = bestD, rotationDeg = (((bestR * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360) }
+        }.let { if (ncc == null) it else withPixelEvidence(it, ncc) }
+            .let { if (sims == null) it.sortedBy { c -> c.distance } else fuse(it, index.map { i -> sims[i] }, index.map { i -> allowed[i] }, tilt) }
         if (scored.isEmpty()) return null
 
         // Non-maximum suppression: alternatives must be at least 1.5 cells away from earlier picks.
@@ -237,7 +249,7 @@ class PieceMatcher(
             if (picks.none { hypot(it.col - c.col, it.row - c.row) < 1.5f }) picks += c
             if (picks.size == leads) break
         }
-        val dMed = scored[scored.size / 2].distance
+        val dMed = scored.map { it.distance }.sorted()[scored.size / 2]
         val d1 = picks[0].distance
         val d2 = picks.getOrElse(1) { picks[0] }.distance
         // How much better than a random place, and how much better than the runner-up.
@@ -258,6 +270,57 @@ class PieceMatcher(
         return Match(grid, leads[0], leads.drop(1), conf, precision, kind)
     }
 
+    /**
+     * Every candidate gets the network's similarity (best allowed rotation) next to its colour distance, both z-scored over
+     * all candidates: the network may find places the colour matcher ranks far down. Order = best fused score first.
+     */
+    private fun fuse(c: List<Candidate>, sims: List<FloatArray>, allowed: List<BooleanArray>, tilt: Float): List<Candidate> {
+        val qBest = IntArray(c.size) { i -> (0..3).filter { allowed[i][it] }.maxByOrNull { sims[i][it] } ?: 0 }
+        val s = DoubleArray(c.size) { sims[it][qBest[it]].toDouble() }
+        val d = DoubleArray(c.size) { c[it].distance.toDouble() }
+        fun z(v: DoubleArray): DoubleArray { val m = v.average(); val sd = sqrt(v.sumOf { (it - m) * (it - m) } / v.size).coerceAtLeast(1e-9); return DoubleArray(v.size) { (v[it] - m) / sd } }
+        val zs = z(s); val zd = z(d)
+        return c.indices.sortedByDescending { zs[it] - EMBED_COLOUR_WEIGHT * zd[it] }
+            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360) }
+    }
+
+    /** The network's embedding of the box square under every candidate; null until [buildIndex] has run. */
+    @Volatile private var index: List<FloatArray>? = null
+
+    /**
+     * Builds the box index, or reads it from [cache] when that file matches (it is written there otherwise). Blocking and a few
+     * seconds per thousand squares on a phone: call it off the UI thread. Until it is done, scans use the colour matcher alone.
+     */
+    fun buildIndex(cache: File? = null) {
+        val r = reranker ?: return
+        if (index != null) return
+        index = cache?.let(::readIndex) ?: r.embedBox(reference, grid, cands.map { it.first.col to it.first.row }).also { cache?.let { f -> writeIndex(f, it) } }
+    }
+
+    private fun readIndex(f: File): List<FloatArray>? = runCatching {
+        DataInputStream(f.inputStream().buffered()).use { s ->
+            val n = s.readInt(); val d = s.readInt()
+            if (n != cands.size || d <= 0) null else List(n) { FloatArray(d) { s.readFloat() } }
+        }
+    }.getOrNull()
+
+    private fun writeIndex(f: File, v: List<FloatArray>) {
+        runCatching {
+            val tmp = File(f.path + ".tmp")
+            DataOutputStream(tmp.outputStream().buffered()).use { s -> s.writeInt(v.size); s.writeInt(v.firstOrNull()?.size ?: 0); v.forEach { row -> row.forEach(s::writeFloat) } }
+            tmp.renameTo(f)
+        }
+    }
+
+    /** Per candidate, the similarity of the piece turned by each of the 4 quarter turns (after its tilt) with the box square there. */
+    internal fun embedSims(cut: Raster, tilt: Float, masked: Boolean = true): Array<FloatArray>? {
+        val r = reranker ?: return null
+        if (index == null && indexOnDemand) buildIndex()
+        val index = index ?: return null
+        val ep = r.embedPiece(cut, (0..3).map { q -> (((q * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360 }, masked)
+        return Array(index.size) { i -> FloatArray(4) { q -> var acc = 0f; for (k in ep[q].indices) acc += ep[q][k] * index[i][k]; acc } }
+    }
+
     /** Lowers the colour distance where the piece's pixels correlate with the box (both z-scored over the candidates). */
     private fun withPixelEvidence(c: List<Candidate>, ncc: PatchSearch.Map): List<Candidate> {
         if (c.size < 2) return c
@@ -273,9 +336,9 @@ class PieceMatcher(
      * The network picks the best 4 of the [RERANK_LEADS] leads. Its best lead keeps the confidence it had as a runner-up,
      * so a disagreement with the colour matcher lowers the precision instead of claiming a certainty nobody measured.
      */
-    internal fun rerank(match: Match, piece: Raster, masked: Boolean): Match {
+    internal fun rerank(match: Match, piece: Raster, masked: Boolean, keep: Int = 4): Match {
         val r = reranker ?: return match
-        val ordered = r.rerank(listOf(match.best) + match.alternatives, piece, reference, grid, masked).take(4)
+        val ordered = r.rerank(listOf(match.best) + match.alternatives, piece, reference, grid, masked).take(keep)
         val conf = ordered[0].confidence
         val precision = when {
             conf >= CELL_CONF -> Precision.CELL
@@ -292,7 +355,7 @@ class PieceMatcher(
 
     internal fun inspect(photo: Raster): Inspection {
         val img = photo.fit(PHOTO_SIDE)
-        val mask = segment(LabImage.from(img))
+        val mask = findPiece(img, LabImage.from(img))
         return Inspection(img, mask, mask?.let { shape(it, img.w, img.h) }, sharpness(img))
     }
 
@@ -374,6 +437,20 @@ class PieceMatcher(
         for (i in mask.indices) if (mask[i]) { val x = i % img.w; val y = i / img.w; x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y); y1 = max(y1, y) }
         val w = x1 - x0 + 1; val h = y1 - y0 + 1
         return Raster(w, h, IntArray(w * h) { val i = (y0 + it / w) * img.w + x0 + it % w; if (mask[i]) img.px[i] else 0 })
+    }
+
+    /** The network's mask when there is one (and it finds a piece), else the table-colour segmentation. */
+    private fun findPiece(img: Raster, pl: LabImage): BooleanArray? =
+        segmenter?.let { maskFrom(it.saliency(img), img.w, img.h) } ?: segment(pl)
+
+    /** Saliency above one half, speckles opened, the blob under the centre, holes filled; same size guard as [segment]. */
+    private fun maskFrom(saliency: FloatArray, w: Int, h: Int): BooleanArray? {
+        var fg = BooleanArray(w * h) { saliency[it] > 0.5f }
+        fg = dilate(erode(fg, w, h), w, h)
+        fg = pieceBlob(fg, w, h) ?: return null
+        fg = fillHoles(fg, w, h)
+        val area = fg.count { it }
+        return if (area < w * h * 0.01f || area > w * h * 0.85f) null else fg
     }
 
     /**
@@ -613,7 +690,11 @@ class PieceMatcher(
         private val FLOOR = floatArrayOf(4f, 3f, 3f)
         const val RERANK_LEADS = 30
         var NCC_WEIGHT = 0.4f
-        var BORDER_PENALTY = Float.POSITIVE_INFINITY
+        /** With the network searching the whole box: cost factor of a rotation whose flat sides do not match the border (infinity = a wall, which a wrong outline reading turns into a wrong answer). */
+        var BORDER_PENALTY = 1.4f
+        /** Search the whole box with the network (not only the colour matcher's top leads). */
+        var GLOBAL_EMBED = true
+        var EMBED_COLOUR_WEIGHT = 0.5
         const val CELL_CONF = 55
         const val ZONE_CONF = 30
 

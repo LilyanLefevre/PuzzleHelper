@@ -29,6 +29,14 @@ class PieceReranker(private val embed: (List<FloatArray>) -> List<FloatArray>) {
         return leads.indices.sortedByDescending { score[it] }.map { leads[it] }
     }
 
+    /** Unit embeddings of the piece turned clockwise by each of [degs]. */
+    internal fun embedPiece(piece: Raster, degs: List<Int>, masked: Boolean): List<FloatArray> =
+        embed(degs.map { tensor(body(piece, it, masked)) }).map(::unit)
+
+    /** Unit embeddings of the box square under each (col, row) of [spots], in small batches. */
+    internal fun embedBox(box: Raster, grid: Grid, spots: List<Pair<Float, Float>>): List<FloatArray> =
+        spots.chunked(128).flatMap { chunk -> embed(chunk.map { (c, r) -> tensor(patch(box, grid, c, r)) }).map(::unit) }
+
     /** The piece turned clockwise by [deg], then its body: the central square, scaled from the piece's area. */
     private fun body(piece: Raster, deg: Int, masked: Boolean): Raster {
         val p = rotate(piece, deg)

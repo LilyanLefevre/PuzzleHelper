@@ -49,7 +49,7 @@ class ImageBankBenchmarkTest {
         val rows = ArrayList<Pair<Int, String>>()
         for (f in dir!!.listFiles()!!.filter { it.name.endsWith(".bmp") }.sortedBy { it.name }) {
             val img = Bmp.load(f)
-            val matcher = PieceMatcher(img, 500, reranker = reranker, useNcc = TestReranker.useNcc)
+            val matcher = PieceMatcher(img, 500, reranker = reranker, useNcc = TestReranker.useNcc, segmenter = TestReranker.segmenter)
             val g = matcher.grid
             val rnd = Random(f.name.hashCode().toLong())
             val score = Score()

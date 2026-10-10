@@ -50,7 +50,8 @@ class DatasetReplayTest {
                 dump.add(File(dir, "box.bmp"), Grid(cols, rows), body, col, row, want, lm)
             }
             for ((score, shape) in listOf(colourOnly to null, withSides to Shape(0f, sides))) {
-                val ranked = matcher.rank(lab, mask, shape, if (reranker != null && shape != null) PieceMatcher.RERANK_LEADS else 4, matcher.pixelSearch(img, mask)) ?: continue
+                val sims = if (shape != null && PieceMatcher.GLOBAL_EMBED) matcher.embedSims(body, 0f, masked = false) else null
+                val ranked = matcher.rank(lab, mask, shape, if (reranker != null && shape != null) PieceMatcher.RERANK_LEADS else 4, matcher.pixelSearch(img, mask), sims) ?: continue
                 val m = if (shape != null) matcher.rerank(ranked, body, masked = false) else ranked
                 score.n++
                 fun near(c: Candidate) = abs(c.col - (col + .5f)) <= 1.01f && abs(c.row - (row + .5f)) <= 1.01f
