@@ -13,6 +13,7 @@
 .DS_Store
 /build
 /captures
+__pycache__/
 .externalNativeBuild
 .cxx
 local.properties
