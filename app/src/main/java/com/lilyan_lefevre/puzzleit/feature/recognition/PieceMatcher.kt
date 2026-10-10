@@ -7,6 +7,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cbrt
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -100,6 +101,10 @@ data class Candidate(
     val rotationDeg: Int,
     /** 0..100, this lead's own confidence (the best lead's equals [Match.confidence]). */
     val confidence: Int = 0,
+    /** Quarter turns (clockwise, after the piece's tilt) that the network chose for this place. */
+    val quarter: Int = 0,
+    /** Fused score (network similarity and colour, z-scored): what the leads are ordered by. */
+    val score: Float = 0f,
 ) {
     val cell: Pair<Int, Int> get() = col.toInt() to row.toInt()
 }
@@ -141,6 +146,9 @@ sealed interface Analysis {
     data class Blurry(val sharpness: Float) : Analysis
     data object NoPiece : Analysis
 }
+
+/** What the network says about a piece: its similarity with every candidate square for each quarter turn, and its own embeddings. */
+internal class Evidence(val sims: Array<FloatArray>, val piece: List<FloatArray>)
 
 /**
  * Locates a photographed piece on the box image.
@@ -202,16 +210,17 @@ class PieceMatcher(
         val shape = shape(mask, pl.w, pl.h)
         val ncc = patches?.search(img, mask)
         val cut = cutout(img, mask)
-        val sims = if (GLOBAL_EMBED) embedSims(cut, shape.tilt) else null
-        val match = rank(pl, mask, shape, if (reranker != null) max(RERANK_LEADS, leads) else leads, ncc, sims) ?: return Analysis.NoPiece
-        return Analysis.Found(rerank(match, cut, masked = true, keep = leads), sharp, cut)
+        val evidence = if (GLOBAL_EMBED) embedSims(cut, shape.tilt) else null
+        val match = rank(pl, mask, shape, if (reranker != null && evidence == null) max(RERANK_LEADS, leads) else leads, ncc, evidence) ?: return Analysis.NoPiece
+        // With the network's evidence on every candidate the leads are already ordered by it; otherwise it re-ranks the colour leads.
+        return Analysis.Found(if (evidence != null) match else rerank(match, cut, masked = true, keep = leads), sharp, cut)
     }
 
     /**
      * Ranks the box positions for a piece whose pixels are [mask]. [shape] = its outline reading, or null to compare
      * colours only (any of the 4 right-angle rotations, no border constraint). Exposed for the dataset replays.
      */
-    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4, ncc: PatchSearch.Map? = null, sims: Array<FloatArray>? = null): Match? {
+    internal fun rank(pl: LabImage, mask: BooleanArray, shape: Shape?, leads: Int = 4, ncc: PatchSearch.Map? = null, evidence: Evidence? = null): Match? {
         var n = 0; var sx = 0.0; var sy = 0.0
         for (i in mask.indices) if (mask[i]) { n++; sx += i % pl.w; sy += i / pl.w }
         if (n == 0) return null
@@ -231,7 +240,7 @@ class PieceMatcher(
             for (q in 0..3) {                              // q quarter-turns clockwise to put the piece back
                 var dist = distance(pd, d, q)
                 if (flats != null && flats.map { (it + q) % 4 }.toSet() != border) {
-                    if (sims == null || BORDER_PENALTY.isInfinite()) { allowed[ci][q] = false; continue }   // colours alone are too weak to drop the wall
+                    if (evidence == null || BORDER_PENALTY.isInfinite()) { allowed[ci][q] = false; continue }   // colours alone are too weak to drop the wall
                     dist *= BORDER_PENALTY                  // the outline reading is wrong often enough on real pieces: a cost, not a wall
                 }
                 if (flats == null && border.isNotEmpty() && kind == PieceKind.INTERIOR) dist *= 1.25f
@@ -240,7 +249,7 @@ class PieceMatcher(
             if (bestR < 0) null
             else { index += ci; c.copy(distance = bestD, rotationDeg = (((bestR * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360) }
         }.let { if (ncc == null) it else withPixelEvidence(it, ncc) }
-            .let { if (sims == null) it.sortedBy { c -> c.distance } else fuse(it, index.map { i -> sims[i] }, index.map { i -> allowed[i] }, tilt) }
+            .let { if (evidence == null) it.sortedBy { c -> c.distance } else fuse(it, index.map { i -> evidence.sims[i] }, index.map { i -> allowed[i] }, tilt) }
         if (scored.isEmpty()) return null
 
         // Non-maximum suppression: alternatives must be at least 1.5 cells away from earlier picks.
@@ -248,6 +257,11 @@ class PieceMatcher(
         for (c in scored) {
             if (picks.none { hypot(it.col - c.col, it.row - c.row) < 1.5f }) picks += c
             if (picks.size == leads) break
+        }
+        if (evidence != null) {
+            // Confidence from the fused scores themselves, so it always follows the order of the leads.
+            val placed = withConfidence(refine(picks, evidence), CONF_TEMPERATURE)
+            return Match(grid, placed[0], placed.drop(1), placed[0].confidence, precisionOf(placed[0].confidence), kind)
         }
         val dMed = scored.map { it.distance }.sorted()[scored.size / 2]
         val d1 = picks[0].distance
@@ -257,11 +271,7 @@ class PieceMatcher(
         val margin = ((d2 - d1) / d2.coerceAtLeast(1e-3f)).coerceIn(0f, 1f)
         // Both must hold: clearly better than a random place AND clearly better than the next distinct place.
         val conf = (100f * spread * min(1f, margin * 6f)).roundToInt().coerceIn(0, 99)
-        val precision = when {
-            conf >= CELL_CONF -> Precision.CELL
-            conf >= ZONE_CONF -> Precision.ZONE
-            else -> Precision.UNSURE
-        }
+        val precision = precisionOf(conf)
         // Runner-ups get the best lead's confidence scaled by how far above a random place they stand.
         val leads = picks.mapIndexed { i, c ->
             val s = ((dMed - c.distance) / dMed).coerceIn(0f, 1f)
@@ -281,7 +291,42 @@ class PieceMatcher(
         fun z(v: DoubleArray): DoubleArray { val m = v.average(); val sd = sqrt(v.sumOf { (it - m) * (it - m) } / v.size).coerceAtLeast(1e-9); return DoubleArray(v.size) { (v[it] - m) / sd } }
         val zs = z(s); val zd = z(d)
         return c.indices.sortedByDescending { zs[it] - EMBED_COLOUR_WEIGHT * zd[it] }
-            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360) }
+            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360, quarter = qBest[it], score = (zs[it] - EMBED_COLOUR_WEIGHT * zd[it]).toFloat()) }
+    }
+
+    private fun precisionOf(conf: Int) = when {
+        conf >= CELL_CONF -> Precision.CELL
+        conf >= ZONE_CONF -> Precision.ZONE
+        else -> Precision.UNSURE
+    }
+
+    /** Probability of each of the best leads under a softmax of their scores: coherent with the order, and a share of 100 between them. */
+    private fun withConfidence(leads: List<Candidate>, temperature: Double): List<Candidate> {
+        val top = leads.take(CONF_PICKS)
+        val peak = top.maxOf { it.score }
+        val w = top.map { exp((it.score - peak) / temperature) }
+        val total = w.sum()
+        return leads.mapIndexed { i, c -> c.copy(confidence = if (i < w.size) (100 * w[i] / total).roundToInt().coerceIn(0, 99) else 0) }
+    }
+
+    /**
+     * The coarse candidates sit on half-cell steps, so the true place is up to a quarter cell away from the lattice point. For the
+     * best leads the network looks at squares around the point and the place becomes the similarity-weighted centre of them.
+     */
+    private fun refine(picks: List<Candidate>, evidence: Evidence): List<Candidate> {
+        val r = reranker ?: return picks
+        return picks.mapIndexed { i, c ->
+            if (i >= REFINE_LEADS) return@mapIndexed c
+            val spots = ArrayList<Pair<Float, Float>>()
+            for (dy in -2..2) for (dx in -2..2) spots += (c.col + dx * REFINE_STEP) to (c.row + dy * REFINE_STEP)
+            val e = r.embedBox(reference, grid, spots)
+            val p = evidence.piece[c.quarter]
+            val sim = FloatArray(e.size) { k -> var acc = 0f; for (j in p.indices) acc += p[j] * e[k][j]; acc }
+            val peak = sim.max()
+            val w = FloatArray(sim.size) { exp((sim[it] - peak) / REFINE_SOFTNESS) }
+            val total = w.sum()
+            c.copy(col = spots.indices.sumOf { (spots[it].first * w[it]).toDouble() }.toFloat() / total, row = spots.indices.sumOf { (spots[it].second * w[it]).toDouble() }.toFloat() / total)
+        }
     }
 
     /** The network's embedding of the box square under every candidate; null until [buildIndex] has run. */
@@ -313,12 +358,12 @@ class PieceMatcher(
     }
 
     /** Per candidate, the similarity of the piece turned by each of the 4 quarter turns (after its tilt) with the box square there. */
-    internal fun embedSims(cut: Raster, tilt: Float, masked: Boolean = true): Array<FloatArray>? {
+    internal fun embedSims(cut: Raster, tilt: Float, masked: Boolean = true): Evidence? {
         val r = reranker ?: return null
         if (index == null && indexOnDemand) buildIndex()
         val index = index ?: return null
         val ep = r.embedPiece(cut, (0..3).map { q -> (((q * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360 }, masked)
-        return Array(index.size) { i -> FloatArray(4) { q -> var acc = 0f; for (k in ep[q].indices) acc += ep[q][k] * index[i][k]; acc } }
+        return Evidence(Array(index.size) { i -> FloatArray(4) { q -> var acc = 0f; for (k in ep[q].indices) acc += ep[q][k] * index[i][k]; acc } }, ep)
     }
 
     /** Lowers the colour distance where the piece's pixels correlate with the box (both z-scored over the candidates). */
@@ -338,14 +383,9 @@ class PieceMatcher(
      */
     internal fun rerank(match: Match, piece: Raster, masked: Boolean, keep: Int = 4): Match {
         val r = reranker ?: return match
-        val ordered = r.rerank(listOf(match.best) + match.alternatives, piece, reference, grid, masked).take(keep)
+        val ordered = withConfidence(r.rerank(listOf(match.best) + match.alternatives, piece, reference, grid, masked), RERANK_TEMPERATURE).take(keep)
         val conf = ordered[0].confidence
-        val precision = when {
-            conf >= CELL_CONF -> Precision.CELL
-            conf >= ZONE_CONF -> Precision.ZONE
-            else -> Precision.UNSURE
-        }
-        return match.copy(best = ordered[0], alternatives = ordered.drop(1), confidence = conf, precision = precision)
+        return match.copy(best = ordered[0], alternatives = ordered.drop(1), confidence = conf, precision = precisionOf(conf))
     }
 
     internal fun pixelSearch(img: Raster, mask: BooleanArray) = patches?.search(img, mask)
@@ -689,6 +729,13 @@ class PieceMatcher(
         private val SPREAD_FLOOR = floatArrayOf(3f, 1.5f, 1.5f)
         private val FLOOR = floatArrayOf(4f, 3f, 3f)
         const val RERANK_LEADS = 30
+        /** Softmax temperatures of the fused score (z units): the whole-box search, and the re-ranking of the colour leads. Calibrated on the benchmarks. */
+        var CONF_TEMPERATURE = 0.5
+        var RERANK_TEMPERATURE = 0.7
+        private const val CONF_PICKS = 8
+        var REFINE_LEADS = 4
+        private const val REFINE_STEP = 0.125f
+        private const val REFINE_SOFTNESS = 0.03f
         var NCC_WEIGHT = 0.4f
         /** With the network searching the whole box: cost factor of a rotation whose flat sides do not match the border (infinity = a wall, which a wrong outline reading turns into a wrong answer). */
         var BORDER_PENALTY = 1.4f

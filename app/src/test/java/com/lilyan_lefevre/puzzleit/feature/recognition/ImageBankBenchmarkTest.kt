@@ -82,14 +82,15 @@ class ImageBankBenchmarkTest {
                         dump.add(f, g, cut, col, row, (360 - shot.deg.toInt()) % 360, lm)
                     }
                 }
-                val m = (matcher.locate(photo) as? Analysis.Found)?.match ?: continue
+                val m = (matcher.locate(photo, leads = 8) as? Analysis.Found)?.match ?: continue
                 score.found++
                 val wantKind = when { i < 4 -> PieceKind.CORNER; i < 10 -> PieceKind.EDGE; else -> PieceKind.INTERIOR }
                 if (m.kind == wantKind) score.kind++
                 fun near(c: Candidate) = abs(c.col - (col + .5f)) <= 1.01f && abs(c.row - (row + .5f)) <= 1.01f
                 if (hypot(m.best.col - (col + .5f), m.best.row - (row + .5f)) <= 0.51f) score.exact++
                 if (near(m.best)) score.near++
-                if ((listOf(m.best) + m.alternatives).any(::near)) score.top4++
+                if ((listOf(m.best) + m.alternatives).take(4).any(::near)) score.top4++
+                TestReranker.calib("bank", m, col + .5f, row + .5f)
                 val want = (360 - shot.deg.toInt()) % 360
                 if (abs(((m.best.rotationDeg - want) % 360 + 540) % 360 - 180) <= 10) score.rot++
             }

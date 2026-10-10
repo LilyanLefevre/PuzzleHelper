@@ -16,20 +16,21 @@ import kotlin.math.hypot
 class OwnPuzzlesTest {
 
     private class Score {
-        var n = 0; var found = 0; var exact = 0; var near = 0; var top4 = 0; var rot = 0
+        var n = 0; var found = 0; var exact = 0; var near = 0; var top4 = 0; var rot = 0; var err = 0.0; var errN = 0
         fun add(m: Match?, tx: Float, ty: Float, wantRot: Int?) {
             n++
             if (m == null) return
             found++
             fun d(c: Candidate) = hypot(c.col - tx, c.row - ty)
             if (d(m.best) <= 0.51f) exact++
+            if (d(m.best) <= 1.01f) { err += d(m.best); errN++ }
             if (d(m.best) <= 1.01f) near++
-            if ((listOf(m.best) + m.alternatives).any { d(it) <= 1.01f }) top4++
+            if ((listOf(m.best) + m.alternatives).take(4).any { d(it) <= 1.01f }) top4++
             // The label is a quarter turn, the real tilt is free: compare within half a quarter turn.
             if (wantRot != null && abs(((m.best.rotationDeg - wantRot) % 360 + 540) % 360 - 180) <= 45) rot++
         }
         private fun p(x: Int) = "${100 * x / n.coerceAtLeast(1)}%".padStart(5)
-        override fun toString() = "n=${n.toString().padStart(3)} found ${p(found)} exact ${p(exact)} +-1 ${p(near)} top4 ${p(top4)} rotation ${p(rot)}"
+        override fun toString() = "n=${n.toString().padStart(3)} found ${p(found)} exact ${p(exact)} +-1 ${p(near)} top4 ${p(top4)} rotation ${p(rot)} mean-err ${String.format(java.util.Locale.ROOT, "%.2f", if (errN > 0) err / errN else 0.0)} cells (n=$errN)"
     }
 
     private val tables = listOf(intArrayOf(48, 36, 30), intArrayOf(70, 72, 78), intArrayOf(40, 40, 42))
@@ -59,7 +60,8 @@ class OwnPuzzlesTest {
                         gains = FloatArray(3) { gainLo + rnd.nextFloat() * gainSpan }, exposure = expo,
                         table = tables[rnd.nextInt(tables.size)],
                     )
-                    val m = (matcher.locate(PiecePhotos.photo(box, g, col, row, shot)) as? Analysis.Found)?.match
+                    val m = (matcher.locate(PiecePhotos.photo(box, g, col, row, shot), leads = 8) as? Analysis.Found)?.match
+                    m?.let { TestReranker.calib(if (wide) "own-sim-wide" else "own-sim", it, col + .5f, row + .5f) }
                     sc.add(m, col + .5f, row + .5f, (360 - shot.deg.toInt()) % 360)
                 }
                 return sc
@@ -70,7 +72,8 @@ class OwnPuzzlesTest {
                 val f = l.trim().split(Regex("\\s+"))
                 if (f[4].toFloat() > cols || f[5].toFloat() > rows) return@forEach   // label typed with another puzzle's grid
                 val photo = Bmp.load(File(dir, "all/" + f[0])).centerSquare(PieceRecognizer.CROP)
-                val found = matcher.locate(photo) as? Analysis.Found
+                val found = matcher.locate(photo, leads = 8) as? Analysis.Found
+                found?.let { TestReranker.calib("own-real", it.match, f[4].toFloat(), f[5].toFloat()) }
                 val m = found?.match
                 real.add(m, f[4].toFloat(), f[5].toFloat(), f[3].toInt())
                 println("OWN   ${dir.name} ${f[0]} truth=(${f[4]},${f[5]}) -> " + (m?.let { "(${it.best.col},${it.best.row}) conf=${it.confidence} alts=" + it.alternatives.joinToString { a -> "(${a.col},${a.row})" } } ?: "none"))

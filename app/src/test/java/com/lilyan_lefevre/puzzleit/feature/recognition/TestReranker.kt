@@ -13,7 +13,15 @@ object TestReranker {
     }
 
     /** PUZZLE_GLOBAL=0 keeps the network to the colour matcher's top leads; PUZZLE_BORDER_PENALTY=1.4 makes the border constraint soft. */
+    /** PUZZLE_CALIB=1 prints, per scan, the fused score and the correctness (within one cell) of the best 8 leads: input of the confidence calibration. */
+    fun calib(tag: String, m: Match, tx: Float, ty: Float) {
+        if (System.getenv("PUZZLE_CALIB") != "1") return
+        val leads = (listOf(m.best) + m.alternatives).take(8)
+        println("CALIB $tag " + leads.joinToString(" ") { String.format(java.util.Locale.ROOT, "%.3f:%d", it.score, if (kotlin.math.hypot(it.col - tx, it.row - ty) <= 1.01f) 1 else 0) })
+    }
+
     fun fromEnv(): PieceReranker? {
+        System.getenv("PUZZLE_REFINE")?.toIntOrNull()?.let { PieceMatcher.REFINE_LEADS = it }
         System.getenv("PUZZLE_GLOBAL")?.let { PieceMatcher.GLOBAL_EMBED = it == "1" }
         System.getenv("PUZZLE_BORDER_PENALTY")?.toFloatOrNull()?.let { PieceMatcher.BORDER_PENALTY = it }
         System.getenv("PUZZLE_EMBED_COLOUR_W")?.toDoubleOrNull()?.let { PieceMatcher.EMBED_COLOUR_WEIGHT = it }

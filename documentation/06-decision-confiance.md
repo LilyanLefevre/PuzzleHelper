@@ -6,7 +6,35 @@ Chaque candidat autorisé reçoit sa meilleure distance sur les rotations permis
 meilleure piste et jusqu'à **3 alternatives**, en imposant au moins **1,5 case** entre deux pistes (suppression des
 non-maxima) : proposer trois fois la même zone décalée d'une demi-case n'aiderait personne.
 
-## Score de confiance
+**Aucune grille saisie.** La taille d'une pièce est déduite du **nombre de pièces** (imprimé sur la boîte) et de la forme
+de l'image ; les lignes × colonnes saisies à la création ne servent plus : personne ne les connaît avant d'avoir fini
+le tour du puzzle. Les candidats sont posés tous les demi-pas d'une pièce, puis la place des meilleures pistes est
+**affinée** : le réseau regarde 25 carrés autour du point (pas de 0,125 pièce) et la place devient le centre pondéré
+par leur similarité (`PieceMatcher.refine`). Erreur moyenne de position sur tes photos réelles retrouvées : 0,19 → 0,08 pièce.
+
+## Score de confiance avec le réseau (cas normal)
+
+Chaque candidat a un **score fusionné** `s = z(similarité du réseau) − 0,5 · z(distance couleur)`. Les 8 meilleures pistes
+(après suppression des non-maxima) se partagent 100 % par un softmax, `confiance_i = 100 · e^(s_i/T) / Σ e^(s_j/T)`, avec
+`T = 0,5` (`T = 0,7` pour le re-classement des pistes couleur quand l'index de la boîte n'est pas encore prêt). La confiance
+suit donc **toujours l'ordre des pistes** (la piste 1 n'est jamais moins confiante que la piste 2) et leur somme ne dépasse pas 100.
+
+`T` est calibré sur les scans des benchmarks (`PUZZLE_CALIB=1` exporte le score et l'exactitude de chaque piste). Fiabilité de
+la première piste à `T = 0,5` :
+
+| Confiance annoncée | Puzzle-Map + banque (1 217 scans) : justes | Captures réelles du propriétaire (23 scans) : justes |
+|---|---|---|
+| < 20 % | 9 % | 0 sur 1 |
+| 20 – 40 % | 64 % | 3 sur 10 |
+| 40 – 60 % | 80 % | 0 sur 6 |
+| 60 – 80 % | 96 % | 2 sur 3 |
+| ≥ 80 % | 96 % | 3 sur 3 |
+
+Les jeux de référence sont **sous-confiants** et les photos réelles **sur-confiantes** : `T = 0,5` est un compromis (l'optimum
+est 0,35 sur les jeux de référence, 0,5 à 0,7 sur les photos réelles). Le jeu réel est petit (23 scans, 9 pièces) : lisez-le
+comme un avertissement de ne pas sur-promettre, pas comme une mesure.
+
+## Score de confiance sans réseau (repli complet)
 
 Deux questions, qui doivent être vraies toutes les deux :
 

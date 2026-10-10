@@ -22,7 +22,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 - `feature/recognition/` `PieceReranker.kt` + `OnnxEmbedder.kt` (assets/reranker.onnx: embeddings of the piece and of the box squares), `PieceSegmenter.kt` + `OnnxSegmenter.kt`
   (assets/segmenter.onnx = U2-Net-small cuts the piece out; table-colour segmentation is the fallback), `PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut,
   segmentation, **whole-box network search** (`buildIndex` = embeddings of every half-cell square, built in the background by `PieceRecognizer` and cached next to the reference
-  image; `fuse` mixes similarity and colour over ALL candidates; scans use the colour matcher alone until the index is ready), outline reading
+  image; `fuse` mixes similarity and colour over ALL candidates, `refine` moves the best leads to sub-cell places; scans use the colour matcher alone until the index is ready; the confidence of a lead
+  is its share in a softmax of the fused scores, so it follows the order of the leads; the rows x columns typed at creation are NOT used, the piece size comes from the piece count), outline reading
   (tilt + flat/tab/blank sides -> corner/edge constraints, 4 rotations; with the network search the border constraint is a cost x1.4, a wall otherwise: the reading is often wrong on real pieces),
   5x5 Lab grid descriptor (mean, lightness ramp and contrast removed), confidence. `PieceRecognizer` = Bitmap glue,
   crops the square under the viewfinder, archives the last 200 captures + verdicts in `files/captures`.
@@ -97,7 +98,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   500-piece puzzles, 576 pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table).
   Full pipeline. Current (re-ranker + whole-box search + U2-Net): 88 % exact (97 % textured, 90 % mixed, 73 % flat-heavy), outline 97 %, found 100 %.
   Set `PUZZLE_RERANKER=app/src/main/assets/reranker.onnx` and `PUZZLE_SEGMENTER=app/src/main/assets/segmenter.onnx` (absolute paths) to enable them in the benchmarks;
-  `PUZZLE_GLOBAL=0` goes back to colour top-30 + re-rank, `PUZZLE_BORDER_PENALTY` and `PUZZLE_EMBED_COLOUR_W` tune the fusion.
+  `PUZZLE_GLOBAL=0` goes back to colour top-30 + re-rank, `PUZZLE_BORDER_PENALTY` and `PUZZLE_EMBED_COLOUR_W` tune the fusion, `PUZZLE_REFINE=0` turns the sub-cell refinement off,
+  `PUZZLE_CALIB=1` prints score + correctness of the best 8 leads of every scan (fit the softmax temperatures `CONF_TEMPERATURE` / `RERANK_TEMPERATURE` on it).
 - `OwnPuzzlesTest` -> `PUZZLE_OWN_DIR` (folders `famillez`, `lavague`: box, grid, captures, `all/*.bmp`, `truth.txt`, `leads.json`, `cuts/`): the owner's REAL photos with exact positions labelled by
   the owner (`tools/dataset/label_pieces.html`: drag the cut-out piece onto the box; `make_label_cuts.py` builds the cut-outs), next to simulated pieces cut from the same boxes. Treat those labels
   as exact. Current: Famillez 30 % exact / 55 % in 4 leads (20 captures = 6 distinct pieces), La vague 1 piece of 3. Too small to tune on: do not over-fit it.

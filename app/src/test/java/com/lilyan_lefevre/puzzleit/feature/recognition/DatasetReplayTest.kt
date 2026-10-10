@@ -50,14 +50,15 @@ class DatasetReplayTest {
                 dump.add(File(dir, "box.bmp"), Grid(cols, rows), body, col, row, want, lm)
             }
             for ((score, shape) in listOf(colourOnly to null, withSides to Shape(0f, sides))) {
-                val sims = if (shape != null && PieceMatcher.GLOBAL_EMBED) matcher.embedSims(body, 0f, masked = false) else null
-                val ranked = matcher.rank(lab, mask, shape, if (reranker != null && shape != null) PieceMatcher.RERANK_LEADS else 4, matcher.pixelSearch(img, mask), sims) ?: continue
-                val m = if (shape != null) matcher.rerank(ranked, body, masked = false) else ranked
+                val evidence = if (shape != null && PieceMatcher.GLOBAL_EMBED) matcher.embedSims(body, 0f, masked = false) else null
+                val ranked = matcher.rank(lab, mask, shape, if (reranker != null && shape != null && evidence == null) PieceMatcher.RERANK_LEADS else 8, matcher.pixelSearch(img, mask), evidence) ?: continue
+                val m = if (shape != null && evidence == null) matcher.rerank(ranked, body, masked = false) else ranked
+                if (shape != null) TestReranker.calib("pm", m, col + .5f, row + .5f)
                 score.n++
                 fun near(c: Candidate) = abs(c.col - (col + .5f)) <= 1.01f && abs(c.row - (row + .5f)) <= 1.01f
                 if (hypot(m.best.col - (col + .5f), m.best.row - (row + .5f)) <= 0.51f) score.exact++
                 if (near(m.best)) score.near++
-                if ((listOf(m.best) + m.alternatives).any(::near)) score.top4++
+                if ((listOf(m.best) + m.alternatives).take(4).any(::near)) score.top4++
                 if (abs(((m.best.rotationDeg - want) % 360 + 540) % 360 - 180) <= 20) score.rot++
             }
         }

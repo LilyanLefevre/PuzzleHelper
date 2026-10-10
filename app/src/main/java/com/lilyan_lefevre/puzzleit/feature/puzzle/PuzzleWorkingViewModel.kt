@@ -63,11 +63,11 @@ class PuzzleWorkingViewModel @Inject constructor(
 
     private var matcher: PieceMatcher? = null
     private var watching: String? = null
-    private var preparedFor: Triple<String, Int, Grid?>? = null
+    private var preparedFor: Pair<String, Int>? = null
     private var deleting = false
 
     /**
-     * Follows the project live: a rename only refreshes the header, a new photo or grid re-prepares the matcher,
+     * Follows the project live: a rename only refreshes the header, a new photo or piece count re-prepares the matcher,
      * and a deletion closes the screen.
      */
     fun loadProject(projectId: String) {
@@ -80,14 +80,14 @@ class PuzzleWorkingViewModel @Inject constructor(
                     return@collect
                 }
                 _project.value = p
-                // Prefer the rectified box and the grid typed at creation; old projects fall back to a computed grid.
+                // The rectified box, else the original photo. The rows x columns typed at creation are NOT used: nobody knows them
+                // before the border is complete; the size of a piece comes from the piece count (printed on the box).
                 val path = p.warpedPath.takeIf { it.isNotBlank() && File(it).exists() } ?: p.imagePath
-                val grid = if (p.gridRows > 1 || p.gridCols > 1) Grid(p.gridCols, p.gridRows) else null
-                val key = Triple(path, p.puzzleSize, grid)
+                val key = path to p.puzzleSize
                 if (key == preparedFor) return@collect
                 _isLoading.value = true
                 try {
-                    val prepared = recognizer.prepare(path, p.puzzleSize, grid)
+                    val prepared = recognizer.prepare(path, p.puzzleSize)
                     if (prepared == null) { _error.value = R.string.reference_missing; return@collect }
                     matcher = prepared.matcher
                     preparedFor = key

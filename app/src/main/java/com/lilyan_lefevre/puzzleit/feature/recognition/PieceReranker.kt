@@ -26,7 +26,7 @@ class PieceReranker(private val embed: (List<FloatArray>) -> List<FloatArray>) {
         val sim = DoubleArray(leads.size) { i -> dot(e[rots.indexOf(leads[i].rotationDeg)], e[rots.size + i]) }
         val dist = DoubleArray(leads.size) { leads[it].distance.toDouble() }
         val score = z(sim).zip(z(dist)) { s, d -> s - COLOUR_WEIGHT * d }
-        return leads.indices.sortedByDescending { score[it] }.map { leads[it] }
+        return leads.indices.sortedByDescending { score[it] }.map { leads[it].copy(score = score[it].toFloat()) }
     }
 
     /** Unit embeddings of the piece turned clockwise by each of [degs]. */
