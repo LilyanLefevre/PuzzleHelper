@@ -1,6 +1,6 @@
 name: Server image
 
-# Builds the PocketBase image for the Raspberry Pi (arm64) and publishes it; Watchtower on the Pi pulls it.
+# Builds the PocketBase image for the Raspberry Pi (arm64) and publishes it, then the runner on the Pi redeploys.
 on:
   push:
     branches: [main]
@@ -28,3 +28,14 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/lilyanlefevre/puzzleit-server:latest
+
+  deploy:
+    needs: image
+    runs-on: self-hosted # the runner installed on the Raspberry Pi (outbound connection only)
+    steps:
+      # A fixed clone, not the runner workspace: actions/checkout would `git clean` the pb_data folder.
+      - run: |
+          cd "$HOME/PuzzleIt/server"
+          git pull --ff-only
+          docker compose --profile tunnel up -d --pull always
+          docker image prune -f
