@@ -11,6 +11,9 @@
         tools:layout="@layout/fragment_project_list">
 
         <action
+            android:id="@+id/action_projectListFragment_to_accountFragment"
+            app:destination="@id/accountFragment" />
+        <action
             android:id="@+id/action_projectListFragment_to_projectCreationFragment"
             app:destination="@id/projectCreationFragment" />
 
@@ -82,6 +85,12 @@
             android:id="@+id/action_puzzleWorkingFragment_to_progressFragment"
             app:destination="@id/progressFragment" />
     </fragment>
+
+    <fragment
+        android:id="@+id/accountFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.account.AccountFragment"
+        android:label="@string/account_title"
+        tools:layout="@layout/fragment_account" />
 
     <fragment
         android:id="@+id/historyFragment"

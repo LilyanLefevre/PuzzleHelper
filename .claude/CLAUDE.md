@@ -1,6 +1,6 @@
 # PuzzleHelper (PuzzleIt)
 
-Android app (Kotlin, XML + Material 3, Hilt, Room, CameraX, OpenCV for box framing). 100 % offline.
+Android app (Kotlin, XML + Material 3, Hilt, Room, CameraX, OpenCV for box framing). Recognition is 100 % on the phone; an account on the owner's own server is optional (see Known limits).
 Photograph a loose puzzle piece -> the app shows where it goes on the box image and how to turn it.
 The owner speaks French: talk to them in French; code, comments and commit messages in English.
 
@@ -89,7 +89,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   (only the journeys: its 192 MB Java heap OOMs the device tests; Nexus One profile, 320 dp wide: the half level
   of the result sheet cannot show everything there) or `allDevicesDebugAndroidTest`. They never touch a plugged phone; do not run
   `connectedDebugAndroidTest` while one is connected.
-- 18 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
+- 19 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
   viewfinder, edit, delete, rate + history, progress screen) and `e2e/DemoTourTest` (records the README video into `/sdcard/demo.mp4` on the first puzzle of
   the phone, read only, real swipes, animations ON; skipped when there is no puzzle. Encode with ffmpeg `-vf fps=60` H.264,
   no ffmpeg installed: `pip install imageio-ffmpeg`. Never let the recording run into the home screen). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
@@ -139,9 +139,12 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   Error dialogs must stay hidden: a first-boot system ANR stole the window focus and failed 7 tests.
 
 ## Known limits / next steps
-- Next feature, waiting for the owner's choice: user accounts + puzzles saved on a server (breaks the "100 % offline" promise, so opt-in). Proposed ready-made stack:
-  Firebase Auth (FirebaseUI) + Firestore (offline cache = sync for free) + Cloud Storage for photos. It needs a Firebase project (`google-services.json`) created by the owner.
-  History, verdicts and progress photos are already Room tables with stable ids, ready to be synced. Progress photos are meant to feed the localisation later.
+- Accounts + sync (owner's choice, 2026-10-10: free, simple, self-hosted on their Raspberry): PocketBase in `server/` (collections in `pb_migrations/1_puzzleit.js`, Dockerfile,
+  compose, README), client in `feature/account/` (`PocketBaseClient` OkHttp + org.json, `AccountStore` token in SharedPreferences, `SyncRepository`, account screen opened from the
+  puzzle list). The server URL is typed in the app, so the backend can move. Opt-in: without an account nothing leaves the phone (INTERNET permission + cleartext allowed for a LAN
+  server, advise HTTPS before exposing it). Verified against a real local PocketBase: `POCKETBASE_URL=http://127.0.0.1:8090 ./gradlew testDebugUnitTest --tests "*SyncIntegrationTest*"`
+  (download PocketBase from its releases and check the checksum; `pocketbase serve --dir <tmp> --migrationsDir server/pb_migrations`). Open: deletions are not propagated to the other
+  phones, automatic/background sync (WorkManager), using the progress photos for localisation.
 - First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected
   (`documentation/07`, `08`): fine-tuning on Puzzle-Map real photos (hand-held; hurt the owner's table photos), naive log-colour matching, the full U2-Net. Pablo Moreira's DINOv2 piece classifier
   (363 MB, not embeddable) finds the white-gutter piece our model never finds: a patch-level cross-attention head is the research lead.

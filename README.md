@@ -6,7 +6,7 @@
 ![Offline](https://img.shields.io/badge/network-none-lightgrey)
 
 Stuck on a 1000-piece sky? Photograph a loose piece and PuzzleIt shows **where it goes on the box image**, how to
-turn it, and how sure it is. Android, Kotlin, fully offline.
+turn it, and how sure it is. Android, Kotlin, offline: the recognition runs on the phone, and an account on your own server is optional.
 
 [PuzzleIt!](https://github.com/user-attachments/assets/551506ba-1c97-4705-9ffc-f8ffcfc742d6)
 
@@ -32,6 +32,8 @@ Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Un
 - Say whether the lead on screen was right ("Is that where the piece goes?"): the answer is kept with the scan.
 - Scan history per puzzle: photo of the piece, where it was sent, confidence, and your verdict.
 - Progress photos per puzzle: photograph the puzzle as it stands, dated, to follow it grow.
+- Optional account on **your own server** ([`server/`](server/README.md), a PocketBase you host, for instance on a Raspberry Pi): your puzzles, scans and
+  progress photos are copied to it and follow you from phone to phone. Without an account nothing leaves the phone.
 - Edit or delete a puzzle from the table's top bar; history and progress photos are in its "more" menu.
 
 ## How it works
@@ -124,9 +126,10 @@ sequenceDiagram
 | `feature/puzzle` | the puzzle table (map, result sheet, scan state machine) and `capture/` (piece viewfinder) |
 | `feature/history` | `data/` (scan records with their verdict, DAO, repository), the history screen |
 | `feature/progress` | `data/` (dated photos of the puzzle's progress, DAO, repository), the progress screen |
+| `feature/account` | `data/` (PocketBase client, the signed-in account, the sync), the account screen |
 | `feature/recognition` | `PieceMatcher` (algorithm), `PieceRecognizer` (files, bitmaps, index), ONNX wrappers |
 
-Other folders: `tools/dataset` (benchmark data builders, labelling page), `tools/ai` (training of the embedding
+Other folders: `server/` (the PocketBase backend: collections, Dockerfile), `tools/dataset` (benchmark data builders, labelling page), `tools/ai` (training of the embedding
 network), `tools/pc` (remote emulator scripts), `documentation/` (French, the science page by page).
 
 ## Build and test

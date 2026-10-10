@@ -82,6 +82,7 @@ class ProjectListFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
+        binding.buttonAccount.setOnClickListener { findNavController().navigate(R.id.action_projectListFragment_to_accountFragment) }
         binding.fabAddProject.setOnClickListener {
             // Navigate to original project creation fragment using Navigation Component
             findNavController().navigate(R.id.action_projectListFragment_to_projectCreationFragment)

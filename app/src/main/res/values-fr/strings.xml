@@ -139,4 +139,21 @@ Commence par une photo de la boîte.</string>
     <string name="progress_photo">Photo du puzzle</string>
     <string name="delete_photo_title">Supprimer cette photo ?</string>
     <string name="delete_photo_message">La photo est supprimée de l\'appareil.</string>
+
+    <!-- Compte et synchronisation avec son propre serveur -->
+    <string name="account_button">Compte et synchronisation</string>
+    <string name="account_title">Compte</string>
+    <string name="account_intro">Facultatif. Connecte-toi à ton propre serveur PuzzleIt pour garder tes puzzles, tes scans et tes photos d\'avancement en sécurité et sur tous tes téléphones. Sans compte, tout reste sur ce téléphone.</string>
+    <string name="server_hint">Adresse du serveur (http://192.168.1.20:8090)</string>
+    <string name="email_hint">E-mail</string>
+    <string name="password_hint">Mot de passe (8 caractères ou plus)</string>
+    <string name="sign_in">Se connecter</string>
+    <string name="create_account">Créer le compte</string>
+    <string name="sync_now">Synchroniser maintenant</string>
+    <string name="sign_out">Se déconnecter</string>
+    <string name="signed_in_as">%1$s sur %2$s</string>
+    <string name="synced">Synchronisé : %1$d envoyé(s), %2$d reçu(s).</string>
+    <string name="sync_failed">Impossible de joindre le serveur : %1$s</string>
+    <string name="server_invalid">L\'adresse doit commencer par http:// ou https://</string>
+    <string name="credentials_invalid">Saisis ton e-mail et un mot de passe de 8 caractères ou plus.</string>
 </resources>

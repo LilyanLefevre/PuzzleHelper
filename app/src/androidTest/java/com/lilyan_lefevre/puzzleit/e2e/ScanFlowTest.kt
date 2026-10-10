@@ -9,6 +9,8 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
+import androidx.test.espresso.action.ViewActions.replaceText
 import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isPlatformPopup
@@ -272,6 +274,19 @@ class ScanFlowTest {
             onView(withText(R.string.menu_history)).inRoot(isPlatformPopup()).perform(click())
             waitFor { onView(withText(R.string.verdict_correct)).check(matches(isDisplayed())) }
             shot(scenario, "10_history")
+        }
+    }
+
+    @Test
+    fun accountScreenOpensFromTheListAndRefusesABadAddress() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitFor { onView(withId(R.id.buttonAccount)).check(matches(isDisplayed())) }
+            onView(withId(R.id.buttonAccount)).perform(click())
+            waitFor { onView(withId(R.id.editServer)).check(matches(isDisplayed())) }
+            onView(withId(R.id.editServer)).perform(replaceText("not-an-address"), closeSoftKeyboard())
+            onView(withId(R.id.buttonSignIn)).perform(click())
+            onView(withId(R.id.textNotice)).check(matches(withText(R.string.server_invalid)))
+            shot(scenario, "12_account")
         }
     }
 
