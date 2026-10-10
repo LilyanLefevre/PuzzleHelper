@@ -25,7 +25,7 @@ class ProgressRepository @Inject constructor(
         val target = File(File(context.filesDir, "$projectId/progress").apply { mkdirs() }, "$now.jpg")
         taken.copyTo(target, overwrite = true)
         taken.delete()
-        dao.insert(ProgressPhoto(projectId = projectId, createdAt = now, path = target.absolutePath))
+        dao.insert(ProgressPhoto(projectId = projectId, createdAt = now, path = target.absolutePath)).also { account.localChange() }
     }
 
     suspend fun delete(photo: ProgressPhoto) = withContext(Dispatchers.IO) {

@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        syncRepository.startAutoSync()
         setSupportActionBar(binding.toolbar)
         setupNavigation()
         

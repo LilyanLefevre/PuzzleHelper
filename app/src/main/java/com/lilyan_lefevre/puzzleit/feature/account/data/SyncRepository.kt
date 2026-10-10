@@ -17,10 +17,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -64,13 +66,28 @@ class SyncRepository @Inject constructor(
 
     /** A sync that outlives the screen: the app calls it when it goes to the background, so what changed is on the server before the person leaves. */
     fun syncInBackground() {
+        scope.launch { trySync() }
+    }
+
+    private var autoSyncing = false
+
+    /**
+     * Syncs two seconds after the last change made on this device (a photo taken, a verdict, an edit, a deletion), so it reaches the server while the person
+     * stays on the screen: leaving the app is no use for that, the system camera does it before the photo exists. Started once by the activity.
+     */
+    @OptIn(FlowPreview::class)
+    fun startAutoSync() {
+        if (autoSyncing) return
+        autoSyncing = true
+        scope.launch { store.localChanges.debounce(2_000).collect { trySync() } }
+    }
+
+    private suspend fun trySync() {
         if (store.account.value == null) return
-        scope.launch {
-            try {
-                sync()
-            } catch (e: BackendException) {
-                if (e.code == 401) store.signOut()
-            }
+        try {
+            sync()
+        } catch (e: BackendException) {
+            if (e.code == 401) store.signOut()
         }
     }
 

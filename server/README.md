@@ -107,9 +107,9 @@ Google provider (client ID `dummy`): it checks the list of providers, the realti
 
 ## How the sync behaves
 
-The list of puzzles syncs by itself each time it shows (at most once every 30 seconds, only when signed in; offline it is silently skipped); there is no sync button. A puzzle is matched with its copy by the id it was created with, a scan or a photo by its date. Missing items are copied to the side that lacks them, a verdict
+Whatever the person creates, edits or deletes (a puzzle, a scan, a verdict, a progress photo) is sent two seconds later, on whatever screen they are; the list of puzzles also
+syncs each time it shows (at most once every 30 seconds) and the app when it goes to the background. Only when signed in; offline it is silently skipped, and the next trigger catches up. There is no sync button. A puzzle is matched with its copy by the id it was created with, a scan or a photo by its date. Missing items are copied to the side that lacks them, a verdict
 given on one phone reaches the others, and a deletion made on a phone is replayed on the server and recorded in the `deletions` collection, so the other phones delete the same
-thing at their next sync. A retaken box photo is noticed through the date in its file name (`puzzles.photoId`): the newest photo wins on every phone. The app also syncs when it goes
-to the background. The name, piece count and grid of a puzzle carry the date of their last edit (`puzzles.updatedAt`): the latest edit wins on every phone. Known limits: a puzzle edited on two
+thing at their next sync. A retaken box photo is noticed through the date in its file name (`puzzles.photoId`): the newest photo wins on every phone. The name, piece count and grid of a puzzle carry the date of their last edit (`puzzles.updatedAt`): the latest edit wins on every phone. Known limits: a puzzle edited on two
 phones before they sync keeps only the later edit as a whole (the other phone's changes are lost), and nothing syncs while the app is closed (no WorkManager): a phone catches up the
 next time its app is opened.

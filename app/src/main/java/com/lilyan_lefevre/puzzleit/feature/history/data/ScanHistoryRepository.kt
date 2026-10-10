@@ -27,11 +27,12 @@ class ScanHistoryRepository @Inject constructor(
         val dir = File(context.filesDir, "$projectId/scans").apply { mkdirs() }
         val file = File(dir, "$now.jpg")
         file.outputStream().use { piece.compress(Bitmap.CompressFormat.JPEG, 90, it) }
-        dao.insert(ScanRecord(projectId = projectId, createdAt = now, piecePath = file.absolutePath, leads = encodeLeads(match)))
+        dao.insert(ScanRecord(projectId = projectId, createdAt = now, piecePath = file.absolutePath, leads = encodeLeads(match))).also { account.localChange() }
     }
 
     suspend fun evaluate(id: Long, correct: Boolean, lead: Int) {
         dao.evaluate(id, if (correct) Verdict.CORRECT else Verdict.WRONG, if (correct) lead else -1)
+        account.localChange()
     }
 
     suspend fun delete(record: ScanRecord) = withContext(Dispatchers.IO) {

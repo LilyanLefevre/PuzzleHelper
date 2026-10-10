@@ -3,8 +3,12 @@ package com.lilyan_lefevre.puzzleit.feature.account.data
 import android.content.SharedPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** The signed-in person on a server, as the screen needs it. */
@@ -52,6 +56,17 @@ class AccountStore @Inject constructor(@AccountPrefs private val prefs: SharedPr
     fun markDeleted(key: String) {
         if (_account.value == null) return
         prefs.edit().putStringSet("deleted", pendingDeletions + key).apply()
+        localChange()
+    }
+
+    // replay = 1: a change made just before the sync starts listening is not lost.
+    private val _localChanges = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /** Fires when something changed on this device that the server must hear about: the sync reacts a moment later, wherever the person is in the app. */
+    val localChanges: SharedFlow<Unit> = _localChanges.asSharedFlow()
+
+    fun localChange() {
+        _localChanges.tryEmit(Unit)
     }
 
     fun deletionDone(key: String) {

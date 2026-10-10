@@ -37,7 +37,10 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   `LoginFragment` (email/password + one "Continue with ..." button per provider in the server's `auth-methods`), `AccountFragment` (who is signed in, sign out), one `AccountViewModel`). The server is `BuildConfig.PUZZLEIT_SERVER`
   (`-PpuzzleitServer=...` overrides it), not typed. `MainActivity` picks the start destination from `AccountStore` and navigates to/from login when the account appears/disappears (sign-out, 401).
   Repositories that delete things (`ProjectRepository`, `ScanHistoryRepository`, `ProgressRepository`) call `AccountStore.markDeleted` so the next sync tells the server (`deletions` collection, so the other phones delete too).
-  Sync rules (`SyncRepository`): deletions replayed then applied, latest `updatedAt` wins for name/pieces/grid, newest `photoId` (date in the file name) wins for the box photo, and `MainActivity.onStop` syncs.
+  Sync rules (`SyncRepository`): deletions replayed then applied, latest `updatedAt` wins for name/pieces/grid, newest `photoId` (date in the file name) wins for the box photo.
+  **Principle (owner): every create / edit / delete triggers a request to the server.** The three repositories call `AccountStore.localChange()` after each write (`markDeleted` does too), and `SyncRepository.startAutoSync()`
+  (started by `MainActivity`) syncs 2 s after the last change, on whatever screen. Any new write to a Room table must go through a repository and call it. Also synced when the list shows (30 s throttle) and on `MainActivity.onStop`
+  (not enough alone: the system camera stops the activity before the photo exists). Covered by `SyncIntegrationTest` (photos taken one after the other reach the server by themselves).
   `Project.photoId` / `deleteBoxFiles()` live in `feature/project/data/BoxFiles.kt` (the box index is cached next to the warped image under its name and goes with it).
   Tests run signed in on throw-away prefs: `TestAccountModule` (androidTest and test source sets) replaces `AccountModule` through Hilt; `ProjectSetupTest` is a Hilt Robolectric test for that reason (no Android Keystore on the JVM).
 - Fragments only render state, handle system intents and navigate; IO, image work and validation live in ViewModels

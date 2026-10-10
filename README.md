@@ -34,8 +34,8 @@ Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Un
 - Progress photos per puzzle: photograph the puzzle as it stands, dated, to follow it grow.
 - Sign-in is required: by email and password, or with a provider the server offers (Google...). The app opens on the login screen and returns to it after a sign-out.
 - Your puzzles, scans, verdicts and progress photos are kept on the PuzzleIt server ([`server/`](server/README.md), a PocketBase) and follow you from phone to phone.
-  The sync runs by itself (when the puzzle list shows and when the app goes to the background, there is no sync button); the latest edit wins, and a deletion or a retaken box photo
-  reaches your other phones too.
+  The sync runs by itself, there is no sync button: whatever you create, edit or delete is sent a couple of seconds later, wherever you are in the app. The latest edit wins, and a deletion
+  or a retaken box photo reaches your other phones too.
 - Edit or delete a puzzle from the table's top bar, and retake the box photo while creating or editing it; history and progress photos are in its "more" menu.
 
 ## How it works

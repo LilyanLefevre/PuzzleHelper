@@ -13,6 +13,7 @@ import com.lilyan_lefevre.puzzleit.feature.history.data.ScanHistoryRepository
 import com.lilyan_lefevre.puzzleit.feature.history.data.ScanRecord
 import com.lilyan_lefevre.puzzleit.feature.history.data.Verdict
 import com.lilyan_lefevre.puzzleit.feature.progress.data.ProgressPhoto
+import com.lilyan_lefevre.puzzleit.feature.progress.data.ProgressRepository
 import com.lilyan_lefevre.puzzleit.feature.project.data.ImageStorageManager
 import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
@@ -97,6 +98,31 @@ class SyncIntegrationTest {
         assertFalse(File(context.filesDir, "p1").exists())
         assertTrue(client.list(server, store.token!!, "puzzles").isEmpty())
         db1.close(); db2.close()
+    }
+
+    @Test
+    fun `a progress photo taken reaches the server by itself, photo after photo, without leaving the screen`() = runBlocking {
+        assumeTrue("POCKETBASE_URL not set", server != null)
+        val store = AccountStore(prefs)
+        store.signIn(server!!, client.register(server, "auto-${System.nanoTime()}@test.dev", "Password12345"))
+        // As in the app, the repositories and the sync share one store (freshDevice makes its own).
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        val sync = SyncRepository(context, client, store, db.projectDao(), db.scanRecordDao(), db.progressPhotoDao())
+        val box = file("p4/puzzle/original/box.jpg", "box")
+        db.projectDao().insertProject(Project(id = "p4", name = "Auto", puzzleSize = 500, imagePath = box.path, thumbnailPath = box.path))
+        sync.sync()
+        sync.startAutoSync()
+
+        val progress = ProgressRepository(context, db.progressPhotoDao(), store)
+        suspend fun onServer() = client.list(server, store.token!!, "progress_photos").size
+        for (n in 1..3) {
+            progress.add("p4", file("tmp/shot$n.jpg", "photo $n"))
+            val deadline = System.currentTimeMillis() + 15_000
+            while (onServer() < n && System.currentTimeMillis() < deadline) kotlinx.coroutines.delay(300)
+            assertEquals("photo $n is on the server", n, onServer())
+            kotlinx.coroutines.delay(5)                                                // the next photo gets its own timestamp
+        }
+        db.close()
     }
 
     @Test

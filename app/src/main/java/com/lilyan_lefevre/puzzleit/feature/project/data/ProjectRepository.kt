@@ -65,6 +65,7 @@ class ProjectRepository @Inject constructor(
             status = "active"
         )
         projectDao.insertProject(project)
+        account.localChange()
         return project
     }
 
@@ -73,6 +74,7 @@ class ProjectRepository @Inject constructor(
      */
     suspend fun updateProject(project: Project) {
         projectDao.updateProject(project.copy(updatedAt = System.currentTimeMillis()))
+        account.localChange()
     }
 
     /**
