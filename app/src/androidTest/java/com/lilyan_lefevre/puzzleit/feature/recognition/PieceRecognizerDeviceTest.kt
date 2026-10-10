@@ -36,6 +36,12 @@ class PieceRecognizerDeviceTest {
         assertTrue("prepare took $ms ms", ms < 3000)
     }
 
+    /** Memory the app holds right now, in MB: total, native (ONNX Runtime, rasters) and Java heap. */
+    private fun memory(label: String) {
+        val m = android.os.Debug.MemoryInfo(); android.os.Debug.getMemoryInfo(m)
+        println("MEMORY $label: total PSS ${m.totalPss / 1024} MB, native ${m.nativePss / 1024} MB, java ${m.dalvikPss / 1024} MB")
+    }
+
     /** The box index and the warm-up run in the background after prepare(): scans are timed once they are done, as in use (a person looks at the table first). */
     private fun waitForWarmUp(p: PieceRecognizer.Prepared): Long {
         val t0 = System.currentTimeMillis()
@@ -46,7 +52,9 @@ class PieceRecognizerDeviceTest {
     @Test
     fun locatesRotatedPiecesFromJpegPhotos() {
         val p = prepare()
+        memory("before prepare finished")
         println("TIMING box index + warm-up for ${cols * rows} pieces: ${waitForWarmUp(p)} ms (after prepare)")
+        memory("after index + warm-up")
         val cases = listOf(Triple(4, 3, 0f), Triple(12, 8, 90f), Triple(15, 11, 180f), Triple(7, 5, 270f), Triple(10, 2, 90f), Triple(3, 12, 180f))
         var hits = 0; var rot = 0; var worst = 0L
         for ((i, t) in cases.withIndex()) {
@@ -61,6 +69,7 @@ class PieceRecognizerDeviceTest {
             }
         }
         println("TIMING slowest scan $worst ms")
+        memory("after 6 scans")
         assertTrue("located $hits/${cases.size}", hits >= 4)
         assertTrue("rotation $rot/$hits", rot >= hits - 1)
         assertTrue("slowest scan $worst ms (PRD: < 3 s)", worst < 3000)
