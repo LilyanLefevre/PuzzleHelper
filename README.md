@@ -8,9 +8,7 @@
 Stuck on a 1000-piece sky? Photograph a loose piece and PuzzleIt shows **where it goes on the box image**, how to
 turn it, and how sure it is. Android, Kotlin, fully offline.
 
-<p align="center">
-  <video src="https://github.com/user-attachments/assets/5e2cc45b-52bf-4e4a-85fb-7d07f3de5585" width="300" controls muted autoplay loop playsinline></video>
-</p>
+[PuzzleIt!](https://github.com/user-attachments/assets/551506ba-1c97-4705-9ffc-f8ffcfc742d6)
 
 *Recorded on a phone ([`DemoTourTest`](app/src/androidTest/java/com/lilyan_lefevre/puzzleit/e2e/DemoTourTest.kt) plays it): a
 piece of Hokusai's Great Wave is photographed, found with 99 %, then the result sheet goes through its four levels (the
