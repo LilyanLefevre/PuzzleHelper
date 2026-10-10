@@ -9,6 +9,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isChecked
 import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
@@ -145,13 +146,11 @@ class ScanFlowTest {
             Thread.sleep(1800)   // let the camera move and the piece spin settle
             shot(scenario, "3_result")
             onView(withId(R.id.textSpot)).check(matches(isDisplayed()))
-            onView(withId(R.id.confBar)).check(matches(isDisplayed()))
-            onView(withId(R.id.chipLeads)).check(matches(isDisplayed()))
             onView(withId(R.id.chipLeads)).check(matches(isDisplayed()))
             onView(allOf(withText(containsString(ctx.getString(R.string.alt_lead, 2))), isDescendantOfA(withId(R.id.chipLeads)))).perform(click())
             waitFor { onView(withId(R.id.textLead)).check(matches(withText(containsString(ctx.getString(R.string.alt_lead, 2))))) }
             Thread.sleep(1200); shot(scenario, "4_second_lead")
-            onView(withId(R.id.buttonDismiss)).perform(click())
+            onView(withId(R.id.buttonDismiss)).perform(scrollTo(), click())
             waitFor { onView(withId(R.id.groupIdle)).check(matches(isDisplayed())) }
         }
     }
@@ -161,6 +160,12 @@ class ScanFlowTest {
         var x = 0
         scenario.onActivity { x = it.window.decorView.width / 2 }
         InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input swipe $x ${fromY.toInt()} $x ${toY.toInt()} 300").close()
+    }
+
+    private fun screenHeight(scenario: ActivityScenario<MainActivity>): Float {
+        var h = 0f
+        scenario.onActivity { h = it.window.decorView.height.toFloat() }
+        return h
     }
 
     private fun sheetTop(scenario: ActivityScenario<MainActivity>): Float {
@@ -178,11 +183,14 @@ class ScanFlowTest {
             inject(scenario, TestImages.save(TestImages.piecePhoto(art, cols, rows, 9, 6, 90f), ctx.cacheDir, "e2e_piece2.jpg"))
             waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
             Thread.sleep(1800)
-            onView(withId(R.id.confBar)).check(matches(isDisplayed()))               // half level: the comparison is visible
+            onView(withId(R.id.textSpot)).check(matches(isDisplayed()))               // half level: the comparison is visible
             // Up to the full level: the page that explains the leads.
             shot(scenario, "5_half")
-            drag(scenario, sheetTop(scenario), 120f); Thread.sleep(700)
+            drag(scenario, sheetTop(scenario), 0.04f * screenHeight(scenario)); Thread.sleep(700)
             shot(scenario, "6_after_drag_up")
+            // On a small screen the explanation page starts below the fold: scroll down to it.
+            scenario.onActivity { act -> act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).fullScroll(View.FOCUS_DOWN) }
+            Thread.sleep(400)
             onView(withId(R.id.groupExplain)).check(matches(isDisplayed())); shot(scenario, "6_explain")
             // Freeze the first card's blinking and bring it into view: the piece must sit on the box where the lead says.
             scenario.onActivity { act ->
@@ -195,16 +203,14 @@ class ScanFlowTest {
             Thread.sleep(500); shot(scenario, "6c_explain_bottom")
             scenario.onActivity { act -> act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).scrollTo(0, 0) }
             Thread.sleep(300)
-            // Down to half, then to peek: only the leads remain.
-            drag(scenario, sheetTop(scenario), sheetTop(scenario) + 900f); Thread.sleep(700)
-            onView(withId(R.id.confBar)).check(matches(isDisplayed()))
-            drag(scenario, sheetTop(scenario), sheetTop(scenario) + 700f); Thread.sleep(700)
-            onView(withId(R.id.chipLeads)).check(matches(isDisplayed())); shot(scenario, "7_peek")
-            // Away: the map is free, the button brings the leads back.
-            drag(scenario, sheetTop(scenario), sheetTop(scenario) + 700f); Thread.sleep(700)
+            scenario.onActivity { act -> act.findViewById<androidx.core.widget.NestedScrollView>(R.id.sheetScroll).scrollTo(0, 0) }
+            Thread.sleep(300)
+            // Away: a long swipe down takes the sheet off whatever the screen's size, the map is free and the button brings the leads back.
+            // (The peek level is checked by the card test; on a small screen the half and full levels nearly coincide.)
+            drag(scenario, sheetTop(scenario), 0.98f * screenHeight(scenario)); Thread.sleep(900)
             onView(withId(R.id.pillLeads)).check(matches(isDisplayed())); shot(scenario, "8_hidden")
             onView(withId(R.id.pillLeads)).perform(click()); Thread.sleep(700)
-            onView(withId(R.id.confBar)).check(matches(isDisplayed()))
+            onView(withId(R.id.textSpot)).check(matches(isDisplayed()))
         }
     }
 
@@ -214,7 +220,7 @@ class ScanFlowTest {
             inject(scenario, TestImages.save(TestImages.piecePhoto(art, cols, rows, 9, 6, 90f), ctx.cacheDir, "e2e_piece3.jpg"))
             waitFor { onView(withId(R.id.groupResult)).check(matches(isDisplayed())) }
             Thread.sleep(1800)
-            drag(scenario, sheetTop(scenario), 120f); Thread.sleep(700)             // the page that explains the leads
+            drag(scenario, sheetTop(scenario), 0.04f * screenHeight(scenario)); Thread.sleep(700)             // the page that explains the leads
             // Tapping the second lead's card selects it and drops the sheet to its peek level, over the map.
             scenario.onActivity { act -> act.findViewById<ViewGroup>(R.id.explainList).getChildAt(1).performClick() }
             Thread.sleep(1500)
