@@ -31,6 +31,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   `feature/progress/` (`data/`: `ProgressPhoto` + DAO + `ProgressRepository`; `ProgressFragment` takes the photo with the system camera). Both tables are deleted with their puzzle
   (FK cascade; the files live in `files/<projectId>/scans|progress`, removed with the puzzle's folder). DB version 6 (`ProjectMigration5`, covered by `ScanHistoryTest`).
   The result sheet asks "is that where the piece goes?" (`PuzzleWorkingViewModel.evaluate`): verdicts are the future real-world training / evaluation data.
+- `feature/account/` (`data/`: `PocketBaseClient`, `AccountStore` on encrypted prefs, `AccountModule` (OkHttp + prefs), `SyncRepository`, `isAcceptableServer`; `AccountFragment` + ViewModel, opened from the puzzle list).
+  Repositories that delete things (`ProjectRepository`, `ScanHistoryRepository`, `ProgressRepository`) call `AccountStore.markDeleted` so the next sync tells the server.
 - Fragments only render state, handle system intents and navigate; IO, image work and validation live in ViewModels
   or injected classes.
 - Docs: `documentation/` (French, numbered pages: the science 01-06, validation 07, AI experiment 08) and
@@ -71,7 +73,13 @@ The owner speaks French: talk to them in French; code, comments and commit messa
 
 ## Working rules (learned the hard way)
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`, `chore:`), one topic per commit, push to
-  `main` only once built + tested; then check CI with `gh run watch`. Quote benchmark numbers in matcher commits.
+  `main` only once built + tested; then check CI. Quote benchmark numbers in matcher commits.
+- **Commits: no `Co-Authored-By` / `Claude-Session` trailers** (owner's explicit choice, history was rewritten without them), author `LilyanLefevre <lilyandu70.7@gmail.com>`
+  (`git config user.name/email` are set to it in this clone). Never fake or backdate commit dates (refused once, the owner insisted: still no). Pushing rewritten history needs `--force-with-lease`.
+- **CI polling**: `gh run watch` and long `sleep` get reaped when the PC is short of memory; poll with `until [ "$(gh run view <id> --json status --jq .status)" = completed ]; do sleep 30; done` in the background.
+  The workflow cancels in-progress runs on a new push: do not push while waiting for a result you need.
+- Repo files cannot be written from Bash/Python on this PC (`Bad file descriptor`): use the Edit/Write tools; Bash only for git/gradle/adb. Git Bash mangles `/sdcard` paths: `export MSYS_NO_PATHCONV=1`; binary files from the phone: `adb exec-out run-as ... cat`.
+- The `humanizer` skill the owner's global CLAUDE.md asks for is not installed in this session: write texts plainly and say so.
 - Measure before and after every matcher change on BOTH benchmarks below; keep a change only if it holds on both.
   Document results (including rejected tries) in `documentation/07-validation.md`.
 - Trace a real failure on real data before "fixing": pull the phone captures and replay them (`RealPhotoReplayTest`).
@@ -139,14 +147,28 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   Error dialogs must stay hidden: a first-boot system ANR stole the window focus and failed 7 tests.
 
 ## Known limits / next steps
-- Accounts + sync (owner's choice, 2026-10-10: free, simple, self-hosted on their Raspberry): PocketBase in `server/` (collections in `pb_migrations/1_puzzleit.js`, Dockerfile,
-  compose, README), client in `feature/account/` (`PocketBaseClient` OkHttp + org.json, `AccountStore` token in SharedPreferences, `SyncRepository`, account screen opened from the
-  puzzle list). The server URL is typed in the app, so the backend can move. Opt-in: without an account nothing leaves the phone (INTERNET permission + cleartext allowed for a LAN
-  server, advise HTTPS before exposing it). Verified against a real local PocketBase: `POCKETBASE_URL=http://127.0.0.1:8090 ./gradlew testDebugUnitTest --tests "*SyncIntegrationTest*"`
-  **Security rule from the owner: reuse audited pieces, invent nothing.** Auth/tokens/rules = PocketBase; token = Jetpack Security `EncryptedSharedPreferences` (`AccountModule`, excluded from
-  backups); `http://` only for private/home addresses (`isAcceptableServer`, `ServerAddressTest`). The list syncs by itself when it shows (`ProjectListViewModel.refresh`, 30 s throttle).
-  (download PocketBase from its releases and check the checksum; `pocketbase serve --dir <tmp> --migrationsDir server/pb_migrations`). Open: deletions are not propagated to the other
-  phones, automatic/background sync (WorkManager), using the progress photos for localisation.
+### State on 2026-10-10 (end of the session)
+- v0.1.0 released (signed APK on GitHub, release.yml; keystore in `C:\Users\Lilyan\.android-keys\`, to be backed up by the owner). `main` is green on CI (Pixel 6 + small phone managed devices).
+  Done since: scan history, lead evaluation ("is that where the piece goes?"), progress photos (Room v6, migration verified on the owner's real DB), account + sync with the owner's PocketBase,
+  README with the demo video (uploaded to GitHub as a `user-attachments` asset: GitHub strips `<video>` otherwise), `DemoTourTest` records that video.
+- Accounts + sync (owner's choice: free, simple, self-hosted on their Raspberry, adaptable): PocketBase in `server/` (`pb_migrations/1_puzzleit.js`, Dockerfile, compose with an optional
+  `cloudflared` service, README), client in `feature/account/` (`PocketBaseClient` OkHttp + org.json, `AccountStore`, `SyncRepository`, account screen opened from the puzzle list). The server
+  URL is typed in the app. Opt-in: without an account nothing leaves the phone. The list syncs by itself when it shows (`ProjectListViewModel.refresh`, 30 s throttle, silent offline, 401 = sign out).
+  Verified against a real local PocketBase (download it from its releases, check the checksum, `pocketbase serve --dir <tmp> --migrationsDir server/pb_migrations`, then
+  `POCKETBASE_URL=http://127.0.0.1:8090 ./gradlew testDebugUnitTest --tests "*SyncIntegrationTest*"`).
+- **Security rule from the owner: reuse audited pieces, invent nothing** (also in memory). Auth, hashing, tokens, file tokens, access rules = PocketBase; token = Jetpack Security
+  `EncryptedSharedPreferences` (`AccountModule`, excluded from backups); `http://` only for private/home addresses (`isAcceptableServer`, `ServerAddressTest`).
+
+### Tasks now
+1. **Deploy the server on the owner's Raspberry Pi + a free Cloudflare Tunnel** (in progress, blocked on the owner). A dedicated key exists on this PC: `~/.ssh/id_ed25519_raspi` (no passphrase, public key
+   given to the owner to put in the Pi's `authorized_keys`; to be removed after the deployment). Still needed from the owner: the Pi's address + user (then add `Host raspi` to `~/.ssh/config` and test
+   `ssh raspi`), and whether they own a **domain managed by Cloudflare** (the free named tunnel needs one; otherwise use Tailscale, whose `100.x` addresses the app accepts over http). Then:
+   `cd server && docker compose up -d --build`, the tunnel is created in the Cloudflare Zero Trust dashboard and its token goes in `server/.env` typed by the owner on the Pi (never through the chat, never committed),
+   `PUZZLEIT_BIND=127.0.0.1`, `docker compose --profile tunnel up -d`; create the owner's account in the app, then lock the sign-up in the PocketBase dashboard. Not tested yet: the Dockerfile, the tunnel.
+2. Try the account screen with a real server on the owner's phone (the e2e tests only cover the screen and the bad-address refusal).
+3. Sync gaps: deletions are not propagated to the *other* phones (they would send the item back: needs server-side tombstones), no background sync while the app is closed (WorkManager).
+4. Use the progress photos to help the localisation (the reason they exist), measure the box index build time on the phone for La vague (never done).
+5. Owner's phone: wireless adb drops often; run tests there with `installDebug installDebugAndroidTest` + `am instrument` (animations off, restore them after), never `connectedDebugAndroidTest`.
 - First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected
   (`documentation/07`, `08`): fine-tuning on Puzzle-Map real photos (hand-held; hurt the owner's table photos), naive log-colour matching, the full U2-Net. Pablo Moreira's DINOv2 piece classifier
   (363 MB, not embeddable) finds the white-gutter piece our model never finds: a patch-level cross-attention head is the research lead.
