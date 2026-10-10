@@ -36,6 +36,19 @@
             android:textSize="40sp" />
     </LinearLayout>
 
+    <!-- Shown while the list is synced with the server -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/syncBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:indicatorColor="@color/puzzle_primary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:trackColor="@color/puzzle_surface_high" />
+
     <!-- Account and sync (optional) -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/buttonAccount"

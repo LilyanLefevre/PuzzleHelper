@@ -12,6 +12,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -38,8 +41,24 @@ class SyncRepository @Inject constructor(
     private val lock = Mutex()
     private var uploaded = 0
     private var downloaded = 0
+    private var lastSyncAt = 0L
+
+    private val _syncing = MutableStateFlow(false)
+    /** True while a sync runs, for a discreet progress bar. */
+    val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
+
+    /** The sync the list triggers each time it shows: nothing when signed out or when the last sync is recent. */
+    suspend fun syncIfStale(maxAgeMs: Long = 30_000): SyncReport? {
+        if (store.account.value == null || System.currentTimeMillis() - lastSyncAt < maxAgeMs) return null
+        return sync()
+    }
 
     suspend fun sync(): SyncReport = lock.withLock {
+        _syncing.value = true
+        try { run() } finally { _syncing.value = false }
+    }
+
+    private suspend fun run(): SyncReport {
         uploaded = 0; downloaded = 0
         val account = store.account.value ?: throw BackendException("not signed in")
         val server = account.server
@@ -64,7 +83,8 @@ class SyncRepository @Inject constructor(
             syncPhotos(server, token, session.userId, localId, record.getString("id"))
             downloaded++
         }
-        SyncReport(uploaded, downloaded)
+        lastSyncAt = System.currentTimeMillis()
+        return SyncReport(uploaded, downloaded)
     }
 
     // ---- deletions made on this device ----

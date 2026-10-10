@@ -53,6 +53,11 @@ class ProjectListFragment : Fragment() {
         setupClickListeners()
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.refresh()
+    }
+
     private fun setupRecyclerView() {
         projectAdapter = ProjectAdapter(
             onProjectClick = { project ->
@@ -71,6 +76,7 @@ class ProjectListFragment : Fragment() {
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.syncing.collect { binding.syncBar.visibility = if (it) View.VISIBLE else View.GONE } }
                 viewModel.projects.collect { projects ->
                     binding.progressBar.visibility = if (projects == null) View.VISIBLE else View.GONE
                     projects ?: return@collect
