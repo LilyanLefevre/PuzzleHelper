@@ -9,7 +9,7 @@ Stuck on a 1000-piece sky? Photograph a loose piece and PuzzleIt shows **where i
 turn it, and how sure it is. Android, Kotlin, fully offline.
 
 <p align="center">
-  <a href="documentation/screenshots/demo.mp4"><img src="documentation/screenshots/demo.png" width="300" alt="Demo video: click to play"></a>
+  <video src="https://github.com/user-attachments/assets/5e2cc45b-52bf-4e4a-85fb-7d07f3de5585" width="300" controls muted autoplay loop playsinline></video>
 </p>
 
 *Recorded on a phone ([`DemoTourTest`](app/src/androidTest/java/com/lilyan_lefevre/puzzleit/e2e/DemoTourTest.kt) plays it): a
