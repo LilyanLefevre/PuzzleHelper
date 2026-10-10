@@ -95,10 +95,10 @@ Google provider (client ID `dummy`): it checks the list of providers, the realti
 ## Keep it safe
 
 - **Back up `pb_data/`** (accounts, records and photos are all in it).
-- On your home network `http://` is enough. Before opening the server to the internet, put HTTPS in front of it. The simplest way is
-  [Caddy](https://caddyserver.com) with a domain name: `puzzleit.example.com { reverse_proxy localhost:8090 }`, then use `https://puzzleit.example.com` in the app.
-- Anyone who can reach the server can create an account. On the internet, disable sign-up in the dashboard (Collections, users, API rules, create rule: locked)
-  once your accounts exist.
+- The app only sends a password over `https://` (plain `http://` is accepted for a home-network address only). The production server gets its HTTPS from the Cloudflare Tunnel above;
+  without a tunnel, put a reverse proxy such as [Caddy](https://caddyserver.com) in front (`puzzleit.example.com { reverse_proxy localhost:8090 }`).
+- Anyone who can reach the server can create an account, by password and through a provider alike. On the internet, lock the sign-up in the dashboard (Collections, users, API rules,
+  create rule: locked) once your accounts exist.
 
 ## Develop against it
 
@@ -107,9 +107,19 @@ Google provider (client ID `dummy`): it checks the list of providers, the realti
 
 ## How the sync behaves
 
-Whatever the person creates, edits or deletes (a puzzle, a scan, a verdict, a progress photo) is sent two seconds later, on whatever screen they are; the list of puzzles also
-syncs each time it shows (at most once every 30 seconds) and the app when it goes to the background. Only when signed in; offline it is silently skipped, and the next trigger catches up. There is no sync button. A puzzle is matched with its copy by the id it was created with, a scan or a photo by its date. Missing items are copied to the side that lacks them, a verdict
-given on one phone reaches the others, and a deletion made on a phone is replayed on the server and recorded in the `deletions` collection, so the other phones delete the same
-thing at their next sync. A retaken box photo is noticed through the date in its file name (`puzzles.photoId`): the newest photo wins on every phone. The name, piece count and grid of a puzzle carry the date of their last edit (`puzzles.updatedAt`): the latest edit wins on every phone. Known limits: a puzzle edited on two
-phones before they sync keeps only the later edit as a whole (the other phone's changes are lost), and nothing syncs while the app is closed (no WorkManager): a phone catches up the
-next time its app is opened.
+**When.** Whatever the person creates, edits or deletes (a puzzle, a scan, a verdict, a progress photo) is sent two seconds after the last change, on whatever screen they are.
+The list of puzzles also syncs each time it shows (at most once every 30 seconds), and the app when it goes to the background. Only when signed in; offline, the sync fails
+silently and the next trigger catches up. There is no sync button.
+
+**What.**
+- A puzzle is matched with its copy by the id it was created with, a scan or a photo by its date. Missing items are copied to the side that lacks them.
+- A verdict given on one phone reaches the others.
+- A deletion is replayed on the server and recorded in the `deletions` collection, so the other phones delete the same thing at their next sync instead of sending it back.
+- The name, piece count and grid of a puzzle carry the date of their last edit (`puzzles.updatedAt`): the latest edit wins on every phone.
+- A retaken box photo is noticed through the date in its file name (`puzzles.photoId`): the newest photo wins, and replaces the box image and its index on every phone.
+
+**Known limits.**
+- A puzzle edited on two phones before either syncs keeps only the later edit as a whole: the other phone's changes are lost.
+- Nothing syncs while the app is closed (there is no WorkManager): a phone catches up the next time its app is opened. A change made in the two seconds before the app is killed is
+  sent at that next opening.
+- The login screen reads the list of providers once when it opens: if the server was unreachable then, no provider button shows (and nothing says why) until the screen is reopened.
