@@ -20,6 +20,10 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "com.lilyan_lefevre.puzzleit.HiltTestRunner"
+
+        // The production server is built into the app; `-PpuzzleitServer=http://192.168.1.20:8090` points a local build at a test server.
+        val server = (project.findProperty("puzzleitServer") as String?) ?: "https://puzzleit.lilyan.app"
+        buildConfigField("String", "PUZZLEIT_SERVER", "\"$server\"")
     }
 
     // The release key never lives in the repository: the CI decodes it from a secret and passes it by environment.
@@ -89,6 +93,8 @@ dependencies {
 
     // HTTP client for the optional sync with the owner's own server (PocketBase)
     implementation(libs.okhttp)
+    // PocketBase tells the app the result of a "Sign in with Google" over server-sent events
+    implementation(libs.okhttp.sse)
     // The server token is stored encrypted with a key held by the Android Keystore (Jetpack Security, nothing home-made)
     implementation(libs.androidx.security.crypto)
 

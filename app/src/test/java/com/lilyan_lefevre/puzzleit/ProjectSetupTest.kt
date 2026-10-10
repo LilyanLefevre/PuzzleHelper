@@ -1,7 +1,11 @@
 package com.lilyan_lefevre.puzzleit
 
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.HiltTestApplication
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -12,14 +16,18 @@ import org.robolectric.annotation.Config
  * Unit tests for Android project setup validation
  * These tests verify that project structure and dependencies are correctly configured
  */
+@HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [24])
+@Config(sdk = [24], application = HiltTestApplication::class)
 class ProjectSetupTest {
+
+    @get:Rule val hilt = HiltAndroidRule(this)
 
     private lateinit var mainActivity: MainActivity
 
     @Before
     fun setUp() {
+        hilt.inject()
         mainActivity = Robolectric.buildActivity(MainActivity::class.java).create().get()
     }
 

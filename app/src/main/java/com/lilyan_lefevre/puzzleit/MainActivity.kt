@@ -8,11 +8,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.navOptions
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.lilyan_lefevre.puzzleit.databinding.ActivityMainNavBinding
+import com.lilyan_lefevre.puzzleit.feature.account.data.AccountStore
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 import org.opencv.android.OpenCVLoader
 
 /**
@@ -20,6 +27,8 @@ import org.opencv.android.OpenCVLoader
  */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    @Inject lateinit var accountStore: AccountStore
 
     private lateinit var binding: ActivityMainNavBinding
 
@@ -47,18 +56,38 @@ class MainActivity : AppCompatActivity() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
-        
+
+        // Nobody signed in: the app opens on the login screen, never on the list.
+        val signedIn = accountStore.account.value != null
+        navController.graph = navController.navInflater.inflate(R.navigation.nav_graph).apply {
+            setStartDestination(if (signedIn) R.id.projectListFragment else R.id.loginFragment)
+        }
+
         // Connect the action bar with the NavController
         val appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
         // These screens draw their own header (with its own back button): showing the toolbar too gave two arrows.
         val ownHeader = setOf(
-            R.id.projectListFragment, R.id.puzzleWorkingFragment, R.id.pieceCaptureFragment,
+            R.id.loginFragment, R.id.projectListFragment, R.id.puzzleWorkingFragment, R.id.pieceCaptureFragment,
             R.id.accountFragment, R.id.historyFragment, R.id.progressFragment,
         )
         navController.addOnDestinationChangedListener { _, dest, _ ->
             binding.toolbar.visibility = if (dest.id in ownHeader) View.GONE else View.VISIBLE
+        }
+
+        // Signing in leaves the login screen; signing out (or the server refusing the token) brings it back, whatever screen is open.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                accountStore.account.collect { account ->
+                    val onLogin = navController.currentDestination?.id == R.id.loginFragment
+                    if (account == null && !onLogin) {
+                        navController.navigate(R.id.loginFragment, null, navOptions { popUpTo(navController.graph.id) { inclusive = true } })
+                    } else if (account != null && onLogin) {
+                        navController.navigate(R.id.projectListFragment, null, navOptions { popUpTo(R.id.loginFragment) { inclusive = true } })
+                    }
+                }
+            }
         }
     }
 

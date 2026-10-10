@@ -278,15 +278,18 @@ class ScanFlowTest {
     }
 
     @Test
-    fun accountScreenOpensFromTheListAndRefusesABadAddress() {
+    fun signingOutBringsTheLoginScreenBackAndItChecksTheForm() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             waitFor { onView(withId(R.id.buttonAccount)).check(matches(isDisplayed())) }
             onView(withId(R.id.buttonAccount)).perform(click())
-            waitFor { onView(withId(R.id.editServer)).check(matches(isDisplayed())) }
-            onView(withId(R.id.editServer)).perform(replaceText("not-an-address"), closeSoftKeyboard())
-            onView(withId(R.id.buttonSignIn)).perform(scrollTo(), click())               // below the fold on a small screen
-            onView(withId(R.id.textNotice)).check(matches(withText(R.string.server_invalid)))
+            waitFor { onView(withId(R.id.buttonSignOut)).check(matches(isDisplayed())) }
             shot(scenario, "12_account")
+            onView(withId(R.id.buttonSignOut)).perform(click())
+            waitFor { onView(withId(R.id.editEmail)).check(matches(isDisplayed())) }
+            onView(withId(R.id.editPassword)).perform(replaceText("short"), closeSoftKeyboard())
+            onView(withId(R.id.buttonSignIn)).perform(scrollTo(), click())               // below the fold on a small screen
+            onView(withId(R.id.textNotice)).check(matches(withText(R.string.credentials_invalid)))
+            shot(scenario, "13_login")
         }
     }
 

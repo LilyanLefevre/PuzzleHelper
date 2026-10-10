@@ -2,4 +2,7 @@
 <resources>
     <!-- Gap kept between the top of the screen and the result sheet when it is fully open (the floating top bar). -->
     <dimen name="sheet_top_gap">72dp</dimen>
+    <!-- The "continue with ..." buttons of the login screen. -->
+    <dimen name="provider_button_height">56dp</dimen>
+    <dimen name="provider_button_gap">8dp</dimen>
 </resources>

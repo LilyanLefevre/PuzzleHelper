@@ -20,8 +20,6 @@ class AccountStore @Inject constructor(@AccountPrefs private val prefs: SharedPr
     private val _account = MutableStateFlow(readAccount())
     val account: StateFlow<Account?> = _account.asStateFlow()
 
-    val lastServer: String get() = prefs.getString("server", "").orEmpty()
-
     val token: String? get() = prefs.getString("token", null)
 
     private fun readAccount(): Account? {

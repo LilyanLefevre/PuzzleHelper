@@ -32,6 +32,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-runner = { module = "androidx.test:runner", version.ref = "runner" }
 glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+okhttp-sse = { module = "com.squareup.okhttp3:okhttp-sse", version.ref = "okhttp" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version = "1.1.0-alpha06" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

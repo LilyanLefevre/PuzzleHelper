@@ -17,7 +17,7 @@ import com.lilyan_lefevre.puzzleit.databinding.FragmentAccountBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
-/** Sign in to your own server and sync: the app works the same without an account. */
+/** Who is signed in, sync by hand, sign out (the activity then brings the login screen back). */
 @AndroidEntryPoint
 class AccountFragment : Fragment() {
 
@@ -41,11 +41,7 @@ class AccountFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.editServer.setText(viewModel.lastServer)
         binding.buttonBack.setOnClickListener { findNavController().navigateUp() }
-        fun signIn(create: Boolean) = viewModel.signIn(binding.editServer.text.toString(), binding.editEmail.text.toString(), binding.editPassword.text.toString(), create)
-        binding.buttonSignIn.setOnClickListener { signIn(false) }
-        binding.buttonCreate.setOnClickListener { signIn(true) }
         binding.buttonSync.setOnClickListener { viewModel.syncNow() }
         binding.buttonSignOut.setOnClickListener { viewModel.signOut() }
 
@@ -53,9 +49,7 @@ class AccountFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.account.collect { account ->
-                        binding.groupSignedOut.isVisible = account == null
-                        binding.groupSignedIn.isVisible = account != null
-                        account?.let { binding.textAccount.text = getString(R.string.signed_in_as, it.email, it.server) }
+                        account?.let { binding.textAccount.text = getString(R.string.signed_in_as, it.email) }
                     }
                 }
                 launch { viewModel.busy.collect { binding.progressBar.isVisible = it } }

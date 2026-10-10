@@ -4,6 +4,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     app:startDestination="@id/projectListFragment">
 
+    <!-- Shown instead of the list while nobody is signed in (MainActivity picks the start and brings it back after a sign-out). -->
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.lilyan_lefevre.puzzleit.feature.account.LoginFragment"
+        tools:layout="@layout/fragment_login" />
+
     <fragment
         android:id="@+id/projectListFragment"
         android:name="com.lilyan_lefevre.puzzleit.feature.project.list.ProjectListFragment"
