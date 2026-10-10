@@ -29,7 +29,10 @@ Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Un
 - Scan the box once: the photo is straightened (OpenCV) and becomes the reference image. No grid to type.
 - Scan a piece: up to 4 leads with rotation and confidence, ordered by confidence.
 - Works on any puzzle, from a 200-piece photo to a 1000-piece sky; no account, no network, no data leaves the phone.
-- Edit or delete a puzzle from the table's top bar.
+- Say whether the lead on screen was right ("Is that where the piece goes?"): the answer is kept with the scan.
+- Scan history per puzzle: photo of the piece, where it was sent, confidence, and your verdict.
+- Progress photos per puzzle: photograph the puzzle as it stands, dated, to follow it grow.
+- Edit or delete a puzzle from the table's top bar; history and progress photos are in its "more" menu.
 
 ## How it works
 
@@ -119,6 +122,8 @@ sequenceDiagram
 | `core/ui` | reusable views: corner selection, loader |
 | `feature/project` | `data/` (entity, DAO, repository, image storage), `list/`, `create/` (form, box framing) |
 | `feature/puzzle` | the puzzle table (map, result sheet, scan state machine) and `capture/` (piece viewfinder) |
+| `feature/history` | `data/` (scan records with their verdict, DAO, repository), the history screen |
+| `feature/progress` | `data/` (dated photos of the puzzle's progress, DAO, repository), the progress screen |
 | `feature/recognition` | `PieceMatcher` (algorithm), `PieceRecognizer` (files, bitmaps, index), ONNX wrappers |
 
 Other folders: `tools/dataset` (benchmark data builders, labelling page), `tools/ai` (training of the embedding

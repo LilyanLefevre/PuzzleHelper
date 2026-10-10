@@ -27,6 +27,10 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   (tilt + flat/tab/blank sides -> corner/edge constraints, 4 rotations; with the network search the border constraint is a cost x1.4, a wall otherwise: the reading is often wrong on real pieces),
   5x5 Lab grid descriptor (mean, lightness ramp and contrast removed), confidence. `PieceRecognizer` = Bitmap glue,
   crops the square under the viewfinder, archives the last 200 captures + verdicts in `files/captures`.
+- `feature/history/` (`data/`: `ScanRecord` = a scanned piece with its leads as fractions of the box + the person's verdict, DAO, `ScanHistoryRepository`; `HistoryFragment`) and
+  `feature/progress/` (`data/`: `ProgressPhoto` + DAO + `ProgressRepository`; `ProgressFragment` takes the photo with the system camera). Both tables are deleted with their puzzle
+  (FK cascade; the files live in `files/<projectId>/scans|progress`, removed with the puzzle's folder). DB version 6 (`ProjectMigration5`, covered by `ScanHistoryTest`).
+  The result sheet asks "is that where the piece goes?" (`PuzzleWorkingViewModel.evaluate`): verdicts are the future real-world training / evaluation data.
 - Fragments only render state, handle system intents and navigate; IO, image work and validation live in ViewModels
   or injected classes.
 - Docs: `documentation/` (French, numbered pages: the science 01-06, validation 07, AI experiment 08) and
@@ -85,8 +89,8 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   (only the journeys: its 192 MB Java heap OOMs the device tests; Nexus One profile, 320 dp wide: the half level
   of the result sheet cannot show everything there) or `allDevicesDebugAndroidTest`. They never touch a plugged phone; do not run
   `connectedDebugAndroidTest` while one is connected.
-- 16 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
-  viewfinder, edit, delete) and `e2e/DemoTourTest` (records the README video into `/sdcard/demo.mp4` on the first puzzle of
+- 18 instrumented tests: `PieceRecognizerDeviceTest`, `e2e/ScanFlowTest` (list, table, scan, leads, blurry, empty,
+  viewfinder, edit, delete, rate + history, progress screen) and `e2e/DemoTourTest` (records the README video into `/sdcard/demo.mp4` on the first puzzle of
   the phone, read only, real swipes, animations ON; skipped when there is no puzzle. Encode with ffmpeg `-vf fps=60` H.264,
   no ffmpeg installed: `pip install imageio-ffmpeg`. Never let the recording run into the home screen). Screenshots (PixelCopy) land in `/sdcard/Android/data/com.lilyan_lefevre.puzzleit/files/shots`.
 - Phone tips: animations off, `adb shell cmd notification set_dnd on`, `adb shell svc power stayon true`; wireless adb
@@ -135,6 +139,9 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   Error dialogs must stay hidden: a first-boot system ANR stole the window focus and failed 7 tests.
 
 ## Known limits / next steps
+- Next feature, waiting for the owner's choice: user accounts + puzzles saved on a server (breaks the "100 % offline" promise, so opt-in). Proposed ready-made stack:
+  Firebase Auth (FirebaseUI) + Firestore (offline cache = sync for free) + Cloud Storage for photos. It needs a Firebase project (`google-services.json`) created by the owner.
+  History, verdicts and progress photos are already Room tables with stable ids, ready to be synced. Progress photos are meant to feed the localisation later.
 - First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected
   (`documentation/07`, `08`): fine-tuning on Puzzle-Map real photos (hand-held; hurt the owner's table photos), naive log-colour matching, the full U2-Net. Pablo Moreira's DINOv2 piece classifier
   (363 MB, not embeddable) finds the white-gutter piece our model never finds: a patch-level cross-attention head is the research lead.
