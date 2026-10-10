@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -17,7 +16,7 @@ import com.lilyan_lefevre.puzzleit.databinding.FragmentAccountBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
-/** Who is signed in, sync by hand, sign out (the activity then brings the login screen back). */
+/** Who is signed in, and sign out (the activity then brings the login screen back). The sync runs by itself. */
 @AndroidEntryPoint
 class AccountFragment : Fragment() {
 
@@ -42,7 +41,6 @@ class AccountFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.buttonBack.setOnClickListener { findNavController().navigateUp() }
-        binding.buttonSync.setOnClickListener { viewModel.syncNow() }
         binding.buttonSignOut.setOnClickListener { viewModel.signOut() }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -50,17 +48,6 @@ class AccountFragment : Fragment() {
                 launch {
                     viewModel.account.collect { account ->
                         account?.let { binding.textAccount.text = getString(R.string.signed_in_as, it.email) }
-                    }
-                }
-                launch { viewModel.busy.collect { binding.progressBar.isVisible = it } }
-                launch {
-                    viewModel.notice.collect { notice ->
-                        binding.textNotice.isVisible = notice != null
-                        binding.textNotice.text = when (notice) {
-                            is Notice.Synced -> getString(R.string.synced, notice.uploaded, notice.downloaded)
-                            is Notice.Failed -> notice.reason?.let { getString(it) } ?: getString(R.string.sync_failed, notice.detail)
-                            null -> ""
-                        }
                     }
                 }
             }

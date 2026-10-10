@@ -11,7 +11,6 @@ import com.lilyan_lefevre.puzzleit.feature.account.data.BackendException
 import com.lilyan_lefevre.puzzleit.feature.account.data.OAuthProvider
 import com.lilyan_lefevre.puzzleit.feature.account.data.PocketBaseClient
 import com.lilyan_lefevre.puzzleit.feature.account.data.Session
-import com.lilyan_lefevre.puzzleit.feature.account.data.SyncRepository
 import com.lilyan_lefevre.puzzleit.feature.account.data.isAcceptableServer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -20,9 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** What the account and login screens tell the person after an action. */
+/** What the login screen tells the person after an action. */
 sealed interface Notice {
-    data class Synced(val uploaded: Int, val downloaded: Int) : Notice
     /** [detail] is the server's own message or the network error, [reason] a string resource when the cause is on our side. */
     data class Failed(@StringRes val reason: Int?, val detail: String = "") : Notice
 }
@@ -32,7 +30,6 @@ sealed interface Notice {
 class AccountViewModel @Inject constructor(
     private val client: PocketBaseClient,
     private val store: AccountStore,
-    private val sync: SyncRepository,
 ) : ViewModel() {
 
     private val server = BuildConfig.PUZZLEIT_SERVER
@@ -65,8 +62,6 @@ class AccountViewModel @Inject constructor(
     fun signInWith(provider: OAuthProvider) = authenticate { client.signInWithProvider(server, provider) { _openUrl.value = it } }
 
     fun urlOpened() { _openUrl.value = null }
-
-    fun syncNow() = run { sync.sync().let { Notice.Synced(it.uploaded, it.downloaded) } }
 
     fun signOut() = store.signOut()
 

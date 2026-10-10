@@ -152,10 +152,8 @@ Commence par une photo de la boîte.</string>
     <string name="password_hint">Mot de passe (8 caractères ou plus)</string>
     <string name="sign_in">Se connecter</string>
     <string name="create_account">Créer le compte</string>
-    <string name="sync_now">Synchroniser maintenant</string>
     <string name="sign_out">Se déconnecter</string>
     <string name="signed_in_as">Connecté en tant que %1$s</string>
-    <string name="synced">Synchronisé : %1$d envoyé(s), %2$d reçu(s).</string>
     <string name="sync_failed">Le serveur répond : %1$s</string>
     <string name="server_invalid">Utilise une adresse https://, ou http:// seulement pour un serveur de ton réseau local (192.168.x.x, 10.x.x.x, nom.local).</string>
     <string name="credentials_invalid">Saisis ton e-mail et un mot de passe de 8 caractères ou plus.</string>

@@ -72,42 +72,15 @@
                 tools:text="a@test.dev" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonSync"
-                style="@style/Widget.Puzzle.Button"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_marginTop="20dp"
-                android:text="@string/sync_now" />
-
-            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonSignOut"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="20dp"
                 android:text="@string/sign_out"
                 android:textColor="@color/puzzle_on_surface"
                 app:backgroundTint="@color/puzzle_surface_high"
                 app:cornerRadius="18dp" />
         </LinearLayout>
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:indeterminateTint="@color/puzzle_primary"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/textNotice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/puzzle_on_surface_variant"
-            android:textSize="14sp"
-            android:visibility="gone"
-            tools:text="Synchronisé" />
     </LinearLayout>
 </ScrollView>

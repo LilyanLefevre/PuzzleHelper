@@ -89,7 +89,6 @@ Google provider (client ID `dummy`): it checks the list of providers, the realti
 
 ## How the sync behaves
 
-The list of puzzles syncs by itself each time it shows (at most once every 30 seconds, only when signed in; offline it is silently skipped), and the account
-screen has a "Sync now" button. A puzzle is matched with its copy by the id it was created with, a scan or a photo by its date. Missing items are copied to the side that lacks them, a verdict
+The list of puzzles syncs by itself each time it shows (at most once every 30 seconds, only when signed in; offline it is silently skipped); there is no sync button. A puzzle is matched with its copy by the id it was created with, a scan or a photo by its date. Missing items are copied to the side that lacks them, a verdict
 given on one phone reaches the others, and a deletion made on a phone is replayed on the server. Known limits: a puzzle renamed on two phones keeps the name of the
 last phone that syncs, and a deletion is not yet propagated to the *other* phones (they would send the item again). There is no background sync while the app is closed.
