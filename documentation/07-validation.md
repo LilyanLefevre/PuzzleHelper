@@ -163,10 +163,67 @@ Cas réel non résolu : puzzle « Famille » (collage de photos, 200 pièces). L
 couleur, et les pics de corrélation ne départagent pas (0,7 partout). Sans la vraie place des pièces (seul le
 propriétaire la connaît), impossible d'en faire un banc.
 
+## Pièces réelles du propriétaire (Famillez, La vague)
+
+Deux puzzles photographiés avec l'app : Famillez (collage de photos, 17 × 12) et La vague (Hokusai, 40 × 25). Les
+captures sont récupérées avec `adb` (`files/captures`), la boîte avec `run-as`. Les positions sont étiquetées par le
+propriétaire avec `tools/dataset/label_pieces.html` : on pose la **vraie pièce découpée**, à l'échelle de la case, sur
+la boîte, on la glisse et on la tourne ; la position retenue est son centre (en cases, décimales) et la rotation. Ces
+étiquettes sont la vérité (le propriétaire connaît la place exacte de ses pièces). `OwnPuzzlesTest` (`PUZZLE_OWN_DIR`)
+mesure ces captures et, avec les mêmes réglages, 60 pièces **simulées** découpées dans chaque boîte
+(`simulé étroit` = variations d'appareil historiques, `simulé large` = ×2 par canal et saturation mesurés sur les photos).
+
+Jeu actuel : 20 captures de Famillez (**6 pièces distinctes**, l'une photographiée 10 fois) et 3 de La vague. C'est
+peu : lisez les chiffres comme un signal, pas comme une précision.
+
+| Réglage (modèle de l'app) | Famillez réel : case exacte / 4 pistes | La vague réel | Famillez simulé large | La vague simulé large |
+|---|---|---|---|---|
+| couleur → 30 pistes → réseau (ancien) | non mesuré avec ces étiquettes | non mesuré | 66 % | 30 % |
+| + recherche du réseau sur toute la boîte, côtés = mur | 5 % / 30 % | 1 sur 3 | 88 % | 58 % |
+| + côtés = coût (× 1,4) + découpe U²-Net | **30 % / 55 %** | 1 sur 3 | 88 % | 55 % |
+
+Retrouvées : la pièce rose (4 photos), celle du bord droit, celle de (14,25 ; 1,71). Jamais trouvées : la pièce à
+gouttière blanche (10 photos, même avec la rotation de l'étiquette), (14,3 ; 8,5) et (13,3 ; 9,4). La vague : la pièce
+d'écume (gouttes blanches sur beige) est retrouvée, pas les deux pièces de ciel/écume plate.
+
+Ce que les photos réelles montrent de plus que le simulé :
+- la pièce est **plus claire et plus bleutée** que sa case de boîte (gains de ×1,2 à ×1,8 par canal) : la balance des
+  blancs du simulateur (± 15 %) était trop étroite ;
+- la lecture du contour est fausse ou « inconnue » sur la plupart des pièces ([04](04-forme.md)) ;
+- les photos de La vague sont très nettes (variance du laplacien de 8 000 à 13 000 sur la pièce, la boîte étant une photo plus floue de la boîte).
+
+## Recherche sur toute la boîte : mesures
+
+Le réseau compare la pièce (4 quarts de tour) aux embeddings de **toutes** les positions à demi-case, calculés une fois
+par puzzle (`PieceMatcher.buildIndex`), au lieu de re-classer les 30 meilleures pistes de la couleur. Case exacte, mêmes
+bancs, modèle `mnv3s_3k` de l'app :
+
+| Banc | avant | recherche globale | + côtés = coût 1,4 |
+|---|---|---|---|
+| Puzzle-Map, 643 photos réelles (côtés annotés = exacts) | 77 % | **89 %** (4 pistes 99 %, rotation 90 %) | 84 % |
+| Banque d'images, 576 pièces | 77 % | 87 % | **88 %** (textures 97, mixtes 90, plates 73) |
+
+La baisse de Puzzle-Map avec le coût vient du fait que ses côtés sont annotés à la main (toujours justes), ce qui
+n'arrive jamais avec la lecture de l'app. Puzzle-Map n'utilise ni la segmentation ni la lecture du contour.
+
+## Essais rejetés ou neutres
+
+- **Affiner le réseau sur les vraies photos de Puzzle-Map** (un puzzle d'entraînement : `120_avengers`, 484 photos ;
+  les autres gardés de côté) : 92 → 99 % sur le puzzle d'entraînement, mais **Famillez réel 30 → 15 %**, rotation 55 → 20 %.
+  Ces photos sont tenues en main, pas posées sur table sombre. Les autres puzzles de Puzzle-Map sont trop petits
+  pour juger (un seul a plus de 6 cases, 13 photos : 84, 61 et 69 % selon le modèle, c'est du bruit).
+- **Entraînement à variations d'appareil larges (`--wide`)** : Puzzle-Map 89 → 88 %, Famillez réel 30 → 25 % : neutre ; le
+  modèle de l'app est resté `mnv3s_3k`.
+- **Comparaison de couleurs invariante au gain** (logarithme, moyenne retirée, corrélation) : rang médian 81 à 94 sur
+  759, bien pire que le réseau (18 à 30).
+- **U²-Net complet (176 Mo)** : masques identiques au petit (4,6 Mo).
+- **Contraintes de bordure en mur dans la recherche globale** : Famillez réel 5 % contre 30 % avec le coût.
+
 ## Limites et prochaines étapes
 
 1. **Photos réelles sur table, annotées.** Le jeu public couvre la couleur et la forme, pas la segmentation sur
-   table. L'app archive les 200 dernières captures et leur verdict (`files/captures`) pour en constituer un.
+   table. Un premier jeu existe (Famillez, La vague : voir plus haut), trop petit : 9 pièces distinctes. L'app archive
+   les 200 dernières captures et leur verdict (`files/captures`).
 2. **Contraste pièce / table** nécessaire ([03](03-segmentation.md)).
 3. **Images répétitives** (ciel, eau) : la couleur seule ne suffit pas ; la confiance le signale. Pistes : texture
    (gradients orientés), puis éventuellement un modèle appris.

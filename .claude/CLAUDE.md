@@ -19,8 +19,11 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   ProjectListViewModel), `create/` (ProjectCreation + PuzzleBounds fragments and ViewModels, BoxImageProcessor, GridProcessor).
 - `feature/puzzle/` the table: PuzzleWorkingFragment + ViewModel (`ScanState`, follows the project live, edit/delete),
   PuzzleMapView (leads = piece-sized squares, tappable, clipped to the visible map); `capture/` PieceCaptureFragment + ScanFrameView.
-- `feature/recognition/` `PieceReranker.kt` + `OnnxEmbedder.kt` (assets/reranker.onnx re-orders the top-30 leads), `PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut, segmentation
-  (Mahalanobis to the table colour), outline reading (tilt + flat/tab/blank sides -> corner/edge constraints, 4 rotations),
+- `feature/recognition/` `PieceReranker.kt` + `OnnxEmbedder.kt` (assets/reranker.onnx: embeddings of the piece and of the box squares), `PieceSegmenter.kt` + `OnnxSegmenter.kt`
+  (assets/segmenter.onnx = U2-Net-small cuts the piece out; table-colour segmentation is the fallback), `PieceMatcher.kt` - the algorithm, pure Kotlin (JVM-testable): grid pre-cut,
+  segmentation, **whole-box network search** (`buildIndex` = embeddings of every half-cell square, built in the background by `PieceRecognizer` and cached next to the reference
+  image; `fuse` mixes similarity and colour over ALL candidates; scans use the colour matcher alone until the index is ready), outline reading
+  (tilt + flat/tab/blank sides -> corner/edge constraints, 4 rotations; with the network search the border constraint is a cost x1.4, a wall otherwise: the reading is often wrong on real pieces),
   5x5 Lab grid descriptor (mean, lightness ramp and contrast removed), confidence. `PieceRecognizer` = Bitmap glue,
   crops the square under the viewfinder, archives the last 200 captures + verdicts in `files/captures`.
 - Fragments only render state, handle system intents and navigate; IO, image work and validation live in ViewModels
@@ -86,14 +89,18 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   and flip between devices.
 - CI (`.github/workflows/ci.yml`): build + unit tests, then the instrumented suite on an Android 14 emulator.
 
-## Benchmarks (opt-in JVM tests, not in CI; data rebuilt by scripts, macOS `sips`)
+## Benchmarks (opt-in JVM tests, not in CI; data rebuilt by scripts)
 - `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py <dir>` -> `PUZZLE_DATASET_DIR`: Puzzle-Map (CC-BY-4.0),
-  7 puzzles, 643 real hand-held photos with row/col/quarter-turn/sides. Current (with re-ranker): 69 % exact cell, 93 % in the
-  4 leads, rotation 76 % (56 / 90 / 64 % colour matcher alone).
+  7 puzzles, 643 real hand-held photos with row/col/quarter-turn/sides (the annotated sides are exact, unlike the app's reading). Current: 84 % exact cell (89 % with the border as a wall),
+  99 % in the 4 leads, rotation 88 % (55 / 90 / 62 % colour matcher alone). `prepare_puzzle_map.py` needs Pillow (no more macOS `sips`).
 - `ImageBankBenchmarkTest` + `tools/dataset/prepare_image_bank.py <dir>` -> `PUZZLE_IMAGES_DIR`: 24 real images as
   500-piece puzzles, 576 pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table).
-  Full pipeline. Current (with re-ranker): 77 % exact (86 % textured, 79 % mixed, 65 % sky/sea-heavy), outline 96 %, found 99 %
-  (64 % without). Set `PUZZLE_RERANKER=app/src/main/assets/reranker.onnx` to enable it in both benchmarks.
+  Full pipeline. Current (re-ranker + whole-box search + U2-Net): 88 % exact (97 % textured, 90 % mixed, 73 % flat-heavy), outline 97 %, found 100 %.
+  Set `PUZZLE_RERANKER=app/src/main/assets/reranker.onnx` and `PUZZLE_SEGMENTER=app/src/main/assets/segmenter.onnx` (absolute paths) to enable them in the benchmarks;
+  `PUZZLE_GLOBAL=0` goes back to colour top-30 + re-rank, `PUZZLE_BORDER_PENALTY` and `PUZZLE_EMBED_COLOUR_W` tune the fusion.
+- `OwnPuzzlesTest` -> `PUZZLE_OWN_DIR` (folders `famillez`, `lavague`: box, grid, captures, `all/*.bmp`, `truth.txt`, `leads.json`, `cuts/`): the owner's REAL photos with exact positions labelled by
+  the owner (`tools/dataset/label_pieces.html`: drag the cut-out piece onto the box; `make_label_cuts.py` builds the cut-outs), next to simulated pieces cut from the same boxes. Treat those labels
+  as exact. Current: Famillez 30 % exact / 55 % in 4 leads (20 captures = 6 distinct pieces), La vague 1 piece of 3. Too small to tune on: do not over-fit it.
 - `RealPhotoReplayTest` -> `PUZZLE_REAL_DIR`: phone captures (`adb pull .../files/captures`) + box
   (`adb exec-out run-as com.lilyan_lefevre.puzzleit cat files/<project>/puzzle/extraites/*_warped.jpg`), BMP via sips.
 - `PUZZLE_DUMP_DIR` makes the first two export each piece + the top-30 leads (`LeadDump`) for off-device experiments.
@@ -112,11 +119,11 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   Error dialogs must stay hidden: a first-boot system ANR stole the window focus and failed 7 tests.
 
 ## Known limits / next steps
-- First-lead accuracy below target on sky/sea-heavy images and on real hand-held photos; the right cell is in the
-  top-30 leads 97 % of the time, so a better re-ranker has room. Pretrained networks did not help enough
-  (`documentation/08-ia.md`); the trained MobileNetV3-small re-ranker is now in the app (ONNX Runtime); next: more varied synthetic photos.
-- Rotation is the weak point on Puzzle-Map (64 %).
-- Segmentation needs contrast between piece and table.
+- First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected
+  (`documentation/07`, `08`): fine-tuning on Puzzle-Map real photos (hand-held; hurt the owner's table photos), naive log-colour matching, the full U2-Net. Pablo Moreira's DINOv2 piece classifier
+  (363 MB, not embeddable) finds the white-gutter piece our model never finds: a patch-level cross-attention head is the research lead.
+- The box index (up to ~3,900 embeddings for 1,000 pieces) is built in the background on the phone: its build time there is not measured yet.
+- When a session runs on the owner's PC (not the Mac), the data is in `C:\dev\data` (`real`, `pm4` = Puzzle-Map, `bank`, `train-images`) and the venv in `C:\dev\venv-puzzle`.
 - The project lives in iCloud Documents: iCloud creates `* 2.*` duplicates in `app/build` and Gradle fails in
   `parseDebugLocalResources`. Fix: `rm -rf app/build`. Moving the project out of iCloud would fix it for good.
 - Leads 2-4 get a derived confidence (best confidence scaled by their own score).

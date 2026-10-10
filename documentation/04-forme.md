@@ -61,6 +61,13 @@ rotation) est éliminé. Pour un coin, cela ne laisse qu'**une** rotation par co
 Une lecture incohérente (3 ou 4 côtés plats, deux plats opposés) désactive les contraintes plutôt que de risquer
 une erreur.
 
+> **Sur les photos réelles, la lecture se trompe souvent** (tenons en champignon, pièces inclinées) : une pièce
+> intérieure lue « bord » éliminait la bonne case d'emblée (4 photos sur 4 d'une même pièce). Quand le réseau cherche
+> dans toute la boîte ([08](08-ia.md)), la contrainte devient donc un **coût** : une rotation dont les plats ne
+> correspondent pas au bord voit son score multiplié par 1,4 (`PieceMatcher.BORDER_PENALTY`). Famillez réel : 5 → 30 % de
+> case exacte, banque d'images inchangée. Avec le matcher couleur seul (sans réseau), le mur est conservé : la couleur
+> est trop faible pour s'en passer (test de lumière latérale 11/12 → 8/12).
+
 ## 4. Rotation finale annoncée
 
 L'utilisateur doit tourner la pièce de `θ` dans le sens inverse (pour la redresser), puis de `q × 90°` dans le sens

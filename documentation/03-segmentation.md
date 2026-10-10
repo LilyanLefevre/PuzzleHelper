@@ -3,6 +3,21 @@
 Avant de comparer quoi que ce soit, il faut savoir **quels pixels de la photo sont la pièce**. C'est l'étape qui
 casse le plus souvent en conditions réelles ; elle a été revue après les premiers essais sur de vraies pièces.
 
+## 0. Le réseau U²-Net-small (méthode principale)
+
+Sur les photos réelles du propriétaire (table noire, plaid, tapis, pièces dont une partie est bleu nuit ou noire),
+la segmentation par couleur ci-dessous coupait des morceaux de pièce, ou ne trouvait rien : le bord de l'image sert à
+estimer la table, et une main, un jean ou un reflet suffisaient à faire exploser le seuil.
+
+L'app utilise donc d'abord **U²-Net-small** (détection d'objet saillant, pré-entraîné, 4,6 Mo, ONNX,
+`assets/segmenter.onnx`, ~100 ms sur CPU), qui n'a besoin d'aucune couleur de table (`PieceSegmenter`,
+`OnnxSegmenter`). La carte de saillance (0 à 1, remise à la taille de la photo) est seuillée à 0,5, ouverte
+(érosion puis dilatation), puis on garde la tache sous le centre et on remplit les trous, avec le même garde-fou de
+surface (1 à 85 %). Sur 21 captures réelles de Famillez, 21 masques exploitables, y compris les parties sombres (une pièce à deux dents
+sombres reste partiellement coupée). La version
+complète du réseau (176 Mo) ne fait pas mieux. Si le modèle manque ou ne trouve aucune pièce, le matcher retombe sur la
+segmentation par couleur, décrite ci-dessous.
+
 ## 1. La zone analysée
 
 On n'analyse que le **carré centré** de côté égal à la moitié du petit côté de la photo (`PieceRecognizer.CROP = 0.5`).
@@ -45,6 +60,17 @@ Un pixel est « pièce » si `z` dépasse à la fois **4** et **1,1 × le 99e ce
 > utilisait une distance de couleur unique et un seuil d'**Otsu**. Otsu sépare deux populations ; il a séparé le plaid
 > de la partie **jaune** et laissé tomber le **bleu foncé** de la pièce. Un tenon disparaissait du masque, la forme
 > lue devenait incohérente (deux côtés plats opposés), et la réponse dépendait du sens de la photo.
+
+### Le repli par couleur, corrigé
+
+Quand le réseau est absent, la table est modélisée par un **plan d'éclairage** par canal Lab (une lampe éclaire un côté
+plus que l'autre), ajusté au moindre carré sur le bord **sans les intrus** (pixels à plus de 3,5 écarts du modèle :
+main, jean, pli). Le seuil ne dépend plus d'un centile du bord. Les pixels très éloignés de la table (z > 4) servent de
+**germe**, la pièce grandit ensuite vers les pixels peu éloignés (z > 2,5, **hystérésis**) mais seulement dans
+l'**enveloppe convexe** de son germe (+ 6 px) : les zones sombres de l'image restent attachées sans avaler un
+reflet de table voisin. La tache choisie est celle sous le centre, sinon la plus grande qui ne touche pas le bord.
+
+> Mesuré sur 16 captures réelles : 9 « aucune pièce » avant, plus aucune après, 11 masques entiers.
 
 ## 5. Nettoyage du masque
 
