@@ -65,6 +65,7 @@ class ProjectCreationFragment : Fragment() {
         args.projectId?.let(viewModel::loadForEdit)
 
         binding.photoPlaceholder.setOnClickListener { checkPermissionAndTakePhoto() }
+        binding.retakePhotoButton.setOnClickListener { checkPermissionAndTakePhoto() }
         binding.editPhotoButton.setOnClickListener { viewModel.draft.value.originalPath?.let(::openBounds) }
         binding.btnCancel.setOnClickListener { viewModel.discardDraft(); findNavController().navigateUp() }
         binding.btnCreate.setOnClickListener {
@@ -158,6 +159,7 @@ class ProjectCreationFragment : Fragment() {
         binding.photoPlaceholder.visibility = if (has) View.GONE else View.VISIBLE
         binding.photoPreviewCard.visibility = if (has) View.VISIBLE else View.GONE
         binding.editPhotoButton.visibility = if (has) View.VISIBLE else View.GONE
+        binding.retakePhotoButton.visibility = if (has) View.VISIBLE else View.GONE
         if (has) Glide.with(this).load(File(path!!)).placeholder(android.R.drawable.ic_menu_camera)
             .error(android.R.drawable.ic_menu_camera).fitCenter().into(binding.photoPreview)
         else Glide.with(this).clear(binding.photoPreview)

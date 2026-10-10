@@ -136,6 +136,21 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Retake Photo Button -->
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/retakePhotoButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="16dp"
+                    android:src="@android:drawable/ic_menu_camera"
+                    android:contentDescription="@string/retake"
+                    android:visibility="gone"
+                    tools:visibility="visible"
+                    app:backgroundTint="@color/puzzle_surface_high"
+                    app:tint="@color/puzzle_on_surface"
+                    app:layout_constraintBottom_toBottomOf="@id/photoPreviewCard"
+                    app:layout_constraintStart_toStartOf="@id/photoPreviewCard" />
+
                 <!-- Edit Photo Button -->
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/editPhotoButton"

@@ -8,6 +8,7 @@ import com.lilyan_lefevre.puzzleit.feature.project.data.ImageStorageManager
 import com.lilyan_lefevre.puzzleit.feature.project.data.Project
 import com.lilyan_lefevre.puzzleit.feature.project.data.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,7 +63,12 @@ class ProjectCreationViewModel @Inject constructor(
         }
     }
 
-    fun onPhotoTaken(path: String) { _draft.value = Draft(path, null, processor.defaultQuadJson()) }
+    fun onPhotoTaken(path: String) {
+        // A retake replaces the previous capture, which would otherwise stay in the cache.
+        val own = _existing.value?.let { listOf(it.imagePath, it.thumbnailPath, it.warpedPath) }.orEmpty()
+        _draft.value.let { listOf(it.originalPath, it.rectifiedPath) }.filterNotNull().filter { it !in own && it != path }.forEach { File(it).delete() }
+        _draft.value = Draft(path, null, processor.defaultQuadJson())
+    }
 
     fun onBoundsConfirmed(quadJson: String, rectifiedPath: String) {
         _draft.value = _draft.value.copy(quadJson = quadJson, rectifiedPath = rectifiedPath)
@@ -90,10 +96,25 @@ class ProjectCreationViewModel @Inject constructor(
             try {
                 val existing = _existing.value
                 if (existing != null) {
-                    repository.updateProject(existing.copy(
-                        name = name.trim(), puzzleSize = pieces!!, gridRows = rows ?: 1, gridCols = cols ?: 1,
-                        imagePath = original, thumbnailPath = d.rectifiedPath ?: original, puzzleQuad = d.quadJson,
-                    ))
+                    var updated = existing.copy(name = name.trim(), puzzleSize = pieces!!, gridRows = rows ?: 1, gridCols = cols ?: 1, puzzleQuad = d.quadJson)
+                    // A new photo or a new framing: the draft files are temporary, so they are copied into the project like on creation.
+                    if (original != existing.imagePath || d.rectifiedPath != existing.warpedPath.ifEmpty { existing.thumbnailPath }) {
+                        val originalBmp = processor.decode(original) ?: run { _error.value = R.string.photo_load_failed; return@launch }
+                        val warpedBmp = d.rectifiedPath?.let { processor.decode(it) } ?: originalBmp
+                        when (val r = storage.saveProjectBundle(existing.id, name.trim(), original, originalBmp, warpedBmp)) {
+                            is ImageStorageManager.ProjectBundleResult.Success -> {
+                                updated = updated.copy(imagePath = r.originalPath, thumbnailPath = r.thumbPath, warpedPath = r.warpedPath)
+                                listOf(existing.imagePath, existing.thumbnailPath).filter { it.isNotEmpty() }.forEach { File(it).delete() }
+                                // The box index is cached next to the reference image under its name: it goes with it.
+                                File(existing.warpedPath).takeIf { existing.warpedPath.isNotEmpty() }?.let { w ->
+                                    w.parentFile?.listFiles { f -> f.name.startsWith(w.nameWithoutExtension) }?.forEach { it.delete() }
+                                }
+                                processor.discardTemporary(original, d.rectifiedPath)
+                            }
+                            is ImageStorageManager.ProjectBundleResult.Error -> { _error.value = r.exception.message; return@launch }
+                        }
+                    }
+                    repository.updateProject(updated)
                     _saved.value = Saved.Updated
                 } else {
                     val originalBmp = processor.decode(original) ?: run { _error.value = R.string.photo_load_failed; return@launch }
