@@ -97,6 +97,13 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   and flip between devices.
 - CI (`.github/workflows/ci.yml`): build + unit tests, then the instrumented suite on two Gradle Managed Devices (a Pixel 6 and a small phone), one CI job each.
 
+## Release
+- Tag `v<versionName>` (`app/build.gradle.kts`) -> `.github/workflows/release.yml` builds the signed APK and creates the GitHub release.
+  Signing comes from the env `RELEASE_KEYSTORE_FILE/_PASSWORD`, `RELEASE_KEY_ALIAS/_PASSWORD` (repo secrets `RELEASE_KEYSTORE_BASE64` etc.);
+  without them `assembleRelease` gives an unsigned APK. The keystore and its passwords are in `C:\Users\Lilyan\.android-keys\` (outside the
+  repo, never commit them; lose the key and no update can be installed over an existing install: tell the owner to back it up).
+- `assembleRelease` needs the network (lint-gradle is not in the offline cache). The APK is ~220 MB (ONNX Runtime + OpenCV for 4 ABIs).
+
 ## Benchmarks (opt-in JVM tests, not in CI; data rebuilt by scripts)
 - `DatasetReplayTest` + `tools/dataset/prepare_puzzle_map.py <dir>` -> `PUZZLE_DATASET_DIR`: Puzzle-Map (CC-BY-4.0),
   7 puzzles, 643 real hand-held photos with row/col/quarter-turn/sides (the annotated sides are exact, unlike the app's reading). Current: 84 % exact cell (89 % with the border as a wall),

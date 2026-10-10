@@ -153,6 +153,13 @@ The opt-in benchmarks read their data from environment variables (`PUZZLE_DATASE
 Every push to `main` runs the unit tests, then the instrumented suite on two Gradle Managed Devices in parallel
 (a Pixel 6 and a 320 dp-wide small phone, Android 14 emulators).
 
+### Release
+
+Bump `versionName` in `app/build.gradle.kts`, commit, then tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+[`release.yml`](.github/workflows/release.yml) checks that the tag matches `versionName`, runs the unit tests, builds the
+APK signed with the release key (kept in the repository secrets, never committed) and publishes a GitHub release with the
+APK and generated notes.
+
 ## Contributing
 Conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `ci:`, `chore:`), one topic per commit, a matcher change is
 kept only if it holds on both benchmarks. Project notes for coding assistants live in [`.claude/CLAUDE.md`](.claude/CLAUDE.md).
