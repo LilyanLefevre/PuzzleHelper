@@ -2,13 +2,14 @@
 
 The backend of the app: accounts (required to use it), and a copy of your puzzles, scans and progress photos that follows you from phone to phone.
 It is a [PocketBase](https://pocketbase.io) (one small binary, SQLite inside, free, runs on a Raspberry Pi) with the three collections
-of [`pb_migrations/1_puzzleit.js`](pb_migrations/1_puzzleit.js):
+of [`pb_migrations/1_puzzleit.js`](pb_migrations/1_puzzleit.js) and the `deletions` collection of [`2_sync_gaps.js`](pb_migrations/2_sync_gaps.js):
 
 | Collection | Holds | Rule |
 |---|---|---|
 | `puzzles` | name, piece count, box photos | each record belongs to its `owner`, nobody else can list, read, change or delete it |
 | `scans` | a scanned piece, its leads, your verdict | same |
 | `progress_photos` | dated photos of the puzzle's progress | same |
+| `deletions` | what a phone deleted (`puzzle:<id>`, `scan:<puzzle>:<date>`, `photo:<puzzle>:<date>`), so the other phones delete it too | same |
 
 Photos are protected files: they are fetched with a short-lived token, never with a public link.
 
@@ -53,9 +54,26 @@ Free, but it needs **a domain whose DNS is managed by Cloudflare** (a Cloudflare
    printf 'CLOUDFLARED_TOKEN=<the token>\nPUZZLEIT_BIND=127.0.0.1\n' > .env && chmod 600 .env
    docker compose --profile tunnel up -d --build
    ```
-4. In the app, the server is `https://puzzleit.your-domain.com`.
+4. Put that address in `PUZZLEIT_SERVER` (`app/build.gradle.kts`): the app does not ask for it, it is built in.
 
 Cloudflare terminates the HTTPS connection, so it can technically see the traffic: that is the price of the free tunnel. Lock the sign-up (below) once your account exists.
+
+## Updated by itself on every push
+
+[`.github/workflows/server.yml`](../.github/workflows/server.yml) runs on each push to `main` that touches `server/`: the `image` job builds the image for amd64 and arm64 and publishes
+it to `ghcr.io/lilyanlefevre/puzzleit-server:latest` (the package must be **public** so the Raspberry can pull it without a login), then the `deploy` job runs **on the Raspberry** and does
+`git pull && docker compose --profile tunnel up -d --pull always` in its clone `~/PuzzleIt/server`. New migrations of `pb_migrations/` are applied when the server restarts, and
+`pb_data/` is a mounted folder, so the data survives the swap. A fixed clone is used rather than the runner's workspace because `actions/checkout` would `git clean` away `pb_data`.
+
+One-time setup of the Raspberry (64-bit OS, Docker with the compose plugin, the user in the `docker` group):
+
+1. `git clone https://github.com/LilyanLefevre/PuzzleIt.git ~/PuzzleIt`, then write `server/.env` as in the tunnel section above (typed on the Raspberry, never committed).
+2. GitHub, Settings, Actions, Runners, *New self-hosted runner*, Linux ARM64: run the download and `./config.sh` commands it shows in `~/actions-runner`, then
+   `sudo ./svc.sh install <user> && sudo ./svc.sh start`. The runner only calls out to GitHub, no port is opened.
+3. `docker compose --profile tunnel up -d --pull always` once by hand, then every push does it.
+
+The runner executes the repository's workflow code on the Raspberry: keep the deploy job limited to `push` on `main`, and in the repository's Actions settings require approval
+for all outside collaborators.
 
 ## Sign in with Google (or GitHub, Microsoft...)
 

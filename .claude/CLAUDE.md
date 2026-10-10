@@ -1,6 +1,6 @@
 # PuzzleHelper (PuzzleIt)
 
-Android app (Kotlin, XML + Material 3, Hilt, Room, CameraX, OpenCV for box framing). Recognition is 100 % on the phone; an account on the owner's own server is optional (see Known limits).
+Android app (Kotlin, XML + Material 3, Hilt, Room, CameraX, OpenCV for box framing). Recognition is 100 % on the phone; sign-in to the owner's own server (PocketBase) is required and keeps the puzzles in sync (see Known limits).
 Photograph a loose puzzle piece -> the app shows where it goes on the box image and how to turn it.
 The owner speaks French: talk to them in French; code, comments and commit messages in English.
 
@@ -10,7 +10,9 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   the selected lead so the user can check. A hint, not a solver.
 - Targets: > 70 % correct first lead, < 3 s per scan on the phone, no network. App size: > 50 MB is fine (owner, 2026-10-08),
   so an on-device model (ONNX Runtime) is allowed.
-- Edit / delete a puzzle: round buttons in the puzzle table's top bar (covered by e2e tests - keep them reachable).
+- Edit / delete a puzzle: round buttons in the puzzle table's top bar (covered by e2e tests - keep them reachable). The box photo can be retaken at creation and in edit.
+- Sign-in is mandatory (no guest mode): the app starts on `LoginFragment` when nobody is signed in. Scanning itself stays 100 % on the phone. No "sync now" button, ever (owner).
+- Screens that draw their own header with a back button (list, table, scanner, account, history, progress, login) are listed in `MainActivity.ownHeader`: add a new one there, or the toolbar's arrow doubles theirs.
 
 ## Code map (`app/src/main/java/com/lilyan_lefevre/puzzleit`) - package by feature, MVVM
 - `core/database` (Room, migrations in one file, Hilt module), `core/image` (shared image helpers), `core/ui` (reusable
@@ -31,8 +33,13 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   `feature/progress/` (`data/`: `ProgressPhoto` + DAO + `ProgressRepository`; `ProgressFragment` takes the photo with the system camera). Both tables are deleted with their puzzle
   (FK cascade; the files live in `files/<projectId>/scans|progress`, removed with the puzzle's folder). DB version 7 (`ProjectMigration5` and `6`, covered by `ScanHistoryTest`; `updatedAt` = last edit of a puzzle, the sync keeps the newest).
   The result sheet asks "is that where the piece goes?" (`PuzzleWorkingViewModel.evaluate`): verdicts are the future real-world training / evaluation data.
-- `feature/account/` (`data/`: `PocketBaseClient`, `AccountStore` on encrypted prefs, `AccountModule` (OkHttp + prefs), `SyncRepository`, `isAcceptableServer`; `AccountFragment` + ViewModel, opened from the puzzle list).
-  Repositories that delete things (`ProjectRepository`, `ScanHistoryRepository`, `ProgressRepository`) call `AccountStore.markDeleted` so the next sync tells the server.
+- `feature/account/` (`data/`: `PocketBaseClient` (password + PocketBase's OAuth2 flow over `/api/realtime`), `AccountStore` on encrypted prefs, `AccountModule` (OkHttp + prefs), `SyncRepository`, `isAcceptableServer`;
+  `LoginFragment` (email/password + one "Continue with ..." button per provider in the server's `auth-methods`), `AccountFragment` (who is signed in, sign out), one `AccountViewModel`). The server is `BuildConfig.PUZZLEIT_SERVER`
+  (`-PpuzzleitServer=...` overrides it), not typed. `MainActivity` picks the start destination from `AccountStore` and navigates to/from login when the account appears/disappears (sign-out, 401).
+  Repositories that delete things (`ProjectRepository`, `ScanHistoryRepository`, `ProgressRepository`) call `AccountStore.markDeleted` so the next sync tells the server (`deletions` collection, so the other phones delete too).
+  Sync rules (`SyncRepository`): deletions replayed then applied, latest `updatedAt` wins for name/pieces/grid, newest `photoId` (date in the file name) wins for the box photo, and `MainActivity.onStop` syncs.
+  `Project.photoId` / `deleteBoxFiles()` live in `feature/project/data/BoxFiles.kt` (the box index is cached next to the warped image under its name and goes with it).
+  Tests run signed in on throw-away prefs: `TestAccountModule` (androidTest and test source sets) replaces `AccountModule` through Hilt; `ProjectSetupTest` is a Hilt Robolectric test for that reason (no Android Keystore on the JVM).
 - Fragments only render state, handle system intents and navigate; IO, image work and validation live in ViewModels
   or injected classes.
 - Docs: `documentation/` (French, numbered pages: the science 01-06, validation 07, AI experiment 08) and
@@ -147,27 +154,26 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   Error dialogs must stay hidden: a first-boot system ANR stole the window focus and failed 7 tests.
 
 ## Known limits / next steps
-### State on 2026-10-10 (end of the session)
-- v0.1.0 released (signed APK on GitHub, release.yml; keystore in `C:\Users\Lilyan\.android-keys\`, to be backed up by the owner). `main` is green on CI (Pixel 6 + small phone managed devices).
-  Done since: scan history, lead evaluation ("is that where the piece goes?"), progress photos (Room v6, migration verified on the owner's real DB), account + sync with the owner's PocketBase,
-  README with the demo video (uploaded to GitHub as a `user-attachments` asset: GitHub strips `<video>` otherwise), `DemoTourTest` records that video.
-- Accounts + sync (owner's choice: free, simple, self-hosted on their Raspberry, adaptable): PocketBase in `server/` (`pb_migrations/1_puzzleit.js`, Dockerfile, compose with an optional
-  `cloudflared` service, README), client in `feature/account/` (`PocketBaseClient` OkHttp + org.json, `AccountStore`, `SyncRepository`, account screen opened from the puzzle list). The server
-  URL is typed in the app. Opt-in: without an account nothing leaves the phone. The list syncs by itself when it shows (`ProjectListViewModel.refresh`, 30 s throttle, silent offline, 401 = sign out).
-  Verified against a real local PocketBase (download it from its releases, check the checksum, `pocketbase serve --dir <tmp> --migrationsDir server/pb_migrations`, then
-  `POCKETBASE_URL=http://127.0.0.1:8090 ./gradlew testDebugUnitTest --tests "*SyncIntegrationTest*"`).
+### State on 2026-10-11 (before v0.2.0)
+- v0.1.0 released (signed APK on GitHub, release.yml; keystore in `C:\Users\Lilyan\.android-keys\`, to be backed up by the owner). `main` is green on CI (Pixel 6 + small phone managed devices). v0.2.0 is next:
+  bump `versionName` + `versionCode` in `app/build.gradle.kts`, commit, tag `v0.2.0`. Done since v0.1.0: mandatory login (+ Google and other providers), production server built in, retake of the box photo
+  (create and edit), double back arrows fixed, sync gaps closed (deletions, box photo, latest edit), new app icon (supplied PNGs, adaptive icon built with a 12 % inset; no monochrome/themed icon yet).
+- Server **in production**: PocketBase on the owner's Raspberry Pi (host `limar`, `ssh raspi` works with `~/.ssh/id_ed25519_raspi`, user `lilyan`, 64-bit, Docker), behind a Cloudflare Tunnel at `https://puzzleit.lilyan.app`.
+  A push touching `server/` rebuilds the image (GHCR, public package) and a GitHub self-hosted runner on the Pi redeploys it (`.github/workflows/server.yml`, clone in `~/PuzzleIt`; documented in `server/README.md`).
+  The Pi's old services (gitea, mailhog, portainer, traefik, gitea-runner) were removed at the owner's request, their data folders are left in `/home/docker`; `code-server` and `whoami` containers are still there (the owner asked to remove them, the permission classifier refused: they run it themselves).
+  The Google provider still has to be configured by the owner (Google Cloud OAuth client + PocketBase dashboard, steps in `server/README.md`); until then the login screen shows no provider button. Sign-up by password must be locked once their account exists.
+- Verified against a real local PocketBase (download its release, check the checksum, `pocketbase serve --dir <tmp> --migrationsDir server/pb_migrations --http=127.0.0.1:8095`; port 8090 is taken on the owner's PC), then
+  `POCKETBASE_URL=http://127.0.0.1:8095 ./gradlew testDebugUnitTest --tests "*SyncIntegrationTest*"` (3 scenarios) and, with a fake Google provider enabled by a temporary migration, `POCKETBASE_OAUTH_URL=... --tests "*OAuthIntegrationTest*"`.
+  OAuth gotcha found that way: the `state` sent to the provider must be the realtime client id (that is how PocketBase finds the connection to push the code to).
+- Repo files cannot be written from Bash (permission denied, also `rm`/`cp`): use Edit/Write, and PowerShell `Copy-Item`/`Remove-Item` for binaries (icons).
 - **Security rule from the owner: reuse audited pieces, invent nothing** (also in memory). Auth, hashing, tokens, file tokens, access rules = PocketBase; token = Jetpack Security
   `EncryptedSharedPreferences` (`AccountModule`, excluded from backups); `http://` only for private/home addresses (`isAcceptableServer`, `ServerAddressTest`).
 
 ### Tasks now
-1. **Deploy the server on the owner's Raspberry Pi + a free Cloudflare Tunnel** (in progress, blocked on the owner). A dedicated key exists on this PC: `~/.ssh/id_ed25519_raspi` (no passphrase, public key
-   given to the owner to put in the Pi's `authorized_keys`; to be removed after the deployment). Still needed from the owner: the Pi's address + user (then add `Host raspi` to `~/.ssh/config` and test
-   `ssh raspi`), and whether they own a **domain managed by Cloudflare** (the free named tunnel needs one; otherwise use Tailscale, whose `100.x` addresses the app accepts over http). Then:
-   `cd server && docker compose up -d --build`, the tunnel is created in the Cloudflare Zero Trust dashboard and its token goes in `server/.env` typed by the owner on the Pi (never through the chat, never committed),
-   `PUZZLEIT_BIND=127.0.0.1`, `docker compose --profile tunnel up -d`; create the owner's account in the app, then lock the sign-up in the PocketBase dashboard. Not tested yet: the Dockerfile, the tunnel.
-2. Try the account screen with a real server on the owner's phone (the e2e tests only cover the screen and the bad-address refusal).
-3. Sync gaps left: no sync while the app is closed (WorkManager, a dependency to ask the owner about; the app syncs on show and when it goes to the background). Done: deletions reach the other phones (`deletions` collection), retaken box photo (`photoId`), latest edit wins (`updatedAt`). The owner does not want any "sync now" button.
-   Login is mandatory (no guest), the production server is `BuildConfig.PUZZLEIT_SERVER`, providers (Google...) come from the server's `auth-methods`; the Pi redeploys through `.github/workflows/server.yml` (self-hosted runner, clone in `~/PuzzleIt`).
+1. **Release v0.2.0** (bump, tag, check the release workflow, tell the owner to back up the keystore). Before: the owner configures Google, locks the sign-up, and tries the login on their phone in 4G (never done with a real Google account).
+2. Sync gaps left: no sync while the app is closed (WorkManager, a dependency to ask the owner about; the app syncs on show and when it goes to the background); a puzzle edited on two phones before they sync keeps only the later edit.
+   The login screen reads the providers once when it opens: nothing is shown (and nothing said) if the server was unreachable then (a retry or a message is open).
+3. Themed (monochrome) app icon: needs a transparent silhouette of the logo, the supplied zip has none. The Play Store icon (`playstore-icon.png`, 512 px) and the iOS sets of that zip are not in the repo.
 4. Use the progress photos to help the localisation (the reason they exist), measure the box index build time on the phone for La vague (never done).
 5. Owner's phone: wireless adb drops often; run tests there with `installDebug installDebugAndroidTest` + `am instrument` (animations off, restore them after), never `connectedDebugAndroidTest`.
 - First-lead accuracy is below target on the owner's real photos (Famillez 30 %), especially on near-uniform pieces (white gutter between two photos, plain foam/sky of La vague). Tried and rejected

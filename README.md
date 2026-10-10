@@ -3,10 +3,10 @@
 [![CI](https://github.com/LilyanLefevre/PuzzleIt/actions/workflows/ci.yml/badge.svg)](https://github.com/LilyanLefevre/PuzzleIt/actions/workflows/ci.yml)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin 2.0](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white)
-![Offline](https://img.shields.io/badge/network-none-lightgrey)
+![On-device recognition](https://img.shields.io/badge/recognition-on--device-lightgrey)
 
 Stuck on a 1000-piece sky? Photograph a loose piece and PuzzleIt shows **where it goes on the box image**, how to
-turn it, and how sure it is. Android, Kotlin, offline: the recognition runs on the phone, and an account on your own server is optional.
+turn it, and how sure it is. Android, Kotlin: the recognition runs entirely on the phone (no network needed to scan), and you sign in to keep your puzzles safe and on all your phones.
 
 [PuzzleIt!](https://github.com/user-attachments/assets/551506ba-1c97-4705-9ffc-f8ffcfc742d6)
 
@@ -28,13 +28,15 @@ Demo box photos: Alexey Topolyanskiy, Andrew Ridley and Christian Joudrey on [Un
 ## Features
 - Scan the box once: the photo is straightened (OpenCV) and becomes the reference image. No grid to type.
 - Scan a piece: up to 4 leads with rotation and confidence, ordered by confidence.
-- Works on any puzzle, from a 200-piece photo to a 1000-piece sky; no account, no network, no data leaves the phone.
+- Works on any puzzle, from a 200-piece photo to a 1000-piece sky; scanning needs no network, a piece photo never leaves the phone for recognition.
 - Say whether the lead on screen was right ("Is that where the piece goes?"): the answer is kept with the scan.
 - Scan history per puzzle: photo of the piece, where it was sent, confidence, and your verdict.
 - Progress photos per puzzle: photograph the puzzle as it stands, dated, to follow it grow.
-- Optional account on **your own server** ([`server/`](server/README.md), a PocketBase you host, for instance on a Raspberry Pi): your puzzles, scans and
-  progress photos are copied to it and follow you from phone to phone. Without an account nothing leaves the phone.
-- Edit or delete a puzzle from the table's top bar; history and progress photos are in its "more" menu.
+- Sign-in is required: by email and password, or with a provider the server offers (Google...). The app opens on the login screen and returns to it after a sign-out.
+- Your puzzles, scans, verdicts and progress photos are kept on the PuzzleIt server ([`server/`](server/README.md), a PocketBase) and follow you from phone to phone.
+  The sync runs by itself (when the puzzle list shows and when the app goes to the background, there is no sync button); the latest edit wins, and a deletion or a retaken box photo
+  reaches your other phones too.
+- Edit or delete a puzzle from the table's top bar, and retake the box photo while creating or editing it; history and progress photos are in its "more" menu.
 
 ## How it works
 
@@ -126,7 +128,7 @@ sequenceDiagram
 | `feature/puzzle` | the puzzle table (map, result sheet, scan state machine) and `capture/` (piece viewfinder) |
 | `feature/history` | `data/` (scan records with their verdict, DAO, repository), the history screen |
 | `feature/progress` | `data/` (dated photos of the puzzle's progress, DAO, repository), the progress screen |
-| `feature/account` | `data/` (PocketBase client, the signed-in account, the sync), the account screen |
+| `feature/account` | `data/` (PocketBase client with the OAuth flow, the signed-in account, the sync), the login screen (start of the app when signed out) and the account screen |
 | `feature/recognition` | `PieceMatcher` (algorithm), `PieceRecognizer` (files, bitmaps, index), ONNX wrappers |
 
 Other folders: `server/` (the PocketBase backend: collections, Dockerfile), `tools/dataset` (benchmark data builders, labelling page), `tools/ai` (training of the embedding
@@ -140,6 +142,9 @@ network), `tools/pc` (remote emulator scripts), `documentation/` (French, the sc
 ./gradlew smallphoneapi34DebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=com.lilyan_lefevre.puzzleit.e2e
 ```
 
+A debug build talks to the production server too; to try a local one: `./gradlew installDebug -PpuzzleitServer=http://192.168.1.20:8090`.
+The tests start signed in, on their own throw-away preferences (the real account of a phone is never touched).
+
 Do not run `connectedDebugAndroidTest` while a phone is plugged in: Gradle uninstalls the app afterwards and wipes its
 data. On a real phone: `./gradlew installDebug installDebugAndroidTest`, then
 `adb shell am instrument -w com.lilyan_lefevre.puzzleit.test/com.lilyan_lefevre.puzzleit.HiltTestRunner`.
@@ -150,8 +155,9 @@ data. On a real phone: `./gradlew installDebug installDebugAndroidTest`, then
 | `DatasetReplayTest` | JVM, opt-in | 643 real photos of the public Puzzle-Map dataset |
 | `ImageBankBenchmarkTest` | JVM, opt-in | 24 real images as 500-piece puzzles, 576 simulated piece photos |
 | `OwnPuzzlesTest`, `RealPhotoReplayTest` | JVM, opt-in | the author's photos with exact labelled positions; captures pulled from a phone |
+| `SyncIntegrationTest`, `OAuthIntegrationTest` | JVM, opt-in | the sync (deletions, retaken box photo, latest edit) and the "sign in with Google" flow against a local PocketBase, see [`server/README.md`](server/README.md) |
 | `PieceRecognizerDeviceTest` | device / emulator | real JPEG decode, timing, memory, failure paths |
-| `ScanFlowTest` | device / emulator | full journeys: list, table, scan, leads, sheet gestures, blurry, no piece, edit, delete |
+| `ScanFlowTest` | device / emulator | full journeys: list, table, scan, leads, sheet gestures, blurry, no piece, edit, delete, sign-out and login |
 
 The opt-in benchmarks read their data from environment variables (`PUZZLE_DATASET_DIR`, `PUZZLE_IMAGES_DIR`,
 `PUZZLE_OWN_DIR`) built by the scripts in `tools/dataset`.
@@ -159,11 +165,13 @@ The opt-in benchmarks read their data from environment variables (`PUZZLE_DATASE
 ### CI
 
 Every push to `main` runs the unit tests, then the instrumented suite on two Gradle Managed Devices in parallel
-(a Pixel 6 and a 320 dp-wide small phone, Android 14 emulators).
+(a Pixel 6 and a 320 dp-wide small phone, Android 14 emulators). A push that touches `server/` also builds the server image and redeploys it on the
+Raspberry Pi ([`server.yml`](.github/workflows/server.yml), described in [`server/README.md`](server/README.md)).
 
 ### Release
 
-Bump `versionName` in `app/build.gradle.kts`, commit, then tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+Bump `versionName` (and `versionCode`) in `app/build.gradle.kts`, commit, then tag and push: `git tag v<versionName> && git push origin v<versionName>`.
+The release build talks to the production server built into it (`PUZZLEIT_SERVER`, `https://puzzleit.lilyan.app`).
 [`release.yml`](.github/workflows/release.yml) checks that the tag matches `versionName`, runs the unit tests, builds the
 APK signed with the release key (kept in the repository secrets, never committed) and publishes a GitHub release with the
 APK and generated notes.
