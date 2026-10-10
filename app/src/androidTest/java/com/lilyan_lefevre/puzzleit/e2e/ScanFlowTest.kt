@@ -284,7 +284,7 @@ class ScanFlowTest {
             onView(withId(R.id.buttonAccount)).perform(click())
             waitFor { onView(withId(R.id.editServer)).check(matches(isDisplayed())) }
             onView(withId(R.id.editServer)).perform(replaceText("not-an-address"), closeSoftKeyboard())
-            onView(withId(R.id.buttonSignIn)).perform(click())
+            onView(withId(R.id.buttonSignIn)).perform(scrollTo(), click())               // below the fold on a small screen
             onView(withId(R.id.textNotice)).check(matches(withText(R.string.server_invalid)))
             shot(scenario, "12_account")
         }
