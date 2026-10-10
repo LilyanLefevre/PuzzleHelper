@@ -73,7 +73,7 @@ class PieceRecognizerDeviceTest {
         assertTrue("located $hits/${cases.size}", hits >= 4)
         assertTrue("rotation $rot/$hits", rot >= hits - 1)
         // The 3 s target is for a real phone; a shared CI emulator is several times slower.
-        val limit = if (android.os.Build.FINGERPRINT.contains("generic")) 15_000 else 3000
+        val limit = if (android.os.Build.HARDWARE in listOf("ranchu", "goldfish")) 15_000 else 3000
         assertTrue("slowest scan $worst ms (PRD: < 3 s)", worst < limit)
     }
 
