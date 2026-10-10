@@ -1,13 +1,25 @@
 services:
   puzzleit:
+    image: ghcr.io/lilyanlefevre/puzzleit-server:latest
     build: .
     restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     ports:
       # 0.0.0.0 = reachable on the home network. Put PUZZLEIT_BIND=127.0.0.1 in .env when only the Cloudflare tunnel should reach it.
       - "${PUZZLEIT_BIND:-0.0.0.0}:8090:8090"
     volumes:
       # Everything the server stores (accounts, records, photos) lives here: back this folder up.
       - ./pb_data:/pb/pb_data
+
+  # Updates puzzleit by itself: every 5 min it pulls the image that .github/workflows/server.yml publishes on each push to server/.
+  # Only containers with the watchtower.enable label are touched. The data lives in ./pb_data, so it survives the swap.
+  watchtower:
+    image: nickfedor/watchtower:latest
+    restart: unless-stopped
+    command: --label-enable --cleanup --interval 300
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   # Optional, free: an https address on your own domain without opening a port on the box. Start with `docker compose --profile tunnel up -d`.
   # CLOUDFLARED_TOKEN comes from the tunnel you create in the Cloudflare dashboard (see README), kept in server/.env (never committed).
