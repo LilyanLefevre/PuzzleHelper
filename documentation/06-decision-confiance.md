@@ -54,6 +54,26 @@ Les pistes alternatives reçoivent une confiance dérivée : celle de la meilleu
 rapporté à celui de la meilleure. Une alternative n'est donc jamais plus confiante que la meilleure (vérifié par
 les tests).
 
+## Vérification : la pièce posée sur la boîte
+
+C'est ce que fait une personne avec la superposition : poser la pièce à chaque piste et regarder si l'image **continue**.
+Pour les 8 meilleures pistes, `PieceMatcher.verify` réduit la pièce découpée à l'échelle de la boîte (une case = 40 px), la
+tourne comme la piste le dit, la pose à 9 positions voisines (0,1 case d'écart) et ajuste **un gain et un décalage par canal de
+couleur** (gain borné à 0,5-2) entre les pixels de la pièce et ceux de la boîte. Le résidu, normalisé par la variance de la
+boîte à cet endroit, vaut **0,57 à la vraie place contre 1,07 aux mauvaises pistes** sur les photos du propriétaire (23
+captures) : l'écart de couleur *moyen* ne sépare pas (14,8 à la vraie place contre 6,4 aux mauvaises pistes, la pièce étant plus
+claire et plus bleutée que la photo de la boîte), mais la *structure* oui. Le résidu, centré-réduit sur les 8 pistes, est
+retranché du score avec un poids de 0,7. Coût sur le téléphone : environ 80 ms.
+
+Les pistes dont les couleurs ne vont pas du tout (une plage posée sur du bleu) sont celles que ce contrôle fait descendre.
+
+## A priori de bord
+
+Quand le contour est lu **intérieur** (aucun côté plat), les places au bord du puzzle perdent 2 unités de score
+(`INTERIOR_BORDER_COST`) : une pièce sans bord ne peut pas y être. Avant, cette lecture ne pesait que d'un facteur 1,25 sur la
+distance couleur et plus du tout dans le score du réseau : des pièces à bande blanche et bleue se retrouvaient collées au
+liseré pâle qui entoure l'image de la boîte.
+
 ## Précision adaptative
 
 | Confiance | Ce que l'app montre |

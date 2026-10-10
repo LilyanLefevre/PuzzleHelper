@@ -99,7 +99,7 @@ The owner speaks French: talk to them in French; code, comments and commit messa
   500-piece puzzles, 576 pieces rendered by `PiecePhotos` (any angle, side light, white balance, exposure, table).
   Full pipeline. Current (re-ranker + whole-box search + U2-Net): 88 % exact (97 % textured, 90 % mixed, 73 % flat-heavy), outline 97 %, found 100 %.
   Set `PUZZLE_RERANKER=app/src/main/assets/reranker.onnx` and `PUZZLE_SEGMENTER=app/src/main/assets/segmenter.onnx` (absolute paths) to enable them in the benchmarks;
-  `PUZZLE_GLOBAL=0` goes back to colour top-30 + re-rank, `PUZZLE_BORDER_PENALTY` and `PUZZLE_EMBED_COLOUR_W` tune the fusion, `PUZZLE_REFINE=0` turns the sub-cell refinement off,
+  `PUZZLE_GLOBAL=0` goes back to colour top-30 + re-rank, `PUZZLE_BORDER_PENALTY` and `PUZZLE_EMBED_COLOUR_W` tune the fusion, `PUZZLE_REFINE=0` turns the sub-cell refinement off, `PUZZLE_INTERIOR_COST` (border prior for pieces read as interior, 2.0) and `PUZZLE_RESID_WEIGHT` (pixel check of the best 8 leads, 0.7: real photos 35 -> 50 % right, hand-held Puzzle-Map 84 -> 81 %),
   `PUZZLE_CALIB=1` prints score + correctness of the best 8 leads of every scan (fit the softmax temperatures `CONF_TEMPERATURE` / `RERANK_TEMPERATURE` on it).
 - `OwnPuzzlesTest` -> `PUZZLE_OWN_DIR` (folders `famillez`, `lavague`: box, grid, captures, `all/*.bmp`, `truth.txt`, `leads.json`, `cuts/`): the owner's REAL photos with exact positions labelled by
   the owner (`tools/dataset/label_pieces.html`: drag the cut-out piece onto the box; `make_label_cuts.py` builds the cut-outs), next to simulated pieces cut from the same boxes. Treat those labels

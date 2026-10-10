@@ -7,7 +7,9 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cbrt
+import kotlin.math.ceil
 import kotlin.math.exp
+import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -155,7 +157,7 @@ sealed interface Analysis {
 }
 
 /** What the network says about a piece: its similarity with every candidate square for each quarter turn, and its own embeddings. */
-internal class Evidence(val sims: Array<FloatArray>, val piece: List<FloatArray>)
+internal class Evidence(val sims: Array<FloatArray>, val piece: List<FloatArray>, val cut: Raster? = null)
 
 /**
  * Locates a photographed piece on the box image.
@@ -269,19 +271,22 @@ class PieceMatcher(
             if (bestR < 0) null
             else { index += ci; c.copy(distance = bestD, rotationDeg = (((bestR * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360) }
         }.let { if (ncc == null) it else withPixelEvidence(it, ncc) }
-            .let { if (evidence == null) it.sortedBy { c -> c.distance } else fuse(it, index.map { i -> evidence.sims[i] }, index.map { i -> allowed[i] }, tilt) }
+            .let { if (evidence == null) it.sortedBy { c -> c.distance } else fuse(it, index.map { i -> evidence.sims[i] }, index.map { i -> allowed[i] }, tilt, if (kind == PieceKind.INTERIOR) INTERIOR_BORDER_COST else 0.0) }
         if (scored.isEmpty()) return null
 
         // Non-maximum suppression: alternatives must be at least 1.5 cells away from earlier picks.
         val picks = ArrayList<Candidate>()
+        val want = if (evidence != null) max(leads, VERIFY_LEADS) else leads
         for (c in scored) {
             if (picks.none { hypot(it.col - c.col, it.row - c.row) < 1.5f }) picks += c
-            if (picks.size == leads) break
+            if (picks.size == want) break
         }
         if (evidence != null) {
             // Confidence from the fused scores themselves, so it always follows the order of the leads.
             val ranked = picks.map { p -> p.copy(simRank = scored.count { it.simZ > p.simZ } + 1, colourRank = scored.count { it.colourZ < p.colourZ } + 1, pool = scored.size) }
-            val placed = withConfidence(stage("refine") { refine(ranked, evidence) }, CONF_TEMPERATURE)
+            val refined = stage("refine") { refine(ranked, evidence) }
+            val checked = stage("verify") { verify(refined, evidence.cut) }
+            val placed = withConfidence(checked, CONF_TEMPERATURE).take(leads)
             return Match(grid, placed[0], placed.drop(1), placed[0].confidence, precisionOf(placed[0].confidence), kind)
         }
         val dMed = scored.map { it.distance }.sorted()[scored.size / 2]
@@ -305,14 +310,16 @@ class PieceMatcher(
      * Every candidate gets the network's similarity (best allowed rotation) next to its colour distance, both z-scored over
      * all candidates: the network may find places the colour matcher ranks far down. Order = best fused score first.
      */
-    private fun fuse(c: List<Candidate>, sims: List<FloatArray>, allowed: List<BooleanArray>, tilt: Float): List<Candidate> {
+    private fun fuse(c: List<Candidate>, sims: List<FloatArray>, allowed: List<BooleanArray>, tilt: Float, borderCost: Double): List<Candidate> {
         val qBest = IntArray(c.size) { i -> (0..3).filter { allowed[i][it] }.maxByOrNull { sims[i][it] } ?: 0 }
         val s = DoubleArray(c.size) { sims[it][qBest[it]].toDouble() }
         val d = DoubleArray(c.size) { c[it].distance.toDouble() }
         fun z(v: DoubleArray): DoubleArray { val m = v.average(); val sd = sqrt(v.sumOf { (it - m) * (it - m) } / v.size).coerceAtLeast(1e-9); return DoubleArray(v.size) { (v[it] - m) / sd } }
         val zs = z(s); val zd = z(d)
-        return c.indices.sortedByDescending { zs[it] - EMBED_COLOUR_WEIGHT * zd[it] }
-            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360, quarter = qBest[it], score = (zs[it] - EMBED_COLOUR_WEIGHT * zd[it]).toFloat(), simZ = zs[it].toFloat(), colourZ = zd[it].toFloat()) }
+        // A piece read as having no flat side cannot be on the puzzle's border: its candidates there lose [borderCost] z-units.
+        val fused = DoubleArray(c.size) { zs[it] - EMBED_COLOUR_WEIGHT * zd[it] - (if (borderCost > 0 && borderSides(c[it]).isNotEmpty()) borderCost else 0.0) }
+        return c.indices.sortedByDescending { fused[it] }
+            .map { c[it].copy(rotationDeg = (((qBest[it] * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360, quarter = qBest[it], score = fused[it].toFloat(), simZ = zs[it].toFloat(), colourZ = zd[it].toFloat()) }
     }
 
     private fun precisionOf(conf: Int) = when {
@@ -328,6 +335,97 @@ class PieceMatcher(
         val w = top.map { exp((it.score - peak) / temperature) }
         val total = w.sum()
         return leads.mapIndexed { i, c -> c.copy(confidence = if (i < w.size) (100 * w[i] / total).roundToInt().coerceIn(0, 99) else 0) }
+    }
+
+    /** A piece reduced to the box's scale: premultiplied colour and coverage, and its centre. */
+    private class Sprite(val w: Int, val h: Int, val r: FloatArray, val g: FloatArray, val b: FloatArray, val a: FloatArray, val cx: Float, val cy: Float, val area: Float)
+
+    /** The cut-out piece shrunk (area average) so that its equivalent side is [VERIFY_CELL_PX] pixels, the scale of [verifyRef]. */
+    private fun sprite(cut: Raster): Sprite? {
+        var n = 0
+        for (p in cut.px) if (p ushr 24 != 0) n++
+        if (n < 100) return null
+        val f = sqrt(n.toDouble()) / VERIFY_CELL_PX
+        val w = ceil(cut.w / f).toInt().coerceAtLeast(1); val h = ceil(cut.h / f).toInt().coerceAtLeast(1)
+        val r = FloatArray(w * h); val g = FloatArray(w * h); val b = FloatArray(w * h); val a = FloatArray(w * h)
+        var sx = 0.0; var sy = 0.0; var sa = 0.0
+        for (y in 0 until h) for (x in 0 until w) {
+            val x0 = (x * f).toInt(); val x1 = min(cut.w, max(x0 + 1, ((x + 1) * f).toInt())); val y0 = (y * f).toInt(); val y1 = min(cut.h, max(y0 + 1, ((y + 1) * f).toInt()))
+            var cr = 0f; var cg = 0f; var cb = 0f; var ca = 0f; var cnt = 0
+            for (yy in y0 until y1) for (xx in x0 until x1) {
+                val p = cut.px[yy * cut.w + xx]; cnt++
+                if (p ushr 24 != 0) { cr += (p shr 16 and 255); cg += (p shr 8 and 255); cb += (p and 255); ca += 1f }
+            }
+            if (cnt > 0) { val i = y * w + x; r[i] = cr / cnt; g[i] = cg / cnt; b[i] = cb / cnt; a[i] = ca / cnt; sx += x * a[i]; sy += y * a[i]; sa += a[i] }
+        }
+        return Sprite(w, h, r, g, b, a, (sx / sa).toFloat(), (sy / sa).toFloat(), sa.toFloat())
+    }
+
+    /** The box at a scale where a cell is about [VERIFY_CELL_PX] pixels, for the verification. */
+    private val verifyRef: Raster by lazy { reference.fit(min(VERIFY_CELL_PX * max(grid.cols, grid.rows), 2000)) }
+
+    /**
+     * Lays the piece on the box at [lead] (turned like the lead says, a few small shifts tried) and measures how well its pixels follow the
+     * box's under a free gain and offset per colour channel: the squared error of that fit over the variance of the box there. Low = the
+     * picture continues across the piece. Null when the lead is mostly outside the box.
+     */
+    private fun residual(sp: Sprite, lead: Candidate): Double? {
+        val ref = verifyRef
+        val cw = ref.w / grid.cols.toFloat(); val ch = ref.h / grid.rows.toFloat()
+        val th = lead.rotationDeg * PI / 180; val co = kotlin.math.cos(th).toFloat(); val si = kotlin.math.sin(th).toFloat()
+        val half = ceil(hypot(sp.w.toDouble(), sp.h.toDouble()) / 2).toInt() + 1
+        var best: Double? = null
+        for (dy in -1..1) for (dx in -1..1) {
+            val ox = (lead.col + dx * VERIFY_SHIFT) * cw; val oy = (lead.row + dy * VERIFY_SHIFT) * ch
+            val xs = Array(3) { FloatArray((2 * half + 1) * (2 * half + 1)) }; val ys = Array(3) { FloatArray(xs[0].size) }
+            var n = 0
+            for (yy in -half..half) for (xx in -half..half) {
+                val bx = (ox + xx).roundToInt(); val by = (oy + yy).roundToInt()
+                if (bx < 0 || by < 0 || bx >= ref.w || by >= ref.h) continue
+                val px = co * xx + si * yy + sp.cx; val py = -si * xx + co * yy + sp.cy       // inverse of a clockwise turn about the piece's centre
+                val x0 = floor(px).toInt(); val y0 = floor(py).toInt(); val fx = px - x0; val fy = py - y0
+                if (x0 < 0 || y0 < 0 || x0 + 1 >= sp.w || y0 + 1 >= sp.h) continue
+                fun at(arr: FloatArray) = (arr[y0 * sp.w + x0] * (1 - fx) + arr[y0 * sp.w + x0 + 1] * fx) * (1 - fy) + (arr[(y0 + 1) * sp.w + x0] * (1 - fx) + arr[(y0 + 1) * sp.w + x0 + 1] * fx) * fy
+                val a = at(sp.a)
+                if (a < 0.8f) continue
+                val q = ref.px[by * ref.w + bx]
+                xs[0][n] = at(sp.r) / a; xs[1][n] = at(sp.g) / a; xs[2][n] = at(sp.b) / a
+                ys[0][n] = (q shr 16 and 255).toFloat(); ys[1][n] = (q shr 8 and 255).toFloat(); ys[2][n] = (q and 255).toFloat()
+                n++
+            }
+            if (n < 0.5f * sp.area) continue
+            var total = 0.0
+            for (c in 0..2) {
+                var sx = 0.0; var sy = 0.0; var sxx = 0.0; var sxy = 0.0; var syy = 0.0
+                for (i in 0 until n) { val x = xs[c][i].toDouble(); val y = ys[c][i].toDouble(); sx += x; sy += y; sxx += x * x; sxy += x * y; syy += y * y }
+                val vx = sxx / n - (sx / n) * (sx / n); val vy = syy / n - (sy / n) * (sy / n)
+                val gain = if (vx > 1e-6) ((sxy / n - sx / n * sy / n) / vx).coerceIn(0.5, 2.0) else 1.0
+                val off = (sy - gain * sx) / n
+                val sse = syy - 2 * gain * sxy - 2 * off * sy + gain * gain * sxx + 2 * gain * off * sx + n * off * off
+                total += sse / n / (vy + 25.0)
+            }
+            val r = total / 3
+            if (best == null || r < best) best = r
+        }
+        return best
+    }
+
+    /**
+     * What a person does with the overlay: lay the piece on the box at each lead and see whether the picture continues. The best
+     * [VERIFY_LEADS] leads are re-scored with how well they pass that check (z-scored among themselves); the rest keep their place after them.
+     */
+    private fun verify(leads: List<Candidate>, cut: Raster?): List<Candidate> {
+        if (RESID_WEIGHT <= 0.0) return leads
+        val sp = cut?.let(::sprite) ?: return leads
+        val head = leads.take(VERIFY_LEADS)
+        val res = head.map { residual(sp, it) }
+        val ok = res.filterNotNull()
+        if (ok.size < 3) return leads
+        val mean = ok.average()
+        val sd = sqrt(ok.sumOf { (it - mean) * (it - mean) } / ok.size).coerceAtLeast(MIN_RESID_SD)
+        // A lead that cannot be checked (mostly off the box) counts as one spread worse than the average.
+        val adjusted = head.mapIndexed { i, c -> c.copy(score = (c.score - RESID_WEIGHT * ((res[i] ?: (mean + sd)) - mean) / sd).toFloat()) }
+        return adjusted.sortedByDescending { it.score } + leads.drop(VERIFY_LEADS)
     }
 
     /**
@@ -384,7 +482,7 @@ class PieceMatcher(
         if (index == null && indexOnDemand) buildIndex()
         val index = index ?: return null
         val ep = r.embedPiece(cut, (0..3).map { q -> (((q * 90 - tilt) % 360 + 360) % 360).roundToInt() % 360 }, masked)
-        return Evidence(Array(index.size) { i -> FloatArray(4) { q -> var acc = 0f; for (k in ep[q].indices) acc += ep[q][k] * index[i][k]; acc } }, ep)
+        return Evidence(Array(index.size) { i -> FloatArray(4) { q -> var acc = 0f; for (k in ep[q].indices) acc += ep[q][k] * index[i][k]; acc } }, ep, cut)
     }
 
     /** Lowers the colour distance where the piece's pixels correlate with the box (both z-scored over the candidates). */
@@ -762,6 +860,14 @@ class PieceMatcher(
         var NCC_WEIGHT = 0.4f
         /** With the network searching the whole box: cost factor of a rotation whose flat sides do not match the border (infinity = a wall, which a wrong outline reading turns into a wrong answer). */
         var BORDER_PENALTY = 1.4f
+        /** z-units taken off the places on the puzzle's border when the outline reads as interior (no flat side). */
+        var INTERIOR_BORDER_COST = 2.0
+        /** Weight (in z units) of the pixel check of the best leads; 0 turns it off. 0.7: real photos 35 -> 50 % right, hand-held Puzzle-Map 84 -> 81 %. */
+        var RESID_WEIGHT = 0.7
+        private const val VERIFY_LEADS = 8
+        private const val VERIFY_CELL_PX = 40
+        private const val VERIFY_SHIFT = 0.1f
+        private const val MIN_RESID_SD = 0.15
         /** Search the whole box with the network (not only the colour matcher's top leads). */
         var GLOBAL_EMBED = true
         var EMBED_COLOUR_WEIGHT = 0.5

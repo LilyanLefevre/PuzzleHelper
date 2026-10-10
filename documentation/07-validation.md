@@ -206,6 +206,29 @@ bancs, modèle `mnv3s_3k` de l'app :
 La baisse de Puzzle-Map avec le coût vient du fait que ses côtés sont annotés à la main (toujours justes), ce qui
 n'arrive jamais avec la lecture de l'app. Puzzle-Map n'utilise ni la segmentation ni la lecture du contour.
 
+## Pistes absurdes : bords et couleurs
+
+Sur les photos du propriétaire, l'app proposait des places au bord du puzzle pour des pièces sans bord, et des places dont les
+couleurs n'allaient pas du tout. Mesures (`OwnPuzzlesTest`, Famillez réel : 20 captures, 6 pièces ; La vague : 3) :
+
+| Réglage | Famillez : bonne case / 4 pistes | La vague : 4 pistes | Puzzle-Map | Banque d'images |
+|---|---|---|---|---|
+| Avant | 35 % / 55 % | 33 % | 84 % | 87 % |
+| A priori de bord seul (coût 2) | 35 % / 60 % | 33 % | 84 % | 87 % |
+| + vérification, poids 0,5 | 45 % / 65 % | 33 % | 82 % | 88 % |
+| + vérification, poids **0,7** (retenu) | **50 % / 65 %** | 66 % | 81 % | 87 % |
+| + vérification, poids 1 | 50 % / 65 % | 66 % | 79 % | 86 % |
+| + vérification, poids 2 | 50 % / 70 % | 66 % | 75 % | 84 % |
+
+La vérification gagne 15 points de bonne case sur les photos réelles posées sur table, et en coûte 3 sur Puzzle-Map (photos
+tenues en main, cadre rectangulaire à la place d'un vrai contour de pièce, la comparaison pixel à pixel y est bruitée).
+Le poids 0,7 est un compromis ; un jeu de photos réelles plus grand permettrait de le régler mieux.
+
+Pourquoi on en arrivait là : à la **vraie** place, l'écart de couleur moyen entre la pièce et la boîte est grand (médiane 14,8 en
+a-b, jusqu'à 24, plus 3 à 31 en clarté), alors que les mauvaises pistes ont un écart médian de 6,4. Une comparaison absolue des
+couleurs éliminerait donc la bonne réponse ; l'app compare des structures, donc des pièces à peu près unies (ciel, mur) ou à
+bande blanche ressemblent à beaucoup d'endroits d'un collage.
+
 ## Essais rejetés ou neutres
 
 - **Affiner le réseau sur les vraies photos de Puzzle-Map** (un puzzle d'entraînement : `120_avengers`, 484 photos ;
